@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'core/theme/theme.dart';
 import 'features/auth/auth.dart';
 import 'features/home/presentation/home_page.dart';
+import 'features/profile/profile.dart';
+import 'features/onboarding/onboarding.dart';
+import 'features/creator/creator.dart';
+import 'features/settings/settings.dart';
 
 class ManoxApp extends StatelessWidget {
   const ManoxApp({super.key});

@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/profile_repository.dart';
 import '../data/demo_profile.dart';
 import 'package:manox/features/home/data/demo_posts.dart';
 import 'package:manox/features/home/presentation/widgets/post_card.dart';
+import 'package:flutter/material.dart';
 
 class ProfilePage extends StatefulWidget {
   final ProfileRepository? repository;
@@ -57,8 +58,8 @@ class _ProfilePageState extends State<ProfilePage> {
           IconButton(
             key: const Key('profile-settings-button'),
             onPressed: () {
-              // Navigate to settings
-              Navigator.of(context).pushNamed('/settings');
+              // Use GoRouter for navigation
+              GoRouter.of(context).go('/settings');
             },
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
@@ -159,15 +160,4 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-}
-
-// Provide a default repository implementation that constructs the local repository
-class _DefaultRepo implements ProfileRepository {
-  const _DefaultRepo();
-
-  @override
-  Future<ProfileData> fetchProfile() async => demoProfile;
-
-  @override
-  Future<List<String>> fetchPostIds() async => demoProfile.postIds;
 }
