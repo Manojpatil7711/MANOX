@@ -1,7 +1,21 @@
 # Moderation feature
 
-Responsibilities:
-- Moderation queues and actions (admin workflows). Server-side enforcement required for moderation actions.
+Purpose
+- Tools for content and user moderation, handling reports, takedowns and appeals.
 
-Pages/screens expected:
-- /moderation
+Planned responsibilities
+- Moderator UI, report queues, action audit trails.
+
+Expected screens/components
+- ModerationQueue
+- ReportDetail
+- ActionAuditLog
+
+Expected repository/service dependencies
+- ModerationRepository (server-enforced actions)
+- NotificationRepository (for user alerts)
+
+Security considerations (CRITICAL)
+- Moderation actions require strict authorization and robust auditability.
+- All enforcement must be performed server-side and be logged for audit.
+- Avoid exposing sensitive moderator tooling to unauthorized users.
