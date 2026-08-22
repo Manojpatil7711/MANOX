@@ -1,5 +1,3 @@
-import 'package:manox/features/home/data/demo_posts.dart';
-
 class ProfileData {
   final String id;
   final String displayName;

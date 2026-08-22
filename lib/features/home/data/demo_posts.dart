@@ -1,7 +1,3 @@
-import 'package:flutter/material.dart';
-
-import '../../../home/presentation/widgets/post_card.dart';
-
 class HomeDemoData {
   final String id;
   final String creatorName;
