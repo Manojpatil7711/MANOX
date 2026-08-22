@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme/theme.dart';
+import 'features/auth/presentation/login_page.dart';
 
 class ManoxApp extends StatelessWidget {
   const ManoxApp({super.key});
@@ -22,7 +23,17 @@ class ManoxApp extends StatelessWidget {
       GoRoute(
         path: '/auth',
         name: 'auth',
-        builder: (context, state) => const AuthPage(),
+        builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/auth/signup',
+        name: 'auth-signup',
+        builder: (context, state) => const SignupPage(),
+      ),
+      GoRoute(
+        path: '/auth/forgot',
+        name: 'auth-forgot',
+        builder: (context, state) => const ForgotPasswordPage(),
       ),
       GoRoute(
         path: '/home',
@@ -105,13 +116,6 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Onboarding')));
-}
-
-class AuthPage extends StatelessWidget {
-  const AuthPage({super.key});
-
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Auth')));
 }
 
 class ProfilePage extends StatelessWidget {
