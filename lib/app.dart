@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme/theme.dart';
-import 'features/auth/presentation/login_page.dart';
+import 'features/auth/auth.dart';
 
 class ManoxApp extends StatelessWidget {
   const ManoxApp({super.key});
