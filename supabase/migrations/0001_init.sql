@@ -1,4 +1,7 @@
--- 0001_init.sql — Initial MANOX schema with RLS & constraints
+-- 0001_init.sql — Initial MANOX schema with RLS, constraints, and policies (atomic)
+-- This migration is written to be executed as a single transaction so that
+-- table creation and RLS/policy enabling occur together.
+
 BEGIN;
 
 -- Enable uuid extension
@@ -26,11 +29,13 @@ CREATE TABLE IF NOT EXISTS profiles (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Note: adding a foreign key to auth.users (user_id -> auth.users.id) may require elevated db privileges on some hosts; uncomment and run if your DB allows it:
--- ALTER TABLE profiles ADD CONSTRAINT fk_profiles_user_id FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE;
+-- Attempt to add FK to auth.users(id). This may require elevated privileges on some hosts.
+-- If this ALTER TABLE fails in your environment, add a follow-up migration run by an admin
+-- with the statement below uncommented.
+ALTER TABLE profiles
+  ADD CONSTRAINT fk_profiles_user_id FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE;
 
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles (username);
-
 CREATE TRIGGER profiles_updated_at_trg
 BEFORE UPDATE ON profiles
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -56,7 +61,6 @@ CREATE TABLE IF NOT EXISTS profile_payouts (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-
 CREATE INDEX IF NOT EXISTS idx_profile_payouts_profile ON profile_payouts (profile_id);
 CREATE TRIGGER profile_payouts_updated_at_trg
 BEFORE UPDATE ON profile_payouts
@@ -73,7 +77,6 @@ CREATE TABLE IF NOT EXISTS posts (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (visibility IN ('public','private','unlisted'))
 );
-
 CREATE INDEX IF NOT EXISTS idx_posts_author ON posts (author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at);
 CREATE TRIGGER posts_updated_at_trg
@@ -89,7 +92,6 @@ CREATE TABLE IF NOT EXISTS follows (
   UNIQUE (follower_id, followee_id),
   CHECK (follower_id <> followee_id)
 );
-
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows (follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows (followee_id);
 
@@ -101,7 +103,6 @@ CREATE TABLE IF NOT EXISTS likes (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (post_id, profile_id)
 );
-
 CREATE INDEX IF NOT EXISTS idx_likes_post ON likes (post_id);
 CREATE INDEX IF NOT EXISTS idx_likes_profile ON likes (profile_id);
 
@@ -114,7 +115,6 @@ CREATE TABLE IF NOT EXISTS notifications (
   is_read boolean DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-
 CREATE INDEX IF NOT EXISTS idx_notifications_target ON notifications (target_profile_id);
 
 -- EARNINGS LEDGER (append-only for clients; server-authorized writes only)
@@ -130,7 +130,6 @@ CREATE TABLE IF NOT EXISTS earnings_ledger (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (status IN ('pending','available','paid','reversed'))
 );
-
 CREATE INDEX IF NOT EXISTS idx_earnings_profile ON earnings_ledger (profile_id);
 CREATE INDEX IF NOT EXISTS idx_earnings_created_at ON earnings_ledger (created_at);
 CREATE TRIGGER earnings_updated_at_trg
@@ -149,14 +148,11 @@ CREATE TABLE IF NOT EXISTS withdrawal_requests (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (status IN ('requested','processing','paid','rejected'))
 );
-
 CREATE UNIQUE INDEX IF NOT EXISTS idx_withdrawals_idempotency_key ON withdrawal_requests (idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_withdrawals_profile ON withdrawal_requests (profile_id);
 CREATE TRIGGER withdrawal_requests_updated_at_trg
 BEFORE UPDATE ON withdrawal_requests
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-COMMIT;
 
 -- ENABLE RLS AND ADD POLICIES (strict, explicit, server-authorized writes only where required)
 
@@ -227,3 +223,5 @@ CREATE POLICY withdrawals_select_owner ON withdrawal_requests FOR SELECT USING (
 );
 
 -- profile_payouts: no client policies -- server/admin only
+
+COMMIT;
