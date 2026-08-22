@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/theme/theme.dart';
 import 'features/auth/auth.dart';
+import 'features/home/presentation/home_page.dart';
 
 class ManoxApp extends StatelessWidget {
   const ManoxApp({super.key});
@@ -13,7 +14,7 @@ class ManoxApp extends StatelessWidget {
       GoRoute(
         path: '/',
         name: 'root',
-        builder: (context, state) => const ManoxHomePage(),
+        builder: (context, state) => const HomePage(),
       ),
       GoRoute(
         path: '/onboarding',
@@ -38,7 +39,7 @@ class ManoxApp extends StatelessWidget {
       GoRoute(
         path: '/home',
         name: 'home',
-        builder: (context, state) => const ManoxHomePage(),
+        builder: (context, state) => const HomePage(),
       ),
       GoRoute(
         path: '/profile',
@@ -67,74 +68,4 @@ class ManoxApp extends StatelessWidget {
       routerConfig: _router,
     );
   }
-}
-
-class ManoxHomePage extends StatelessWidget {
-  const ManoxHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'MANOX',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.public,
-              key: Key('manox-home-logo'), // preserved stable key for tests
-              size: 72,
-            ),
-            SizedBox(height: 24),
-            Text(
-              'Welcome to MANOX',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Create. Connect. Grow.',
-              style: TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class OnboardingPage extends StatelessWidget {
-  const OnboardingPage({super.key});
-
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Onboarding')));
-}
-
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
-
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Profile')));
-}
-
-class CreatorPage extends StatelessWidget {
-  const CreatorPage({super.key});
-
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Creator')));
-}
-
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Settings')));
 }
