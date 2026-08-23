@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../domain/auth_repository.dart';
-import '../../data/supabase_auth_repository.dart';
+import '../domain/auth_repository.dart';
+import '../data/supabase_auth_repository.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   final AuthRepository? authRepository;
