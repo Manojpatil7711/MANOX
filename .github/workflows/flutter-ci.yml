@@ -77,15 +77,23 @@ jobs:
           grep -q 'dev.flutter.flutter-plugin-loader" version "1.0.0"' android/settings.gradle
           grep -q 'dev.flutter.flutter-gradle-plugin' android/app/build.gradle
 
-      - name: Build debug APK
-        run: flutter build apk --debug --android-skip-build-dependency-validation
+      - name: Build debug APK with Gradle diagnostics
+        run: |
+          cd android
+          ./gradlew :app:assembleDebug --stacktrace --info
+
+      - name: Locate generated APK
+        run: |
+          echo "APK candidates:"
+          find build android/app/build -type f -name '*.apk' -print 2>/dev/null || true
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Verify APK
-        run: test -s build/app/outputs/flutter-apk/app-debug.apk
+        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
