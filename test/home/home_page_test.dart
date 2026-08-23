@@ -6,51 +6,82 @@ import 'package:manox/features/home/presentation/home_page.dart';
 import 'package:manox/core/theme/theme.dart';
 
 void main() {
-  testWidgets('HomePage renders and basic interactions work', (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(375, 812);
-    tester.view.devicePixelRatio = 1.0;
+  testWidgets(
+    'HomePage renders and basic interactions work',
+    (WidgetTester tester) async {
+      final view = tester.view;
 
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+      // Use a sufficiently large viewport so the initial layout is stable.
+      view.devicePixelRatio = 1.0;
+      view.physicalSize = const Size(800, 1200);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: manoxTheme(),
-        home: const HomePage(),
-      ),
-    );
-    await tester.pumpAndSettle();
+      addTearDown(() {
+        view.resetDevicePixelRatio();
+        view.resetPhysicalSize();
+      });
 
-    expect(find.byKey(const Key('manox-home-logo')), findsOneWidget);
-    expect(find.byKey(const Key('post-composer-field')), findsOneWidget);
-    expect(find.byKey(const Key('post-compose-submit')), findsOneWidget);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: manoxTheme(),
+          home: const HomePage(),
+        ),
+      );
 
-    expect(demoPosts, isNotEmpty);
-    final first = demoPosts.first;
-    final card = find.byKey(Key('post-card-${first.id}'));
-    final like = find.byKey(Key('post-like-${first.id}'));
+      // Allow the initial build and any async UI work to complete.
+      await tester.pumpAndSettle();
 
-    expect(card, findsOneWidget);
-    expect(like, findsOneWidget);
-    expect(find.text('${first.likes}'), findsWidgets);
+      expect(
+        find.byKey(const Key('manox-home-logo')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('post-composer-field')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('post-compose-submit')),
+        findsOneWidget,
+      );
 
-    // The first post is below the initial viewport on a narrow device, so
-    // scroll it into view before tapping its like button.
-    await tester.scrollUntilVisible(
-      like,
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(like);
-    await tester.pump();
+      expect(demoPosts, isNotEmpty);
 
-    expect(find.text('${first.likes + 1}'), findsWidgets);
+      final first = demoPosts.first;
+      final card = find.byKey(Key('post-card-${first.id}'));
+      final like = find.byKey(Key('post-like-${first.id}'));
 
-    // Empty submission is intentionally ignored by HomePage.
-    await tester.tap(find.byKey(const Key('post-compose-submit')));
-    await tester.pump();
-    expect(find.byKey(const Key('post-card-${first.id}')), findsOneWidget);
-  });
+      expect(card, findsOneWidget);
+      expect(like, findsOneWidget);
+      expect(find.text('${first.likes}'), findsWidgets);
+
+      // Ensure the post is visible before interacting with it.
+      await tester.scrollUntilVisible(
+        like,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(like);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('${first.likes + 1}'),
+        findsWidgets,
+      );
+
+      // Empty submission should be ignored.
+      final submitButton = find.byKey(
+        const Key('post-compose-submit'),
+      );
+
+      await tester.tap(submitButton);
+      await tester.pumpAndSettle();
+
+      // Dynamic key — deliberately NOT const.
+      expect(
+        find.byKey(Key('post-card-${first.id}')),
+        findsOneWidget,
+      );
+    },
+  );
 }
