@@ -66,10 +66,6 @@ jobs:
         run: |
           set -euxo pipefail
           find android/app/src/main -type f -name "GeneratedPluginRegistrant.java" -delete
-          if find android/app/src/main -type f -name "GeneratedPluginRegistrant.java" | grep -q .; then
-            echo "ERROR: GeneratedPluginRegistrant.java still exists"
-            exit 1
-          fi
 
       - name: Verify Gradle configuration
         run: |
@@ -82,9 +78,17 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter build apk --debug --verbose --android-skip-build-dependency-validation 2>&1 | tee "$GITHUB_WORKSPACE/flutter-build.log"
+          flutter build apk --debug --verbose 2>&1 | tee "$GITHUB_WORKSPACE/flutter-build.log"
           BUILD_EXIT=${PIPESTATUS[0]}
           echo "Flutter build exit code: $BUILD_EXIT"
+
+          if [ "$BUILD_EXIT" -ne 0 ]; then
+            echo "================ ROOT-CAUSE ERROR SUMMARY ================"
+            grep -nEi '(^|[[:space:]])(error:|exception:|failure:|failed|could not|unable|gradle build failed|apk file|unexpected)' "$GITHUB_WORKSPACE/flutter-build.log" | tail -n 80 || true
+            echo "================ LAST 250 LOG LINES ================"
+            tail -n 250 "$GITHUB_WORKSPACE/flutter-build.log" || true
+          fi
+
           exit "$BUILD_EXIT"
 
       - name: Upload complete Flutter build log
@@ -103,6 +107,7 @@ jobs:
           APK="build/app/outputs/flutter-apk/app-debug.apk"
           test -f "$APK"
           test -s "$APK"
+          echo "APK successfully generated:"
           ls -lh "$APK"
           file "$APK"
 
