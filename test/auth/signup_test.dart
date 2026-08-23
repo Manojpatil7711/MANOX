@@ -95,20 +95,23 @@ void main() {
   });
 
   testWidgets('Signup failure displays friendly error and prevents duplicate submissions', (WidgetTester tester) async {
-    final repo = FakeAuthRepo();
-    repo.shouldFail = true;
-    repo.delay = true;
+    final repo = FakeAuthRepo()..shouldFail = true..delay = true;
     await tester.pumpWidget(buildTestApp(repo));
 
     await tester.enterText(find.byKey(const Key('signup-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('signup-password')), 'password123');
     await tester.enterText(find.byKey(const Key('signup-confirm')), 'password123');
 
-    await tester.tap(find.byKey(const Key('signup-submit')));
-    await tester.tap(find.byKey(const Key('signup-submit')));
+    final submit = find.byKey(const Key('signup-submit'));
+    await tester.tap(submit);
+    await tester.pump();
+
+    expect(tester.widget<ElevatedButton>(submit).onPressed, isNull);
+    await tester.tap(submit, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('signup-error')), findsOneWidget);
+    expect(find.text('Email already registered.'), findsOneWidget);
     expect(repo.signUpCalls, 1);
   });
 }
