@@ -62,13 +62,20 @@ jobs:
           test -f android/app/src/main/java/com/example/manox/MainActivity.java
           test ! -e android/app/src/main/java/com/manox/manox/MainActivity.java
           test ! -e android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
-          grep -R "GeneratedPluginRegistrant.java" android/app/src/main/java || true
+          if grep -R "GeneratedPluginRegistrant" android/app/src/main/java; then exit 1; fi
+
+      - name: Verify Gradle configuration
+        run: |
+          grep -q 'gradle-8.11.1-all.zip' android/gradle/wrapper/gradle-wrapper.properties
+          grep -q 'com.android.application" version "8.9.1"' android/settings.gradle
+          grep -q 'dev.flutter.flutter-plugin-loader" version "1.0.0"' android/settings.gradle
+          grep -q 'dev.flutter.flutter-gradle-plugin' android/app/build.gradle
 
       - name: Build debug APK
         run: flutter build apk --debug --android-skip-build-dependency-validation
 
       - name: Verify APK
-        run: test -f build/app/outputs/flutter-apk/app-debug.apk
+        run: test -s build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
