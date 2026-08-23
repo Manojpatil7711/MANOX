@@ -72,7 +72,6 @@ class _ProfilePageState extends State<ProfilePage> {
             : _profile == null
                 ? const Center(child: Text('Unable to load profile'))
                 : LayoutBuilder(builder: (context, constraints) {
-                    final isWide = constraints.maxWidth > 800;
                     return SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
                       child: Column(
