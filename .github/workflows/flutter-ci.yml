@@ -38,25 +38,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-
       - name: Accept Android SDK licenses
         run: yes | flutter doctor --android-licenses || true
-
       - name: Get dependencies
         run: flutter pub get
-
       - name: Verify Android source layout
         run: |
           test -f android/app/src/main/java/com/example/manox/MainActivity.java
@@ -65,35 +60,33 @@ jobs:
             echo "ERROR: GeneratedPluginRegistrant.java is manually tracked in Git."
             exit 1
           fi
-
       - name: Verify resolved app_links version
-        run: |
-          flutter pub deps --style=compact | grep -E 'app_links[[:space:]].*6\.4\.1' >/dev/null
-
+        run: flutter pub deps --style=compact | grep -E 'app_links[[:space:]].*6\.4\.1' >/dev/null
       - name: Verify Gradle configuration
         run: |
           grep -q 'gradle-8.11.1-all.zip' android/gradle/wrapper/gradle-wrapper.properties
           grep -q 'com.android.application" version "8.9.1"' android/settings.gradle
           grep -q 'dev.flutter.flutter-plugin-loader" version "1.0.0"' android/settings.gradle
           grep -q 'dev.flutter.flutter-gradle-plugin' android/app/build.gradle
-
+      - name: Clean Gradle state
+        run: |
+          flutter clean
+          rm -rf build android/.gradle android/app/build
       - name: Build debug APK with Gradle diagnostics
         run: |
           cd android
-          ./gradlew :app:assembleDebug --stacktrace --info
-
+          ./gradlew --stop || true
+          ./gradlew :app:assembleDebug --stacktrace --info --console=plain
       - name: Locate generated APK
         run: |
-          echo "APK candidates:"
-          find build android/app/build -type f -name '*.apk' -print 2>/dev/null || true
-          test -s android/app/build/outputs/apk/debug/app-debug.apk
-
+          echo "All APK files produced:"
+          find . -type f -name '*.apk' -print
+          test -s build/app/outputs/apk/debug/app-debug.apk
       - name: Verify APK
-        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
-
+        run: test -s build/app/outputs/apk/debug/app-debug.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: build/app/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
