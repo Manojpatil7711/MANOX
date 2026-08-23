@@ -11,6 +11,9 @@ class SupabaseAuthRepository implements AuthRepository {
   static supabase.Session? get currentSession => SupabaseService.client?.auth.currentSession;
 
   @override
+  bool get hasSession => currentSession != null;
+
+  @override
   Future<void> signIn(String email, String password) async {
     final client = _client;
     if (client == null) throw AuthException('Authentication service not configured.');
