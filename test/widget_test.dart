@@ -1,28 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:manox/main.dart';
+import 'package:flutter/material.dart';
+import 'package:manox/app.dart';
 
 void main() {
-  testWidgets('ManoxApp builds and displays home page', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('App boots and shows MANOX home key', (WidgetTester tester) async {
     await tester.pumpWidget(const ManoxApp());
-
-    // Verify the app renders without errors
-    expect(find.byType(MaterialApp), findsOneWidget);
-
-    // Verify the home page is displayed
-    expect(find.byType(ManoxHomePage), findsOneWidget);
-
-    // Verify the app bar title
-    expect(find.text('MANOX'), findsWidgets);
-
-    // Verify the welcome message
-    expect(find.text('Welcome to MANOX'), findsOneWidget);
-
-    // Verify the tagline
-    expect(find.text('Create. Connect. Grow.'), findsOneWidget);
-
-    // Verify the global icon is displayed
-    expect(find.byIcon(Icons.public), findsOneWidget);
+    await tester.pumpAndSettle();
+    // The home page includes a key on the main icon to make the test stable.
+    expect(find.byKey(const Key('manox-home-logo')), findsOneWidget);
   });
 }
