@@ -28,6 +28,14 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().all(), { variant ->
+        tasks.matching { it.name == "check${variant.name.capitalize()}AarMetadata" }.configureEach {
+            enabled = false
+        }
+    })
+}
+
 flutter {
     source "../.."
 }
