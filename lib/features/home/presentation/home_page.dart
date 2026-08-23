@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/widgets/manox_brand.dart';
 import '../data/demo_posts.dart';
 import '../data/supabase_post_repository.dart';
 import 'widgets/post_card.dart';
@@ -88,19 +89,16 @@ class _HomePageState extends State<HomePage> {
       final post = await _repository.createPost(text: text, imagePath: imagePath);
       if (!mounted) return;
       setState(() {
-        _posts.insert(
-          0,
-          HomeDemoData(
-            id: post.id,
-            creatorName: post.creatorName,
-            handle: post.handle,
-            text: post.text,
-            likes: 0,
-            comments: 0,
-            imagePath: post.imageUrl,
-            isRemote: true,
-          ),
-        );
+        _posts.insert(0, HomeDemoData(
+          id: post.id,
+          creatorName: post.creatorName,
+          handle: post.handle,
+          text: post.text,
+          likes: 0,
+          comments: 0,
+          imagePath: post.imageUrl,
+          isRemote: true,
+        ));
         _composerCtrl.clear();
         _selectedImagePath = null;
         _posting = false;
@@ -119,12 +117,8 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MANOX', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        leading: const Padding(
-          padding: EdgeInsets.all(8.0),
-          child: Icon(Icons.public, key: Key('manox-home-logo'), size: 28),
-        ),
+        title: const ManoxBrand(compact: true),
+        leading: const SizedBox.shrink(),
         actions: [
           IconButton(
             tooltip: 'Profile',
@@ -136,6 +130,7 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.refresh),
             onPressed: _loadingFeed ? null : _loadFeed,
           ),
+          const SizedBox(width: 6),
         ],
       ),
       body: SafeArea(
@@ -149,68 +144,71 @@ class _HomePageState extends State<HomePage> {
                   onRefresh: _loadFeed,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Row(
+                            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const CircleAvatar(child: Icon(Icons.people)),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: const [
-                                      Text('Welcome to the MANOX Creator Community', style: TextStyle(fontWeight: FontWeight.bold)),
-                                      SizedBox(height: 4),
-                                      Text('Share what you create, follow creators, and grow together.'),
-                                    ],
+                                const ManoxBrand(),
+                                const SizedBox(height: 18),
+                                Text('Creator community', style: theme.textTheme.headlineSmall),
+                                const SizedBox(height: 6),
+                                Text('Share what you create, discover makers, and grow together.', style: theme.textTheme.bodyMedium),
+                                const SizedBox(height: 16),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: OutlinedButton(
+                                    onPressed: () => context.push('/auth'),
+                                    child: const Text('Get started'),
                                   ),
                                 ),
-                                TextButton(onPressed: () => context.push('/auth'), child: const Text('Get started')),
                               ],
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(12.0),
+                            padding: const EdgeInsets.all(14),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                Row(
+                                  children: [
+                                    const ManoxMark(size: 34),
+                                    const SizedBox(width: 10),
+                                    Text('Create a post', style: theme.textTheme.titleMedium),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
                                 TextField(
                                   key: const Key('post-composer-field'),
                                   controller: _composerCtrl,
                                   maxLines: 4,
-                                  minLines: 1,
+                                  minLines: 2,
                                   decoration: const InputDecoration(
                                     hintText: 'Share something with the community...',
-                                    border: InputBorder.none,
                                   ),
                                 ),
                                 if (_selectedImagePath != null) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 10),
                                   ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.file(
-                                      File(_selectedImagePath!),
-                                      height: 160,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const SizedBox(),
-                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Image.file(File(_selectedImagePath!), height: 180, fit: BoxFit.cover),
                                   ),
                                 ],
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 10),
                                 Row(
                                   children: [
                                     OutlinedButton.icon(
                                       onPressed: _posting ? null : _pickImage,
                                       icon: const Icon(Icons.image_outlined),
-                                      label: const Text('Image'),
+                                      label: const Text('Add image'),
                                     ),
                                     const Spacer(),
                                     ElevatedButton(
@@ -226,20 +224,25 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Text('Community', style: theme.textTheme.titleLarge),
+                            const Spacer(),
+                            if (!_loadingFeed) Text('${_posts.length} posts', style: theme.textTheme.bodySmall),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
                         if (_loadingFeed)
                           const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
                         else if (_posts.isEmpty)
-                          SizedBox(
-                            height: 200,
-                            child: Center(child: Text('No posts yet. Be the first to create!', style: theme.textTheme.bodyMedium)),
-                          )
+                          SizedBox(height: 180, child: Center(child: Text('No posts yet. Be the first to create!', style: theme.textTheme.bodyMedium)))
                         else
                           ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemBuilder: (context, index) => PostCard(data: _posts[index], repository: _repository),
-                            separatorBuilder: (context, index) => const SizedBox(height: 8),
+                            separatorBuilder: (context, index) => const SizedBox(height: 10),
                             itemCount: _posts.length,
                           ),
                       ],
@@ -250,12 +253,21 @@ class _HomePageState extends State<HomePage> {
               if (isWide)
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: const [
-                        Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Trending creators and communities'))),
-                      ],
+                    padding: const EdgeInsets.all(12),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const ManoxMark(size: 34),
+                            const SizedBox(height: 16),
+                            Text('Build your identity.', style: theme.textTheme.headlineSmall),
+                            const SizedBox(height: 8),
+                            Text('Create. Connect. Grow.', style: theme.textTheme.bodyMedium),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
