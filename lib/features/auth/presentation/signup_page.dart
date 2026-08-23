@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 
 import '../domain/auth_repository.dart';
 import '../data/supabase_auth_repository.dart';
@@ -40,7 +40,6 @@ class _SignupPageState extends State<SignupPage> {
     try {
       await _repo.signUp(_emailCtrl.text.trim(), _passwordCtrl.text);
       if (!mounted) return;
-      // After signup navigate to home (or onboarding as needed)
       GoRouter.of(context).go('/home');
     } on AuthException catch (e) {
       setState(() => _error = e.message);
