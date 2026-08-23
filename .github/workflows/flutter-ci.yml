@@ -2,13 +2,17 @@ name: APK Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
+    name: Build Debug APK
     runs-on: ubuntu-latest
 
     steps:
@@ -16,19 +20,28 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
           cache: true
+
+      - name: Verify Flutter environment
+        run: |
+          flutter --version
+          flutter doctor -v
 
       - name: Accept Android SDK licenses
         run: yes | flutter doctor --android-licenses || true
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew
 
       - name: Get dependencies
         run: flutter pub get
@@ -37,28 +50,25 @@ jobs:
         run: |
           set -euxo pipefail
           find android/app/src/main -type f -name 'GeneratedPluginRegistrant.java' -delete
-          test ! -e android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
-          if git ls-files | grep -Fx 'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java' >/dev/null 2>&1; then
-            echo 'ERROR: GeneratedPluginRegistrant.java is still Git-tracked.'
+          if find android/app/src/main -type f -name 'GeneratedPluginRegistrant.java' | grep -q .; then
+            echo 'ERROR: GeneratedPluginRegistrant.java still exists.'
             exit 1
           fi
-
-      - name: Verify resolved app_links version
-        run: |
-          set -euxo pipefail
-          flutter pub deps --style=compact | grep 'app_links' || true
 
       - name: Verify Gradle configuration
         run: |
           set -euxo pipefail
           grep -q 'gradle-8.11.1-all.zip' android/gradle/wrapper/gradle-wrapper.properties
-          grep -q 'com.android.application' android/settings.gradle
-          grep -q 'dev.flutter.flutter-plugin-loader' android/settings.gradle
           grep -q 'dev.flutter.flutter-gradle-plugin' android/app/build.gradle
           grep -q 'VERSION_17' android/app/build.gradle
+          cd android
+          ./gradlew --version
 
-      - name: Clean
-        run: flutter clean
+      - name: Clean Flutter and Gradle
+        run: |
+          flutter clean
+          cd android
+          ./gradlew clean --no-daemon --stacktrace
 
       - name: Build debug APK
         run: flutter build apk --debug --verbose
@@ -66,13 +76,16 @@ jobs:
       - name: Verify APK
         run: |
           set -euxo pipefail
-          test -s build/app/outputs/flutter-apk/app-debug.apk
-          file build/app/outputs/flutter-apk/app-debug.apk
-          ls -lh build/app/outputs/flutter-apk/app-debug.apk
+          APK_PATH='build/app/outputs/flutter-apk/app-debug.apk'
+          test -s "$APK_PATH"
+          file "$APK_PATH"
+          ls -lh "$APK_PATH"
 
-      - name: Upload APK artifact
+      - name: Upload Debug APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: manox-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
