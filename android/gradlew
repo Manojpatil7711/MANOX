@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+GRADLE_VERSION=8.7
+DIST_DIR="${HOME}/.gradle/flutter-wrapper/gradle-${GRADLE_VERSION}"
+if [ ! -x "${DIST_DIR}/bin/gradle" ]; then
+  mkdir -p "${HOME}/.gradle/flutter-wrapper"
+  TMP_ZIP="${HOME}/.gradle/flutter-wrapper/gradle-${GRADLE_VERSION}.zip"
+  if [ ! -f "${TMP_ZIP}" ]; then
+    curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o "${TMP_ZIP}"
+  fi
+  rm -rf "${DIST_DIR}" "${HOME}/.gradle/flutter-wrapper/gradle-${GRADLE_VERSION}"
+  unzip -q "${TMP_ZIP}" -d "${HOME}/.gradle/flutter-wrapper"
+fi
+exec "${DIST_DIR}/bin/gradle" "$@"
