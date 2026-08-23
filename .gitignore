@@ -25,3 +25,5 @@ ios/Flutter/Flutter.podspec
 *.pem
 *.p12
 **/generated_plugin_registrant.dart
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+android/app/src/main/java/io/flutter/plugins/
