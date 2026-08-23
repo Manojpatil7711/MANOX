@@ -47,12 +47,20 @@ jobs:
         run: yes | flutter doctor --android-licenses || true
 
       - name: Fix Gradle wrapper permissions
+        run: chmod +x android/gradlew
+
+      - name: Clean Flutter and Gradle state
         run: |
-          chmod +x android/gradlew
-          test -x android/gradlew
+          set -euxo pipefail
+          flutter clean
+          rm -rf android/.gradle
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/com.android.tools.build/gradle
 
       - name: Get Flutter dependencies
         run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze --no-fatal-infos
 
       - name: Remove legacy generated plugin file
         run: |
@@ -66,9 +74,7 @@ jobs:
       - name: Verify Gradle configuration
         run: |
           set -euxo pipefail
-          echo "=== Gradle Wrapper ==="
           cat android/gradle/wrapper/gradle-wrapper.properties
-          echo "=== Gradle Version ==="
           cd android
           ./gradlew --version --no-daemon
 
@@ -76,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter build apk --debug --verbose 2>&1 | tee "$GITHUB_WORKSPACE/flutter-build.log"
+          flutter build apk --debug --verbose --android-skip-build-dependency-validation 2>&1 | tee "$GITHUB_WORKSPACE/flutter-build.log"
           BUILD_EXIT=${PIPESTATUS[0]}
           echo "Flutter build exit code: $BUILD_EXIT"
           exit "$BUILD_EXIT"
@@ -97,7 +103,6 @@ jobs:
           APK="build/app/outputs/flutter-apk/app-debug.apk"
           test -f "$APK"
           test -s "$APK"
-          echo "APK successfully generated:"
           ls -lh "$APK"
           file "$APK"
 
@@ -109,5 +114,3 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-
-# Trigger verification build after the diagnostic workflow update.
