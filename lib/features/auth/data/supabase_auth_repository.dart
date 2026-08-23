@@ -25,11 +25,25 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signUp(String email, String password) async {
+  Future<void> signUp({
+    required String firstName,
+    required String surname,
+    required String mobile,
+    required String email,
+    required String password,
+  }) async {
     final client = _client;
     if (client == null) throw AuthException('Authentication service not configured.');
     try {
-      final res = await client.auth.signUp(email: email, password: password);
+      final res = await client.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'first_name': firstName.trim(),
+          'surname': surname.trim(),
+          'mobile': mobile.trim(),
+        },
+      );
       if (res.user == null) throw AuthException('Unable to create account');
     } on supabase.AuthException {
       rethrow;
