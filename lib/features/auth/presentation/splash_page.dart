@@ -15,7 +15,7 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1400),
+    duration: const Duration(milliseconds: 650),
   )..forward();
 
   Timer? _timer;
@@ -23,7 +23,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(milliseconds: 1900), () {
+    _timer = Timer(const Duration(milliseconds: 2000), () {
       if (mounted) context.go('/auth');
     });
   }
@@ -43,7 +43,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         child: FadeTransition(
           opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
           child: ScaleTransition(
-            scale: Tween<double>(begin: .88, end: 1).animate(
+            scale: Tween<double>(begin: .94, end: 1).animate(
               CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
             ),
             child: const ManoxBrand(),
