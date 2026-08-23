@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   analyze:
@@ -56,12 +57,22 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Verify Android source layout
+        run: |
+          test -f android/app/src/main/java/com/example/manox/MainActivity.java
+          test ! -e android/app/src/main/java/com/manox/manox/MainActivity.java
+          test ! -e android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+          grep -R "GeneratedPluginRegistrant.java" android/app/src/main/java || true
+
       - name: Build debug APK
         run: flutter build apk --debug --android-skip-build-dependency-validation
+
+      - name: Verify APK
+        run: test -f build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: build/app/outputs/flutter-apk/*.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
