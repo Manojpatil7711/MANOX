@@ -1,0 +1,186 @@
+import 'dart:typed_data';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../services/supabase_service.dart';
+
+class ManoxPost {
+  final String id;
+  final String creatorName;
+  final String handle;
+  final String text;
+  final int likes;
+  final int comments;
+  final String? imageUrl;
+  final bool likedByMe;
+
+  const ManoxPost({
+    required this.id,
+    required this.creatorName,
+    required this.handle,
+    required this.text,
+    required this.likes,
+    required this.comments,
+    required this.likedByMe,
+    this.imageUrl,
+  });
+}
+
+class ManoxComment {
+  final String id;
+  final String userName;
+  final String body;
+  final DateTime createdAt;
+
+  const ManoxComment({
+    required this.id,
+    required this.userName,
+    required this.body,
+    required this.createdAt,
+  });
+}
+
+class SupabasePostRepository {
+  SupabaseClient get _client {
+    final client = SupabaseService.client;
+    if (client == null) {
+      throw StateError('MANOX backend is not configured.');
+    }
+    return client;
+  }
+
+  String get _userId {
+    final id = _client.auth.currentUser?.id;
+    if (id == null) throw StateError('Please sign in first.');
+    return id;
+  }
+
+  Future<List<ManoxPost>> fetchFeed() async {
+    final rows = await _client
+        .from('contents')
+        .select('id, owner_user_id, description, media_url, media_urls, created_at, profiles!contents_owner_user_id_fkey(username, display_name), content_likes(user_id), content_comments(id)')
+        .eq('status', 'published')
+        .eq('visibility', 'public')
+        .order('published_at', ascending: false, nullsFirst: false)
+        .order('created_at', ascending: false)
+        .limit(50);
+
+    final currentUser = _userId;
+    return (rows as List).map((row) {
+      final likes = List<Map<String, dynamic>>.from(row['content_likes'] ?? const []);
+      final comments = List<Map<String, dynamic>>.from(row['content_comments'] ?? const []);
+      final profile = row['profiles'] as Map<String, dynamic>?;
+      final mediaUrls = List<dynamic>.from(row['media_urls'] ?? const []);
+      return ManoxPost(
+        id: row['id'] as String,
+        creatorName: (profile?['display_name'] as String?) ?? 'MANOX Creator',
+        handle: '@${(profile?['username'] as String?) ?? 'creator'}',
+        text: (row['description'] as String?) ?? '',
+        likes: likes.length,
+        comments: comments.length,
+        likedByMe: likes.any((like) => like['user_id'] == currentUser),
+        imageUrl: mediaUrls.isNotEmpty ? mediaUrls.first as String : row['media_url'] as String?,
+      );
+    }).toList();
+  }
+
+  Future<String?> uploadImage(Uint8List bytes, String extension, String? mimeType) async {
+    final path = '$_userId/${DateTime.now().microsecondsSinceEpoch}.$extension';
+    await _client.storage.from('manox-media').uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(contentType: mimeType, upsert: false, cacheControl: '3600'),
+    );
+    return path;
+  }
+
+  Future<ManoxPost> createPost({required String text, String? imagePath}) async {
+    final row = await _client.from('contents').insert({
+      'owner_user_id': _userId,
+      'content_type': imagePath == null ? 'post' : 'image',
+      'description': text,
+      'media_url': imagePath,
+      'media_urls': imagePath == null ? <String>[] : <String>[imagePath],
+      'status': 'published',
+      'visibility': 'public',
+      'published_at': DateTime.now().toIso8601String(),
+    }).select('id').single();
+
+    final id = row['id'] as String;
+    final posts = await _client
+        .from('contents')
+        .select('id, owner_user_id, description, media_url, media_urls, created_at, profiles!contents_owner_user_id_fkey(username, display_name)')
+        .eq('id', id)
+        .single();
+    final profile = posts['profiles'] as Map<String, dynamic>?;
+    return ManoxPost(
+      id: id,
+      creatorName: (profile?['display_name'] as String?) ?? 'You',
+      handle: '@${(profile?['username'] as String?) ?? 'you'}',
+      text: (posts['description'] as String?) ?? '',
+      likes: 0,
+      comments: 0,
+      likedByMe: false,
+      imageUrl: (posts['media_urls'] as List?)?.isNotEmpty == true
+          ? (posts['media_urls'] as List).first as String
+          : posts['media_url'] as String?,
+    );
+  }
+
+  Future<bool> toggleLike(String contentId, bool currentlyLiked) async {
+    if (currentlyLiked) {
+      await _client.from('content_likes').delete().eq('content_id', contentId).eq('user_id', _userId);
+      return false;
+    }
+    await _client.from('content_likes').insert({'content_id': contentId, 'user_id': _userId});
+    return true;
+  }
+
+  Future<List<ManoxComment>> fetchComments(String contentId) async {
+    final rows = await _client
+        .from('content_comments')
+        .select('id, body, created_at, profiles!content_comments_user_id_fkey(display_name)')
+        .eq('content_id', contentId)
+        .eq('status', 'visible')
+        .order('created_at');
+    return (rows as List).map((row) {
+      final profile = row['profiles'] as Map<String, dynamic>?;
+      return ManoxComment(
+        id: row['id'] as String,
+        userName: (profile?['display_name'] as String?) ?? 'MANOX User',
+        body: row['body'] as String,
+        createdAt: DateTime.parse(row['created_at'] as String),
+      );
+    }).toList();
+  }
+
+  Future<void> addComment(String contentId, String body) async {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) return;
+    await _client.from('content_comments').insert({
+      'content_id': contentId,
+      'user_id': _userId,
+      'body': trimmed,
+      'status': 'visible',
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> recordShare(String contentId, {String target = 'system'}) async {
+    await _client.from('content_shares').insert({
+      'content_id': contentId,
+      'profile_id': _userId,
+      'share_target': target,
+    });
+  }
+
+  Future<String> createShareUrl(String contentId) async {
+    return 'https://manox.app/content/$contentId';
+  }
+
+  Future<String?> signedMediaUrl(String path) async {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return _client.storage.from('manox-media').createSignedUrl(path, 60 * 60 * 24 * 30);
+  }
+}
