@@ -9,13 +9,12 @@ import 'package:manox/core/theme/theme.dart';
 void main() {
   testWidgets('HomePage renders and basic interactions work', (WidgetTester tester) async {
     // Narrow device simulation
-    final binding = tester.binding;
-    binding.window.physicalSizeTestValue = const Size(375, 812);
-    binding.window.devicePixelRatioTestValue = 1.0;
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1.0;
 
     addTearDown(() {
-      binding.window.clearPhysicalSizeTestValue();
-      binding.window.clearDevicePixelRatioTestValue();
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
     });
 
     await tester.pumpWidget(MaterialApp(theme: manoxTheme(), home: const HomePage()));
