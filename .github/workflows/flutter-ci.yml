@@ -69,7 +69,8 @@ jobs:
         run: flutter pub get
 
       - name: Initialize build log
-        run: : > "$GITHUB_WORKSPACE/flutter-build.log"
+        run: |
+          : > "$GITHUB_WORKSPACE/flutter-build.log"
 
       - name: Static analysis
         shell: bash
