@@ -7,7 +7,6 @@ plugins {
 android {
     namespace "com.example.manox"
     compileSdk 34
-    ndkVersion flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -22,8 +21,8 @@ android {
         applicationId "com.example.manox"
         minSdk 21
         targetSdk 34
-        versionCode (project.findProperty('flutterVersionCode') ?: '1').toInteger()
-        versionName (project.findProperty('flutterVersionName') ?: '1.0.0')
+        versionCode 1
+        versionName "1.0.0"
     }
 
     buildTypes {
