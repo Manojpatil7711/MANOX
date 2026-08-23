@@ -77,11 +77,30 @@ jobs:
           grep -q 'dev.flutter.flutter-plugin-loader" version "1.0.0"' android/settings.gradle
           grep -q 'dev.flutter.flutter-gradle-plugin' android/app/build.gradle
 
-      - name: Build debug APK
-        run: flutter build apk --debug --android-skip-build-dependency-validation
+      - name: Clean Gradle state
+        run: |
+          flutter clean
+          rm -rf build android/.gradle android/app/build
+          cd android
+          ./gradlew --stop || true
+
+      - name: Build debug APK directly with Gradle
+        working-directory: android
+        run: ./gradlew :app:assembleDebug --stacktrace --info --console=plain
+
+      - name: Publish APK to Flutter output location
+        run: |
+          set -euxo pipefail
+          test -s build/app/outputs/apk/debug/app-debug.apk
+          mkdir -p build/app/outputs/flutter-apk
+          cp -f build/app/outputs/apk/debug/app-debug.apk build/app/outputs/flutter-apk/app-debug.apk
+          ls -lh build/app/outputs/apk/debug/app-debug.apk
+          ls -lh build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Verify APK
-        run: test -s build/app/outputs/flutter-apk/app-debug.apk
+        run: |
+          test -s build/app/outputs/flutter-apk/app-debug.apk
+          file build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
