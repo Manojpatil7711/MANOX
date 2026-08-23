@@ -1,10 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
-import '../../domain/profile_repository.dart';
-import '../data/demo_profile.dart';
 import 'package:manox/features/home/data/demo_posts.dart';
 import 'package:manox/features/home/presentation/widgets/post_card.dart';
-import 'package:flutter/material.dart';
+
+import '../data/demo_profile.dart';
+import '../data/local_profile_repository.dart';
+import '../domain/profile_repository.dart';
 
 class ProfilePage extends StatefulWidget {
   final ProfileRepository? repository;
@@ -23,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _repo = widget.repository ?? const _DefaultRepo();
+    _repo = widget.repository ?? const LocalProfileRepository();
     _load();
   }
 
@@ -77,7 +78,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // header
                           Row(
                             children: [
                               const CircleAvatar(key: Key('profile-avatar'), radius: 36, child: Icon(Icons.person, size: 36)),
@@ -111,7 +111,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ],
                                 ),
                               ),
-                              // stats
                               Column(
                                 children: [
                                   Text('${_profile!.postIds.length}', key: const Key('profile-post-count'), style: const TextStyle(fontWeight: FontWeight.bold)),
