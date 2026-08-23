@@ -1,4 +1,4 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 import '../../../services/supabase_service.dart';
 import '../domain/auth_repository.dart';
@@ -6,7 +6,7 @@ import '../domain/auth_repository.dart';
 class SupabaseAuthRepository implements AuthRepository {
   SupabaseAuthRepository();
 
-  SupabaseClient? get _client => SupabaseService.client;
+  supabase.SupabaseClient? get _client => SupabaseService.client;
 
   @override
   Future<void> signIn(String email, String password) async {
@@ -22,7 +22,7 @@ class SupabaseAuthRepository implements AuthRepository {
       if (res.session == null) {
         throw AuthException('Invalid credentials');
       }
-    } on AuthException {
+    } on supabase.AuthException {
       rethrow;
     } catch (e) {
       throw AuthException(_mapError(e));
@@ -40,7 +40,7 @@ class SupabaseAuthRepository implements AuthRepository {
       if (res.user == null) {
         throw AuthException('Unable to create account');
       }
-    } on AuthException {
+    } on supabase.AuthException {
       rethrow;
     } catch (e) {
       throw AuthException(_mapError(e));
@@ -66,7 +66,7 @@ class SupabaseAuthRepository implements AuthRepository {
     }
     try {
       await client.auth.resetPasswordForEmail(email);
-    } on AuthException {
+    } on supabase.AuthException {
       rethrow;
     } catch (e) {
       throw AuthException(_mapError(e));
