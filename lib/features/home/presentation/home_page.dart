@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -67,9 +69,6 @@ class _HomePageState extends State<HomePage> {
     final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 2000);
     if (image == null) return;
     setState(() => _selectedImagePath = image.path);
-
-    // Keep the selected file path only for this composer session.
-    // The actual bytes are read at post time so the file is not uploaded prematurely.
   }
 
   Future<void> _submitPost() async {
@@ -197,7 +196,12 @@ class _HomePageState extends State<HomePage> {
                                   const SizedBox(height: 8),
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: Image.asset(_selectedImagePath!, height: 160, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox()),
+                                    child: Image.file(
+                                      File(_selectedImagePath!),
+                                      height: 160,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const SizedBox(),
+                                    ),
                                   ),
                                 ],
                                 const SizedBox(height: 8),
