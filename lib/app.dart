@@ -8,12 +8,27 @@ import 'features/profile/profile.dart';
 import 'features/onboarding/onboarding.dart';
 import 'features/creator/creator.dart';
 import 'features/settings/settings.dart';
+import 'services/supabase_service.dart';
 
 class ManoxApp extends StatelessWidget {
   const ManoxApp({super.key});
 
   static final GoRouter _router = GoRouter(
     initialLocation: '/',
+    redirect: (context, state) {
+      final session = SupabaseService.client?.auth.currentSession;
+      final isAuthenticated = session != null;
+      final isAuthRoute = state.matchedLocation.startsWith('/auth');
+      final isOnboarding = state.matchedLocation == '/onboarding';
+
+      if (!isAuthenticated && !isAuthRoute && !isOnboarding) {
+        return '/auth';
+      }
+      if (isAuthenticated && isAuthRoute) {
+        return '/home';
+      }
+      return null;
+    },
     routes: <GoRoute>[
       GoRoute(
         path: '/',
