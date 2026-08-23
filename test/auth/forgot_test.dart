@@ -11,6 +11,9 @@ class FakeAuthRepo implements AuthRepository {
   int resetCalls = 0;
 
   @override
+  bool get hasSession => false;
+
+  @override
   Future<void> resetPassword(String email) async {
     resetCalls++;
     if (delay) await Future.delayed(const Duration(milliseconds: 200));
@@ -21,7 +24,13 @@ class FakeAuthRepo implements AuthRepository {
   Future<void> signIn(String email, String password) async {}
 
   @override
-  Future<void> signUp(String email, String password) async {}
+  Future<void> signUp({
+    required String firstName,
+    required String surname,
+    required String mobile,
+    required String email,
+    required String password,
+  }) async {}
 
   @override
   Future<void> signOut() async {}
