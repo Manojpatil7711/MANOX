@@ -46,7 +46,8 @@ jobs:
     needs: [analyze, test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -69,7 +70,13 @@ jobs:
         run: yes | flutter doctor --android-licenses || true
 
       - name: Make Gradle wrapper executable
-        run: chmod +x android/gradlew || true
+        run: chmod +x android/gradlew
+
+      - name: Verify Gradle wrapper version
+        working-directory: android
+        run: |
+          ./gradlew --version
+          ./gradlew --version | grep -E 'Gradle 8\.11\.1'
 
       - name: Get dependencies
         run: flutter pub get
