@@ -1,4 +1,5 @@
 abstract class AuthRepository {
+  bool get hasSession;
   Future<void> signIn(String email, String password);
   Future<void> signUp({
     required String firstName,
