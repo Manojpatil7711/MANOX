@@ -16,7 +16,7 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signIn(String email, String password) async {
     final client = _client;
-    if (client == null) throw AuthException('Authentication service not configured.');
+    if (client == null) throw AuthException(_serviceUnavailableMessage);
     try {
       final res = await client.auth.signInWithPassword(email: email, password: password);
       if (res.session == null) throw AuthException('Invalid credentials');
@@ -37,7 +37,7 @@ class SupabaseAuthRepository implements AuthRepository {
     required String password,
   }) async {
     final client = _client;
-    if (client == null) throw AuthException('Authentication service not configured.');
+    if (client == null) throw AuthException(_serviceUnavailableMessage);
     try {
       final res = await client.auth.signUp(
         email: email,
@@ -69,7 +69,7 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> resetPassword(String email) async {
     final client = _client;
-    if (client == null) throw AuthException('Authentication service not configured.');
+    if (client == null) throw AuthException(_serviceUnavailableMessage);
     try {
       await client.auth.resetPasswordForEmail(email);
     } on supabase.AuthException catch (e) {
@@ -79,6 +79,9 @@ class SupabaseAuthRepository implements AuthRepository {
       throw AuthException(_mapError(e));
     }
   }
+
+  static const String _serviceUnavailableMessage =
+      'Authentication service is unavailable. Please try again later.';
 
   String _mapError(Object e) {
     final msg = e.toString().toLowerCase();
