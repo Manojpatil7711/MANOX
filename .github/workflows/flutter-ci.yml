@@ -58,6 +58,10 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Accept Android SDK licenses
+        run: yes | flutter doctor --android-licenses || true
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew || true
       - name: Get dependencies
         run: flutter pub get
       - name: Build debug APK
