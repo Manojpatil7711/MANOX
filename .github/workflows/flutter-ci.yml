@@ -15,6 +15,10 @@ jobs:
     name: Build Debug APK
     runs-on: ubuntu-latest
 
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4096m"
+      JAVA_TOOL_OPTIONS: "-Xmx4096m"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,7 +27,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
           cache: gradle
 
       - name: Set up Flutter
@@ -32,48 +36,70 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Verify Flutter environment
+      - name: Verify toolchain
         run: |
+          set -euxo pipefail
+          java -version
           flutter --version
           flutter doctor -v
 
-      - name: Accept Android SDK licenses
+      - name: Accept Android licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Make Gradle wrapper executable
-        run: chmod +x android/gradlew
+      - name: Fix Gradle wrapper permissions
+        run: |
+          chmod +x android/gradlew
+          test -x android/gradlew
 
-      - name: Get dependencies
+      - name: Get Flutter dependencies
         run: flutter pub get
 
-      - name: Remove legacy generated plugin registration
+      - name: Remove legacy generated plugin file
         run: |
           set -euxo pipefail
-          find android/app/src/main -type f -name 'GeneratedPluginRegistrant.java' -delete
-          if find android/app/src/main -type f -name 'GeneratedPluginRegistrant.java' | grep -q .; then
-            echo 'ERROR: GeneratedPluginRegistrant.java still exists.'
+          find android/app/src/main -type f -name "GeneratedPluginRegistrant.java" -delete
+          if find android/app/src/main -type f -name "GeneratedPluginRegistrant.java" | grep -q .; then
+            echo "ERROR: GeneratedPluginRegistrant.java still exists"
             exit 1
           fi
 
       - name: Verify Gradle configuration
         run: |
           set -euxo pipefail
-          grep -q 'gradle-8.11.1-all.zip' android/gradle/wrapper/gradle-wrapper.properties
-          grep -q 'dev.flutter.flutter-gradle-plugin' android/app/build.gradle
-          grep -q 'VERSION_17' android/app/build.gradle
+          echo "=== Gradle Wrapper ==="
+          cat android/gradle/wrapper/gradle-wrapper.properties
+          echo "=== Gradle Version ==="
           cd android
-          ./gradlew --version
+          ./gradlew --version --no-daemon
 
       - name: Build debug APK
-        run: flutter build apk --debug --verbose
+        shell: bash
+        run: |
+          set +e
+          flutter build apk --debug --verbose 2>&1 | tee "$GITHUB_WORKSPACE/flutter-build.log"
+          BUILD_EXIT=${PIPESTATUS[0]}
+          echo "Flutter build exit code: $BUILD_EXIT"
+          exit "$BUILD_EXIT"
+
+      - name: Upload complete Flutter build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manox-full-build-log
+          path: flutter-build.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Verify APK
+        if: success()
         run: |
           set -euxo pipefail
-          APK_PATH='build/app/outputs/flutter-apk/app-debug.apk'
-          test -s "$APK_PATH"
-          file "$APK_PATH"
-          ls -lh "$APK_PATH"
+          APK="build/app/outputs/flutter-apk/app-debug.apk"
+          test -f "$APK"
+          test -s "$APK"
+          echo "APK successfully generated:"
+          ls -lh "$APK"
+          file "$APK"
 
       - name: Upload Debug APK
         if: success()
