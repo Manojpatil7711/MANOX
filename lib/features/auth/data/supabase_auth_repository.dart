@@ -20,9 +20,10 @@ class SupabaseAuthRepository implements AuthRepository {
     try {
       final res = await client.auth.signInWithPassword(email: email, password: password);
       if (res.session == null) throw AuthException('Invalid credentials');
-    } on supabase.AuthException {
-      rethrow;
+    } on supabase.AuthException catch (e) {
+      throw AuthException(_mapError(e));
     } catch (e) {
+      if (e is AuthException) rethrow;
       throw AuthException(_mapError(e));
     }
   }
@@ -48,9 +49,10 @@ class SupabaseAuthRepository implements AuthRepository {
         },
       );
       if (res.user == null) throw AuthException('Unable to create account');
-    } on supabase.AuthException {
-      rethrow;
+    } on supabase.AuthException catch (e) {
+      throw AuthException(_mapError(e));
     } catch (e) {
+      if (e is AuthException) rethrow;
       throw AuthException(_mapError(e));
     }
   }
@@ -59,7 +61,9 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     final client = _client;
     if (client == null) return;
-    try { await client.auth.signOut(); } catch (_) {}
+    try {
+      await client.auth.signOut();
+    } catch (_) {}
   }
 
   @override
@@ -68,19 +72,34 @@ class SupabaseAuthRepository implements AuthRepository {
     if (client == null) throw AuthException('Authentication service not configured.');
     try {
       await client.auth.resetPasswordForEmail(email);
-    } on supabase.AuthException {
-      rethrow;
+    } on supabase.AuthException catch (e) {
+      throw AuthException(_mapError(e));
     } catch (e) {
+      if (e is AuthException) rethrow;
       throw AuthException(_mapError(e));
     }
   }
 
   String _mapError(Object e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('invalid login') || msg.contains('invalid credentials')) return 'Invalid email or password.';
-    if (msg.contains('already registered') || msg.contains('user already exists')) return 'Email already registered.';
-    if (msg.contains('email') && msg.contains('confirm')) return 'Please confirm your email before signing in.';
-    if (msg.contains('password')) return 'Password is not acceptable.';
+    if (msg.contains('invalid login') || msg.contains('invalid credentials')) {
+      return 'Invalid email or password.';
+    }
+    if (msg.contains('already registered') || msg.contains('user already exists')) {
+      return 'Email already registered.';
+    }
+    if (msg.contains('email') && msg.contains('confirm')) {
+      return 'Please confirm your email before signing in.';
+    }
+    if (msg.contains('password')) {
+      return 'Password is not acceptable.';
+    }
+    if (msg.contains('rate limit') || msg.contains('too many requests')) {
+      return 'Too many attempts. Please try again later.';
+    }
+    if (msg.contains('network') || msg.contains('connection')) {
+      return 'Network connection failed. Please check your internet and try again.';
+    }
     return 'Authentication error. Please try again.';
   }
 }
