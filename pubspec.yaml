@@ -14,6 +14,12 @@ dependencies:
   supabase_flutter: ^2.9.0
   go_router: ^16.0.0
 
+dependency_overrides:
+  # supabase_flutter uses app_links internally. Pin to the last app_links
+  # line compatible with this project's AGP 8.x / Gradle 8.11.1 toolchain.
+  # app_links 7.1+ moved its Android example/tooling to AGP 9.x.
+  app_links: 6.4.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
