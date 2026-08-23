@@ -6,8 +6,8 @@ plugins {
 
 android {
     namespace "com.example.manox"
-    // AGP 8.9.1 + Gradle 8.11.1 is kept stable with Android API 35.
-    compileSdk 35
+    // AndroidX 1.17.0 / browser 1.9.0 require compileSdk 36+.
+    compileSdk 36
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
