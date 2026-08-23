@@ -5,6 +5,9 @@ class HomeDemoData {
   final String text;
   final int likes;
   final int comments;
+  final String? imagePath;
+  final bool likedByMe;
+  final bool isRemote;
 
   const HomeDemoData({
     required this.id,
@@ -13,6 +16,9 @@ class HomeDemoData {
     required this.text,
     this.likes = 0,
     this.comments = 0,
+    this.imagePath,
+    this.likedByMe = false,
+    this.isRemote = false,
   });
 }
 
