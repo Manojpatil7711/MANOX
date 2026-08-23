@@ -29,7 +29,13 @@ class _SignupPageState extends State<SignupPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { loading = true; error = null; });
     try {
-      await repo.signUp(email.text.trim(), password.text);
+      await repo.signUp(
+        firstName: first.text,
+        surname: surname.text,
+        mobile: mobile.text,
+        email: email.text.trim(),
+        password: password.text,
+      );
       if (!mounted) return;
       if (SupabaseAuthRepository.currentSession != null) {
         context.go('/home');
