@@ -68,7 +68,7 @@ jobs:
 
       - name: Verify resolved app_links version
         run: |
-          flutter pub deps --style=compact | grep -E '^app_links ' | grep -q '6.4.1'
+          flutter pub deps --style=compact | grep -E 'app_links[[:space:]].*6\.4\.1' >/dev/null
 
       - name: Verify Gradle configuration
         run: |
