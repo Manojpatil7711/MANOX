@@ -37,7 +37,7 @@ class _SignupPageState extends State<SignupPage> {
         password: password.text,
       );
       if (!mounted) return;
-      if (SupabaseAuthRepository.currentSession != null) {
+      if (repo.hasSession) {
         context.go('/home');
       } else {
         setState(() => confirmationSent = true);
@@ -68,7 +68,7 @@ class _SignupPageState extends State<SignupPage> {
       const SizedBox(height: 14), TextFormField(key: const Key('signup-email'), controller: email, decoration: const InputDecoration(labelText: 'Email address', prefixIcon: Icon(Icons.mail_outline)), keyboardType: TextInputType.emailAddress, validator: (v) => v == null || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim()) ? 'Enter a valid email' : null),
       const SizedBox(height: 14), TextFormField(key: const Key('signup-password'), controller: password, obscureText: obscure, decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline), suffixIcon: IconButton(icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined), onPressed: () => setState(() => obscure = !obscure))), validator: (v) => v == null || v.length < 8 ? 'Use at least 8 characters' : null),
       const SizedBox(height: 14), TextFormField(key: const Key('signup-confirm'), controller: confirm, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm password', prefixIcon: Icon(Icons.lock_reset_outlined)), validator: (v) => v != password.text ? 'Passwords do not match' : null),
-      const SizedBox(height: 18), if (error != null) ...[Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)), const SizedBox(height: 10)],
+      const SizedBox(height: 18), if (error != null) ...[Text(error!, key: const Key('signup-error'), style: TextStyle(color: Theme.of(context).colorScheme.error)), const SizedBox(height: 10)],
       ElevatedButton(key: const Key('signup-submit'), onPressed: loading ? null : submit, child: loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Create account')),
       const SizedBox(height: 10), TextButton(onPressed: loading ? null : () => context.go('/auth'), child: const Text('Already have an account? Sign in')),
     ]))))));
