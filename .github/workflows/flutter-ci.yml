@@ -61,8 +61,14 @@ jobs:
         run: |
           test -f android/app/src/main/java/com/example/manox/MainActivity.java
           test ! -e android/app/src/main/java/com/manox/manox/MainActivity.java
-          test ! -e android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
-          if grep -R "GeneratedPluginRegistrant" android/app/src/main/java; then exit 1; fi
+          if git ls-files --error-unmatch android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java >/dev/null 2>&1; then
+            echo "ERROR: GeneratedPluginRegistrant.java is manually tracked in Git."
+            exit 1
+          fi
+
+      - name: Verify resolved app_links version
+        run: |
+          flutter pub deps --style=compact | grep -E '^app_links ' | grep -q '6.4.1'
 
       - name: Verify Gradle configuration
         run: |
