@@ -15,13 +15,10 @@ class FakeAuthRepo implements AuthRepository {
     signInCalls++;
     if (delay) await Future.delayed(const Duration(milliseconds: 200));
     if (shouldFail) throw AuthException('Invalid email or password.');
-    return;
   }
 
   @override
-  Future<void> signUp(String email, String password) async {
-    return;
-  }
+  Future<void> signUp(String email, String password) async {}
 
   @override
   Future<void> signOut() async {}
@@ -39,10 +36,7 @@ void main() {
       ],
     );
 
-    return MaterialApp.router(
-      routerConfig: router,
-      theme: ThemeData.dark(),
-    );
+    return MaterialApp.router(routerConfig: router, theme: ThemeData.dark());
   }
 
   testWidgets('Login page renders and has required fields', (WidgetTester tester) async {
@@ -68,14 +62,12 @@ void main() {
     await tester.enterText(find.byKey(const Key('login-password')), '123456');
     await tester.tap(find.byKey(const Key('login-submit')));
     await tester.pump();
-
     expect(find.text('Enter a valid email'), findsOneWidget);
 
     await tester.enterText(find.byKey(const Key('login-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('login-password')), '123');
     await tester.tap(find.byKey(const Key('login-submit')));
     await tester.pump();
-
     expect(find.text('Password must be at least 6 characters'), findsOneWidget);
   });
 
@@ -93,24 +85,24 @@ void main() {
   });
 
   testWidgets('Login failure shows friendly error and prevents duplicate submissions', (WidgetTester tester) async {
-    final repo = FakeAuthRepo();
-    repo.shouldFail = true;
-    repo.delay = true;
+    final repo = FakeAuthRepo()..shouldFail = true..delay = true;
     await tester.pumpWidget(buildTestApp(repo));
 
     await tester.enterText(find.byKey(const Key('login-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('login-password')), 'password123');
 
-    // Tap twice quickly
-    await tester.tap(find.byKey(const Key('login-submit')));
-    await tester.tap(find.byKey(const Key('login-submit')));
+    final submit = find.byKey(const Key('login-submit'));
+    await tester.tap(submit);
     await tester.pump();
 
-    // wait for async
+    // The first submission has started, so the button is disabled before the
+    // second tap. This verifies the real duplicate-submission guard.
+    expect(tester.widget<ElevatedButton>(submit).onPressed, isNull);
+    await tester.tap(submit, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('login-error')), findsOneWidget);
-    // ensure only one sign-in call was made
+    expect(find.text('Invalid email or password.'), findsOneWidget);
     expect(repo.signInCalls, 1);
   });
 }
