@@ -22,8 +22,8 @@ android {
         applicationId "com.example.manox"
         minSdk 21
         targetSdk 34
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        versionCode (project.findProperty('flutterVersionCode') ?: '1').toInteger()
+        versionName (project.findProperty('flutterVersionName') ?: '1.0.0')
     }
 
     buildTypes {
