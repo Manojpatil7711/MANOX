@@ -3,11 +3,13 @@ name: Flutter CI
 on:
   push:
     branches:
-      - feature/foundation
       - main
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: read
 
 jobs:
   flutter:
