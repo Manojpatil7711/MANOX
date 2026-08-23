@@ -1,14 +1,34 @@
 #!/bin/sh
-set -e
-GRADLE_VERSION=8.7
-DIST_DIR="${HOME}/.gradle/flutter-wrapper/gradle-${GRADLE_VERSION}"
-if [ ! -x "${DIST_DIR}/bin/gradle" ]; then
-  mkdir -p "${HOME}/.gradle/flutter-wrapper"
-  TMP_ZIP="${HOME}/.gradle/flutter-wrapper/gradle-${GRADLE_VERSION}.zip"
-  if [ ! -f "${TMP_ZIP}" ]; then
-    curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o "${TMP_ZIP}"
-  fi
-  rm -rf "${DIST_DIR}" "${HOME}/.gradle/flutter-wrapper/gradle-${GRADLE_VERSION}"
-  unzip -q "${TMP_ZIP}" -d "${HOME}/.gradle/flutter-wrapper"
+set -eu
+
+APP_HOME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+WRAPPER_PROPERTIES="$APP_HOME/gradle/wrapper/gradle-wrapper.properties"
+
+if [ ! -f "$WRAPPER_PROPERTIES" ]; then
+  echo "ERROR: Gradle wrapper properties not found: $WRAPPER_PROPERTIES" >&2
+  exit 1
 fi
-exec "${DIST_DIR}/bin/gradle" "$@"
+
+GRADLE_VERSION=$(sed -n 's#^distributionUrl=.*gradle-\([0-9][0-9.]*\)-all\.zip.*#\1#p' "$WRAPPER_PROPERTIES" | head -n 1)
+
+if [ -z "$GRADLE_VERSION" ]; then
+  echo "ERROR: Could not determine Gradle version from $WRAPPER_PROPERTIES" >&2
+  exit 1
+fi
+
+DIST_ROOT="${GRADLE_USER_HOME:-$HOME/.gradle}/flutter-wrapper"
+DIST_DIR="$DIST_ROOT/gradle-$GRADLE_VERSION"
+TMP_ZIP="$DIST_ROOT/gradle-$GRADLE_VERSION-all.zip"
+
+if [ ! -x "$DIST_DIR/bin/gradle" ]; then
+  mkdir -p "$DIST_ROOT"
+
+  if [ ! -f "$TMP_ZIP" ]; then
+    curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-all.zip" -o "$TMP_ZIP"
+  fi
+
+  rm -rf "$DIST_DIR"
+  unzip -q "$TMP_ZIP" -d "$DIST_ROOT"
+fi
+
+exec "$DIST_DIR/bin/gradle" "$@"
