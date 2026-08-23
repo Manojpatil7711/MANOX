@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:manox/features/home/presentation/home_page.dart';
 import 'package:manox/features/home/data/demo_posts.dart';
-import 'package:manox/features/home/presentation/widgets/post_card.dart';
 import 'package:manox/core/theme/theme.dart';
 
 void main() {
