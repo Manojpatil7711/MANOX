@@ -8,7 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  flutter-check:
+  analyze:
+    name: Analyze
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,11 +19,47 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: Flutter version
-        run: flutter --version
       - name: Get dependencies
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: analyze
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
       - name: Test
         run: flutter test
+
+  build-apk:
+    name: APK Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build debug APK
+        run: flutter build apk --debug
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: manox-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
