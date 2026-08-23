@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 
 import '../domain/auth_repository.dart';
 import '../data/supabase_auth_repository.dart';
