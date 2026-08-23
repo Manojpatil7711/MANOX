@@ -5,7 +5,10 @@ allprojects {
     }
 }
 
-rootProject.buildDir = "../../build"
+// Keep the Android/Gradle build output inside the Flutter repository.
+// From android/, ../build resolves to <repo>/build, which is where
+// Flutter expects app-debug.apk and other generated artifacts.
+rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
