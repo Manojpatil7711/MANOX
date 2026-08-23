@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/demo_posts.dart';
+import '../data/demo_posts.dart';
 import 'widgets/post_card.dart';
 
 class HomePage extends StatefulWidget {
