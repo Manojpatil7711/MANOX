@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../domain/auth_repository.dart';
-import '../../data/supabase_auth_repository.dart';
+import '../domain/auth_repository.dart';
+import '../data/supabase_auth_repository.dart';
 
 class LoginPage extends StatefulWidget {
   final AuthRepository? authRepository;
@@ -37,7 +37,6 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await _repo.signIn(_emailCtrl.text.trim(), _passwordCtrl.text);
       if (!mounted) return;
-      // Navigate to home on success
       GoRouter.of(context).go('/home');
     } on AuthException catch (e) {
       setState(() => _error = e.message);
