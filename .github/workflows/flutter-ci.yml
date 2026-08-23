@@ -64,12 +64,6 @@ jobs:
           cd android
           ./gradlew --version
 
-      - name: Clean Flutter and Gradle
-        run: |
-          flutter clean
-          cd android
-          ./gradlew clean --no-daemon --stacktrace
-
       - name: Build debug APK
         run: flutter build apk --debug --verbose
 
