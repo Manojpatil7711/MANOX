@@ -10,7 +10,7 @@ class SupabaseService {
     try {
       await Supabase.initialize(
         url: AppConfig.supabaseUrl,
-        anonKey: AppConfig.supabaseAnonKey,
+        publishableKey: AppConfig.supabaseAnonKey,
       );
     } catch (e) {
       // Initialization failed — in CI or in environments without keys this is expected.
