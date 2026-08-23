@@ -59,48 +59,50 @@ jobs:
 
       - name: Verify Android source layout
         run: |
+          set -euxo pipefail
           test -f android/app/src/main/java/com/example/manox/MainActivity.java
+          test ! -e android/app/src/main/kotlin/com/example/manox/MainActivity.kt
           test ! -e android/app/src/main/java/com/manox/manox/MainActivity.java
-          if git ls-files --error-unmatch android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java >/dev/null 2>&1; then
-            echo "ERROR: GeneratedPluginRegistrant.java is manually tracked in Git."
+          if git ls-files | grep -Fx 'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java' >/dev/null 2>&1; then
+            echo 'ERROR: GeneratedPluginRegistrant.java is manually tracked in Git.'
+            exit 1
+          fi
+          if find android/app/src/main -type f -name 'GeneratedPluginRegistrant.java' -print -quit | grep -q .; then
+            echo 'ERROR: GeneratedPluginRegistrant.java exists under android/app/src/main.'
             exit 1
           fi
 
       - name: Verify resolved app_links version
         run: |
-          flutter pub deps --style=compact | grep -E '^app_links ' | grep -q '6.4.1'
+          set -euxo pipefail
+          flutter pub deps --style=compact | grep -q 'app_links 6.4.1'
 
       - name: Verify Gradle configuration
         run: |
+          set -euxo pipefail
           grep -q 'gradle-8.11.1-all.zip' android/gradle/wrapper/gradle-wrapper.properties
           grep -q 'com.android.application" version "8.9.1"' android/settings.gradle
           grep -q 'dev.flutter.flutter-plugin-loader" version "1.0.0"' android/settings.gradle
           grep -q 'dev.flutter.flutter-gradle-plugin' android/app/build.gradle
+          grep -q 'VERSION_17' android/app/build.gradle
 
       - name: Clean Gradle state
         run: |
+          set -euxo pipefail
           flutter clean
           rm -rf build android/.gradle android/app/build
           cd android
           ./gradlew --stop || true
 
-      - name: Build debug APK directly with Gradle
-        working-directory: android
-        run: ./gradlew :app:assembleDebug --stacktrace --info --console=plain
-
-      - name: Publish APK to Flutter output location
-        run: |
-          set -euxo pipefail
-          test -s build/app/outputs/apk/debug/app-debug.apk
-          mkdir -p build/app/outputs/flutter-apk
-          cp -f build/app/outputs/apk/debug/app-debug.apk build/app/outputs/flutter-apk/app-debug.apk
-          ls -lh build/app/outputs/apk/debug/app-debug.apk
-          ls -lh build/app/outputs/flutter-apk/app-debug.apk
+      - name: Build debug APK
+        run: flutter build apk --debug --verbose
 
       - name: Verify APK
         run: |
+          set -euxo pipefail
           test -s build/app/outputs/flutter-apk/app-debug.apk
           file build/app/outputs/flutter-apk/app-debug.apk
+          ls -lh build/app/outputs/flutter-apk/app-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
