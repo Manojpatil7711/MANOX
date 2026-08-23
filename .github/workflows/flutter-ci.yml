@@ -59,8 +59,17 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Initialize build log
+        run: : > "$GITHUB_WORKSPACE/flutter-build.log"
+
       - name: Static analysis
-        run: flutter analyze --no-fatal-infos
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos 2>&1 | tee -a "$GITHUB_WORKSPACE/flutter-build.log"
+          ANALYZE_EXIT=${PIPESTATUS[0]}
+          echo "Flutter analyze exit code: $ANALYZE_EXIT" | tee -a "$GITHUB_WORKSPACE/flutter-build.log"
+          exit "$ANALYZE_EXIT"
 
       - name: Remove legacy generated plugin file
         run: |
@@ -78,14 +87,15 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter build apk --debug --verbose 2>&1 | tee "$GITHUB_WORKSPACE/flutter-build.log"
+          printf '\n===== FLUTTER BUILD APK =====\n' | tee -a "$GITHUB_WORKSPACE/flutter-build.log"
+          flutter build apk --debug --verbose 2>&1 | tee -a "$GITHUB_WORKSPACE/flutter-build.log"
           BUILD_EXIT=${PIPESTATUS[0]}
-          echo "Flutter build exit code: $BUILD_EXIT"
+          echo "Flutter build exit code: $BUILD_EXIT" | tee -a "$GITHUB_WORKSPACE/flutter-build.log"
 
           if [ "$BUILD_EXIT" -ne 0 ]; then
-            echo "================ ROOT-CAUSE ERROR SUMMARY ================"
+            echo "================ ROOT-CAUSE ERROR SUMMARY ================" | tee -a "$GITHUB_WORKSPACE/flutter-build.log"
             grep -nEi '(^|[[:space:]])(error:|exception:|failure:|failed|could not|unable|gradle build failed|apk file|unexpected)' "$GITHUB_WORKSPACE/flutter-build.log" | tail -n 80 || true
-            echo "================ LAST 250 LOG LINES ================"
+            echo "================ LAST 250 LOG LINES ================" | tee -a "$GITHUB_WORKSPACE/flutter-build.log"
             tail -n 250 "$GITHUB_WORKSPACE/flutter-build.log" || true
           fi
 
@@ -97,7 +107,7 @@ jobs:
         with:
           name: manox-full-build-log
           path: flutter-build.log
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Verify APK
