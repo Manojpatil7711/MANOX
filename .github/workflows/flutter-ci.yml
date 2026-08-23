@@ -47,13 +47,14 @@ jobs:
         run: yes | flutter doctor --android-licenses || true
 
       - name: Install Android API 36
+        shell: bash
         run: |
-          set -euxo pipefail
+          set -eu
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           if [ ! -x "$SDKMANAGER" ]; then
             SDKMANAGER="$ANDROID_HOME/cmdline-tools/bin/sdkmanager"
           fi
-          yes | "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Fix Gradle wrapper permissions
         run: chmod +x android/gradlew
