@@ -61,25 +61,127 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not send password reset email.'))); }
   }
 
-  void _openPasswordSecurity() {
-    showModalBottomSheet<void>(
+  Future<bool> _verifyPassword() async {
+    final user = _client?.auth.currentUser;
+    final email = user?.email;
+    if (email == null || email.isEmpty) return false;
+    final controller = TextEditingController();
+    final password = await showDialog<String>(
       context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Password & Security', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            const Text('Securely managed by MANOX Authentication'),
-            const SizedBox(height: 16),
-            ListTile(leading: const Icon(Icons.password_outlined), title: const Text('Change password'), subtitle: const Text('Receive a secure password reset link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { Navigator.of(sheetContext).pop(); _changePassword(); }),
-            ListTile(leading: const Icon(Icons.verified_user_outlined), title: const Text('Authentication status'), subtitle: Text(_client?.auth.currentUser == null ? 'Not signed in' : 'Signed in securely')),
-            ListTile(leading: const Icon(Icons.devices_outlined), title: const Text('Current session'), subtitle: const Text('This device is currently signed in')),
-          ]),
-        ),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verify your password'),
+        content: TextField(controller: controller, obscureText: true, autofocus: true, decoration: const InputDecoration(labelText: 'Current password')),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text), child: const Text('VERIFY'))],
       ),
     );
+    controller.dispose();
+    if (password == null || password.isEmpty) return false;
+    try {
+      await _client!.auth.signInWithPassword(email: email, password: password);
+      return true;
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Current password is incorrect.')));
+      return false;
+    }
+  }
+
+  Future<bool> _verifyCurrentPhoneOtp() async {
+    final phone = _client?.auth.currentUser?.phone;
+    if (phone == null || phone.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No verified mobile number is linked to this account.')));
+      return false;
+    }
+    try {
+      await _client!.auth.signInWithOtp(phone: phone);
+      if (!mounted) return false;
+      final controller = TextEditingController();
+      final otp = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Verify mobile number'),
+          content: TextField(controller: controller, keyboardType: TextInputType.number, autofocus: true, maxLength: 6, decoration: InputDecoration(labelText: 'OTP sent to $phone')),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text), child: const Text('VERIFY'))],
+        ),
+      );
+      controller.dispose();
+      if (otp == null || otp.length < 6) return false;
+      await _client!.auth.verifyOTP(type: OtpType.sms, phone: phone, token: otp);
+      return true;
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mobile OTP verification failed.')));
+      return false;
+    }
+  }
+
+  Future<bool> _chooseVerification() async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verify identity'),
+        content: const Text('For account changes, verify with your current password or the OTP sent to your registered mobile number.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, 'password'), child: const Text('PASSWORD')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, 'otp'), child: const Text('MOBILE OTP')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CANCEL')),
+        ],
+      ),
+    );
+    if (choice == 'password') return _verifyPassword();
+    if (choice == 'otp') return _verifyCurrentPhoneOtp();
+    return false;
+  }
+
+  Future<void> _changeEmail() async {
+    final current = _client?.auth.currentUser?.email ?? '';
+    final controller = TextEditingController(text: current);
+    final value = await showDialog<String>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Change email'), content: TextField(controller: controller, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'New email address')), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('CONTINUE'))]));
+    controller.dispose();
+    if (value == null || value.isEmpty || value == current) return;
+    final verified = await _chooseVerification();
+    if (!verified) return;
+    try {
+      await _client!.auth.updateUser(UserAttributes(email: value));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification email sent. Confirm the new email to complete the change.')));
+    } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not change email. Please try again.'))); }
+  }
+
+  Future<void> _changeMobile() async {
+    final current = _client?.auth.currentUser?.phone ?? '';
+    final controller = TextEditingController(text: current);
+    final value = await showDialog<String>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Change mobile number'), content: TextField(controller: controller, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'New mobile number')), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('CONTINUE'))]));
+    controller.dispose();
+    if (value == null || value.isEmpty || value == current) return;
+    final verified = await _chooseVerification();
+    if (!verified) return;
+    try {
+      await _client!.auth.updateUser(UserAttributes(phone: value));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('OTP sent to the new mobile number. Verify it to complete the change.')));
+    } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not change mobile number. Please try again.'))); }
+  }
+
+  void _openEmailAccount() {
+    final user = _client?.auth.currentUser;
+    final email = user?.email ?? 'Not available';
+    final phone = user?.phone ?? '';
+    showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheetContext) => SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 28), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Email & account', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 8), const Text('Private authentication information'), const SizedBox(height: 16),
+      ListTile(leading: const Icon(Icons.email_outlined), title: const Text('Email address'), subtitle: Text(email), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { Navigator.pop(sheetContext); _changeEmail(); }),
+      ListTile(leading: const Icon(Icons.phone_outlined), title: const Text('Mobile number'), subtitle: Text(phone.isEmpty ? 'Not linked' : phone), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { Navigator.pop(sheetContext); _changeMobile(); }),
+      const SizedBox(height: 8), const Text('Email and mobile are private and are never shown on the public profile.', style: TextStyle(fontSize: 13)),
+      const SizedBox(height: 8),
+      ListTile(leading: const Icon(Icons.verified_outlined), title: const Text('Change both together'), subtitle: const Text('Requires additional identity verification'), onTap: () { Navigator.pop(sheetContext); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Additional identity verification is required before changing both email and mobile together.'))); }),
+    ]))),
+    );
+  }
+
+  void _openPasswordSecurity() {
+    showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheetContext) => SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 28), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Password & Security', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)), const SizedBox(height: 8), const Text('Securely managed by MANOX Authentication'), const SizedBox(height: 16),
+      ListTile(leading: const Icon(Icons.password_outlined), title: const Text('Change password'), subtitle: const Text('Receive a secure password reset link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { Navigator.of(sheetContext).pop(); _changePassword(); }),
+      ListTile(leading: const Icon(Icons.verified_user_outlined), title: const Text('Authentication status'), subtitle: Text(_client?.auth.currentUser == null ? 'Not signed in' : 'Signed in securely')),
+      ListTile(leading: const Icon(Icons.devices_outlined), title: const Text('Current session'), subtitle: const Text('This device is currently signed in')),
+    ])));
   }
 
   Future<void> _signOut() async {
@@ -90,54 +192,25 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showKidsSafety() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => const SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(20, 8, 20, 28),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Kids & Safety', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            SizedBox(height: 8),
-            Text('Age-appropriate privacy, discovery and messaging protections remain active in Kids mode.'),
-            SizedBox(height: 12),
-            Text('Kids mode does not unlock monetization or withdrawal features.', style: TextStyle(fontWeight: FontWeight.w600)),
-          ]),
-        ),
-      ),
-    );
+    showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheetContext) => const SafeArea(child: Padding(padding: EdgeInsets.fromLTRB(20, 8, 20, 28), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Kids & Safety', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)), SizedBox(height: 8), Text('Age-appropriate privacy, discovery and messaging protections remain active in Kids mode.'), SizedBox(height: 12), Text('Kids mode does not unlock monetization or withdrawal features.', style: TextStyle(fontWeight: FontWeight.w600))])));
   }
 
   Widget _section(String title, IconData icon, List<Widget> children) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Padding(padding: const EdgeInsets.fromLTRB(4, 20, 4, 8), child: Row(children: [Icon(icon, size: 19), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.w700))])), Card(child: Column(children: children))]);
   ListTile _item({required IconData icon, required String title, String? subtitle, VoidCallback? onTap}) => ListTile(leading: Icon(icon), title: Text(title), subtitle: subtitle == null ? null : Text(subtitle), trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded), onTap: onTap);
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Settings & Privacy'), actions: [TextButton(onPressed: _saving ? null : _savePrivacy, child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SAVE'))]),
-    body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 32), children: [
-      _section('Account', Icons.person_outline_rounded, [
-        _item(icon: Icons.edit_outlined, title: 'Edit profile', subtitle: 'Name, username, bio and profile photo', onTap: () => Navigator.of(context).pop()),
-        _item(icon: Icons.mail_outline_rounded, title: 'Email & account', subtitle: 'Private authentication information'),
-        _item(icon: Icons.lock_outline_rounded, title: 'Password & security', subtitle: 'Securely managed by MANOX Authentication', onTap: _openPasswordSecurity),
-      ]),
-      _section('Privacy', Icons.shield_outlined, [
-        SwitchListTile(secondary: const Icon(Icons.lock_person_outlined), title: const Text('Private account'), value: _privateAccount, onChanged: (v) => setState(() => _privateAccount = v)),
-        SwitchListTile(secondary: const Icon(Icons.visibility_outlined), title: const Text('Show online status'), value: _showOnline, onChanged: (v) => setState(() => _showOnline = v)),
-        SwitchListTile(secondary: const Icon(Icons.access_time_rounded), title: const Text('Show last seen'), value: _showLastSeen, onChanged: (v) => setState(() => _showLastSeen = v)),
-        SwitchListTile(secondary: const Icon(Icons.done_all_rounded), title: const Text('Read receipts'), value: _readReceipts, onChanged: (v) => setState(() => _readReceipts = v)),
-      ]),
-      _section('Messages & Contacts', Icons.chat_bubble_outline_rounded, [
-        Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: DropdownButtonFormField<String>(initialValue: _whoCanMessage, decoration: const InputDecoration(labelText: 'Who can message me', prefixIcon: Icon(Icons.chat_outlined)), items: const [DropdownMenuItem(value: 'everyone', child: Text('Everyone')), DropdownMenuItem(value: 'followers', child: Text('Followers')), DropdownMenuItem(value: 'no_one', child: Text('No one'))], onChanged: (v) { if (v != null) setState(() => _whoCanMessage = v); })),
-        SwitchListTile(secondary: const Icon(Icons.contact_page_outlined), title: const Text('Allow contact sharing'), value: _allowContactSharing, onChanged: (v) => setState(() => _allowContactSharing = v)),
-      ]),
-      _section('Kids & Safety', Icons.child_care_rounded, [_item(icon: Icons.verified_user_outlined, title: 'Kids safety', subtitle: 'Age-appropriate protections', onTap: _showKidsSafety)]),
-      _section('Notifications', Icons.notifications_none_rounded, [SwitchListTile(secondary: const Icon(Icons.notifications_active_outlined), title: const Text('Notifications'), value: _notifications, onChanged: (v) => setState(() => _notifications = v))]),
-      _section('Content & Activity', Icons.tune_rounded, [_item(icon: Icons.bookmark_border_rounded, title: 'Saved content'), _item(icon: Icons.history_rounded, title: 'Activity history')]),
-      _section('Help & Safety', Icons.help_outline_rounded, [_item(icon: Icons.report_gmailerrorred_outlined, title: 'Report a problem'), _item(icon: Icons.info_outline_rounded, title: 'Community guidelines'), _item(icon: Icons.privacy_tip_outlined, title: 'Privacy policy')]),
-      const SizedBox(height: 16),
-      const Center(child: Text('MANOX', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 2))),
-      const SizedBox(height: 8),
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: OutlinedButton.icon(onPressed: _signOut, icon: const Icon(Icons.logout_rounded), label: const Text('SIGN OUT'))),
+  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Settings & Privacy'), actions: [TextButton(onPressed: _saving ? null : _savePrivacy, child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SAVE'))]), body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 32), children: [
+    _section('Account', Icons.person_outline_rounded, [
+      _item(icon: Icons.edit_outlined, title: 'Edit profile', subtitle: 'Name, username, bio and profile photo', onTap: () => Navigator.of(context).pop()),
+      _item(icon: Icons.mail_outline_rounded, title: 'Email & account', subtitle: 'Private authentication information', onTap: _openEmailAccount),
+      _item(icon: Icons.lock_outline_rounded, title: 'Password & security', subtitle: 'Securely managed by MANOX Authentication', onTap: _openPasswordSecurity),
     ]),
-  );
+    _section('Privacy', Icons.shield_outlined, [SwitchListTile(secondary: const Icon(Icons.lock_person_outlined), title: const Text('Private account'), value: _privateAccount, onChanged: (v) => setState(() => _privateAccount = v)), SwitchListTile(secondary: const Icon(Icons.visibility_outlined), title: const Text('Show online status'), value: _showOnline, onChanged: (v) => setState(() => _showOnline = v)), SwitchListTile(secondary: const Icon(Icons.access_time_rounded), title: const Text('Show last seen'), value: _showLastSeen, onChanged: (v) => setState(() => _showLastSeen = v)), SwitchListTile(secondary: const Icon(Icons.done_all_rounded), title: const Text('Read receipts'), value: _readReceipts, onChanged: (v) => setState(() => _readReceipts = v))]),
+    _section('Messages & Contacts', Icons.chat_bubble_outline_rounded, [Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: DropdownButtonFormField<String>(initialValue: _whoCanMessage, decoration: const InputDecoration(labelText: 'Who can message me', prefixIcon: Icon(Icons.chat_outlined)), items: const [DropdownMenuItem(value: 'everyone', child: Text('Everyone')), DropdownMenuItem(value: 'followers', child: Text('Followers')), DropdownMenuItem(value: 'no_one', child: Text('No one'))], onChanged: (v) { if (v != null) setState(() => _whoCanMessage = v); })), SwitchListTile(secondary: const Icon(Icons.contact_page_outlined), title: const Text('Allow contact sharing'), value: _allowContactSharing, onChanged: (v) => setState(() => _allowContactSharing = v))]),
+    _section('Kids & Safety', Icons.child_care_rounded, [_item(icon: Icons.verified_user_outlined, title: 'Kids safety', subtitle: 'Age-appropriate protections', onTap: _showKidsSafety)]),
+    _section('Notifications', Icons.notifications_none_rounded, [SwitchListTile(secondary: const Icon(Icons.notifications_active_outlined), title: const Text('Notifications'), value: _notifications, onChanged: (v) => setState(() => _notifications = v))]),
+    _section('Content & Activity', Icons.tune_rounded, [_item(icon: Icons.bookmark_border_rounded, title: 'Saved content'), _item(icon: Icons.history_rounded, title: 'Activity history')]),
+    _section('Help & Safety', Icons.help_outline_rounded, [_item(icon: Icons.report_gmailerrorred_outlined, title: 'Report a problem'), _item(icon: Icons.info_outline_rounded, title: 'Community guidelines'), _item(icon: Icons.privacy_tip_outlined, title: 'Privacy policy')]),
+    const SizedBox(height: 16), const Center(child: Text('MANOX', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 2))), const SizedBox(height: 8), Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: OutlinedButton.icon(onPressed: _signOut, icon: const Icon(Icons.logout_rounded), label: const Text('SIGN OUT')),
+  ]));
 }
