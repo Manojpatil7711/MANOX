@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:manox/features/home/data/demo_posts.dart';
+import 'package:manox/features/home/data/supabase_post_repository.dart';
 import 'package:manox/features/home/presentation/widgets/post_card.dart';
 
 import '../data/demo_profile.dart';
@@ -18,9 +18,10 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late final ProfileRepository _repo;
+  final SupabasePostRepository _postRepo = SupabasePostRepository();
   ProfileData? _profile;
   bool _loading = true;
-  List<HomeDemoData> _posts = [];
+  List<ManoxPost> _posts = [];
 
   @override
   void initState() {
@@ -33,8 +34,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (mounted) setState(() => _loading = true);
     try {
       final p = await _repo.fetchProfile();
-      final ids = await _repo.fetchPostIds();
-      final posts = demoPosts.where((d) => ids.contains(d.id)).toList();
+      final posts = await _postRepo.fetchMyPosts();
       if (!mounted) return;
       setState(() {
         _profile = p;
@@ -183,7 +183,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         else
                           ..._posts.map((post) => Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
-                                child: PostCard(data: post),
+                                child: PostCard(data: HomeDemoData(id: post.id, creatorName: post.creatorName, handle: post.handle, text: post.text, likes: post.likes, comments: post.comments, imagePath: post.imageUrl, likedByMe: post.likedByMe, isRemote: true), repository: _postRepo, onChanged: _load),
                               )),
                       ],
                     ),
