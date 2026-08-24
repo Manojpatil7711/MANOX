@@ -20,6 +20,30 @@ class ProfileData {
     required this.postIds,
     this.avatarUrl,
   });
+
+  ProfileData copyWith({
+    String? id,
+    String? displayName,
+    String? handle,
+    String? bio,
+    bool? isCreator,
+    int? followers,
+    int? following,
+    List<String>? postIds,
+    String? avatarUrl,
+  }) {
+    return ProfileData(
+      id: id ?? this.id,
+      displayName: displayName ?? this.displayName,
+      handle: handle ?? this.handle,
+      bio: bio ?? this.bio,
+      isCreator: isCreator ?? this.isCreator,
+      followers: followers ?? this.followers,
+      following: following ?? this.following,
+      postIds: postIds ?? this.postIds,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+    );
+  }
 }
 
 const demoProfile = ProfileData(
