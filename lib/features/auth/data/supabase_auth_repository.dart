@@ -13,12 +13,22 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   bool get hasSession => currentSession != null;
 
+  Future<supabase.SupabaseClient> _authClient() async {
+    try {
+      return await SupabaseService.ensureInitialized();
+    } on StateError {
+      throw AuthException(_serviceUnavailableMessage);
+    }
+  }
+
   @override
   Future<void> signIn(String email, String password) async {
-    final client = _client;
-    if (client == null) throw AuthException(_serviceUnavailableMessage);
+    final client = await _authClient();
     try {
-      final res = await client.auth.signInWithPassword(email: email, password: password);
+      final res = await client.auth.signInWithPassword(
+        email: email.trim(),
+        password: password,
+      );
       if (res.session == null) throw AuthException('Invalid credentials');
     } on supabase.AuthException catch (e) {
       throw AuthException(_mapError(e));
@@ -36,11 +46,10 @@ class SupabaseAuthRepository implements AuthRepository {
     required String email,
     required String password,
   }) async {
-    final client = _client;
-    if (client == null) throw AuthException(_serviceUnavailableMessage);
+    final client = await _authClient();
     try {
       final res = await client.auth.signUp(
-        email: email,
+        email: email.trim(),
         password: password,
         data: {
           'first_name': firstName.trim(),
@@ -68,10 +77,9 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> resetPassword(String email) async {
-    final client = _client;
-    if (client == null) throw AuthException(_serviceUnavailableMessage);
+    final client = await _authClient();
     try {
-      await client.auth.resetPasswordForEmail(email);
+      await client.auth.resetPasswordForEmail(email.trim());
     } on supabase.AuthException catch (e) {
       throw AuthException(_mapError(e));
     } catch (e) {
