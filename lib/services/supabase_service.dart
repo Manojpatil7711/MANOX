@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -8,6 +11,7 @@ class SupabaseService {
 
   static bool _initialized = false;
   static Object? _initializationError;
+  static StreamSubscription<Uri>? _deepLinkSubscription;
 
   static Future<void> initialize() async {
     if (!AppConfig.hasSupabase) return;
@@ -23,6 +27,7 @@ class SupabaseService {
       );
       _initialized = true;
       _initializationError = null;
+      _startAuthDeepLinkFallback();
     } catch (e, stackTrace) {
       _initialized = false;
       _initializationError = e;
@@ -31,8 +36,39 @@ class SupabaseService {
     }
   }
 
-  /// Ensures Auth calls do not fail just because the first initialization
-  /// attempt was interrupted or temporarily failed.
+  /// Supabase Flutter normally handles auth deep links internally. This
+  /// explicit listener is a safe fallback for Android custom-scheme callbacks
+  /// so a PKCE `code` is exchanged even if the platform callback arrives
+  /// before the SDK's internal listener is ready.
+  static void _startAuthDeepLinkFallback() {
+    if (kIsWeb || _deepLinkSubscription != null) return;
+
+    final appLinks = AppLinks();
+    _deepLinkSubscription = appLinks.uriLinkStream.listen((uri) async {
+      if (uri.scheme != 'io.manox.app' || uri.host != 'login-callback') return;
+
+      final client = client;
+      if (client == null || client.auth.currentSession != null) return;
+
+      final error = uri.queryParameters['error'];
+      if (error != null) {
+        debugPrint('MANOX OAuth callback error: $error');
+        return;
+      }
+
+      final code = uri.queryParameters['code'];
+      if (code == null || code.isEmpty) return;
+
+      try {
+        await client.auth.exchangeCodeForSession(code);
+        debugPrint('MANOX OAuth callback: PKCE session established.');
+      } catch (e, stackTrace) {
+        debugPrint('MANOX OAuth callback session exchange failed: $e');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+    });
+  }
+
   static Future<SupabaseClient> ensureInitialized() async {
     if (!_initialized) {
       await initialize();
