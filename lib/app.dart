@@ -11,11 +11,28 @@ import 'features/creator/creator.dart';
 import 'features/settings/settings.dart';
 import 'services/supabase_service.dart';
 
+class _AuthRefreshNotifier extends ChangeNotifier {
+  _AuthRefreshNotifier() {
+    final stream = SupabaseService.authStateChanges();
+    _subscription = stream?.listen((_) => notifyListeners());
+  }
+
+  StreamSubscription? _subscription;
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+}
+
 class ManoxApp extends StatelessWidget {
   const ManoxApp({super.key});
 
+  static final _authRefresh = _AuthRefreshNotifier();
   static final GoRouter _router = GoRouter(
     initialLocation: '/splash',
+    refreshListenable: _authRefresh,
     redirect: (context, state) {
       final session = SupabaseService.client?.auth.currentSession;
       final isAuthenticated = session != null;
