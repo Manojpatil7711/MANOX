@@ -243,11 +243,14 @@ class _SignupPageState extends State<SignupPage> {
                           Icons.mail_outline,
                         ),
                         keyboardType: TextInputType.emailAddress,
-                        validator: (v) => v == null ||
-                                !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+\$')
-                                    .hasMatch(v.trim())
-                            ? 'Enter a valid email'
-                            : null,
+                        validator: (v) {
+                          final value = v?.trim() ?? '';
+                          if (value.isEmpty) return 'Email address is required';
+                          final validEmail = RegExp(
+                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                          ).hasMatch(value);
+                          return validEmail ? null : 'Enter a valid email';
+                        },
                       ),
                       const SizedBox(height: 14),
                       TextFormField(
