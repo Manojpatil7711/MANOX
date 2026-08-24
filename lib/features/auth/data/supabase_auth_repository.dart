@@ -67,6 +67,53 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> sendEmailOtp(String email) async {
+    final client = await _authClient();
+    try {
+      await client.auth.signInWithOtp(email: email.trim());
+    } on supabase.AuthException catch (e) {
+      throw AuthException(_mapError(e));
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException(_mapError(e));
+    }
+  }
+
+  @override
+  Future<void> verifyEmailOtp(String email, String token) async {
+    final client = await _authClient();
+    try {
+      final res = await client.auth.verifyOTP(
+        email: email.trim(),
+        token: token.trim(),
+        type: supabase.OtpType.email,
+      );
+      if (res.session == null) throw AuthException('The code is invalid or expired.');
+    } on supabase.AuthException catch (e) {
+      throw AuthException(_mapError(e));
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException(_mapError(e));
+    }
+  }
+
+  @override
+  Future<void> signInWithGoogle() async {
+    final client = await _authClient();
+    try {
+      await client.auth.signInWithOAuth(
+        supabase.OAuthProvider.google,
+        redirectTo: 'io.manox.app://login-callback/',
+      );
+    } on supabase.AuthException catch (e) {
+      throw AuthException(_mapError(e));
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException(_mapError(e));
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     final client = _client;
     if (client == null) return;
@@ -97,16 +144,19 @@ class SupabaseAuthRepository implements AuthRepository {
       return 'Invalid email or password.';
     }
     if (msg.contains('already registered') || msg.contains('user already exists')) {
-      return 'Email already registered.';
+      return 'This email is already registered. Try signing in.';
     }
     if (msg.contains('email') && msg.contains('confirm')) {
-      return 'Please confirm your email before signing in.';
+      return 'Please confirm your email, then sign in.';
     }
-    if (msg.contains('password')) {
-      return 'Password is not acceptable.';
+    if (msg.contains('otp') || msg.contains('token') || msg.contains('expired')) {
+      return 'That code is invalid or expired. Request a new code.';
+    }
+    if (msg.contains('provider') || msg.contains('google')) {
+      return 'Google sign-in is not available yet. Please use email instead.';
     }
     if (msg.contains('rate limit') || msg.contains('too many requests')) {
-      return 'Too many attempts. Please try again later.';
+      return 'Too many attempts. Please wait a moment and try again.';
     }
     if (msg.contains('network') || msg.contains('connection')) {
       return 'Network connection failed. Please check your internet and try again.';
