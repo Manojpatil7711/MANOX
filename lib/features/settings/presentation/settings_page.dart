@@ -28,14 +28,16 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final row = await client.from('profile_privacy').select('private_account, who_can_message, allow_contact_sharing, show_online_status, show_last_seen, read_receipts').eq('user_id', user.id).maybeSingle();
       if (!mounted) return;
-      if (row != null) setState(() {
-        _privateAccount = row['private_account'] as bool? ?? false;
-        _whoCanMessage = row['who_can_message'] as String? ?? 'everyone';
-        _allowContactSharing = row['allow_contact_sharing'] as bool? ?? false;
-        _showOnline = row['show_online_status'] as bool? ?? false;
-        _showLastSeen = row['show_last_seen'] as bool? ?? false;
-        _readReceipts = row['read_receipts'] as bool? ?? true;
-      });
+      if (row != null) {
+        setState(() {
+          _privateAccount = row['private_account'] as bool? ?? false;
+          _whoCanMessage = row['who_can_message'] as String? ?? 'everyone';
+          _allowContactSharing = row['allow_contact_sharing'] as bool? ?? false;
+          _showOnline = row['show_online_status'] as bool? ?? false;
+          _showLastSeen = row['show_last_seen'] as bool? ?? false;
+          _readReceipts = row['read_receipts'] as bool? ?? true;
+        });
+      }
     } catch (_) {} finally { if (mounted) setState(() => _loading = false); }
   }
 
@@ -60,15 +62,24 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _openPasswordSecurity() {
-    showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheetContext) => SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 28), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Password & Security', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-      const SizedBox(height: 8),
-      const Text('Securely managed by MANOX Authentication'),
-      const SizedBox(height: 16),
-      ListTile(leading: const Icon(Icons.password_outlined), title: const Text('Change password'), subtitle: const Text('Receive a secure password reset link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { Navigator.of(sheetContext).pop(); _changePassword(); }),
-      ListTile(leading: const Icon(Icons.verified_user_outlined), title: const Text('Authentication status'), subtitle: Text(_client?.auth.currentUser == null ? 'Not signed in' : 'Signed in securely')), 
-      ListTile(leading: const Icon(Icons.devices_outlined), title: const Text('Current session'), subtitle: const Text('This device is currently signed in')), 
-    ])));
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Password & Security', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            const Text('Securely managed by MANOX Authentication'),
+            const SizedBox(height: 16),
+            ListTile(leading: const Icon(Icons.password_outlined), title: const Text('Change password'), subtitle: const Text('Receive a secure password reset link'), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { Navigator.of(sheetContext).pop(); _changePassword(); }),
+            ListTile(leading: const Icon(Icons.verified_user_outlined), title: const Text('Authentication status'), subtitle: Text(_client?.auth.currentUser == null ? 'Not signed in' : 'Signed in securely')),
+            ListTile(leading: const Icon(Icons.devices_outlined), title: const Text('Current session'), subtitle: const Text('This device is currently signed in')),
+          ]),
+        ),
+      ),
+    );
   }
 
   Future<void> _signOut() async {
@@ -78,7 +89,24 @@ class _SettingsPageState extends State<SettingsPage> {
     catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not sign out. Please try again.'))); }
   }
 
-  void _showKidsSafety() { showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheetContext) => const SafeArea(child: Padding(padding: EdgeInsets.fromLTRB(20, 8, 20, 28), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Kids & Safety', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)), SizedBox(height: 8), Text('Age-appropriate privacy, discovery and messaging protections remain active in Kids mode.'), SizedBox(height: 12), Text('Kids mode does not unlock monetization or withdrawal features.', style: TextStyle(fontWeight: FontWeight.w600))]))); }
+  void _showKidsSafety() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 8, 20, 28),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Kids & Safety', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            SizedBox(height: 8),
+            Text('Age-appropriate privacy, discovery and messaging protections remain active in Kids mode.'),
+            SizedBox(height: 12),
+            Text('Kids mode does not unlock monetization or withdrawal features.', style: TextStyle(fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      ),
+    );
+  }
 
   Widget _section(String title, IconData icon, List<Widget> children) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Padding(padding: const EdgeInsets.fromLTRB(4, 20, 4, 8), child: Row(children: [Icon(icon, size: 19), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.w700))])), Card(child: Column(children: children))]);
   ListTile _item({required IconData icon, required String title, String? subtitle, VoidCallback? onTap}) => ListTile(leading: Icon(icon), title: Text(title), subtitle: subtitle == null ? null : Text(subtitle), trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded), onTap: onTap);
