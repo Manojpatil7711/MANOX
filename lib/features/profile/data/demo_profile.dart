@@ -7,6 +7,7 @@ class ProfileData {
   final int followers;
   final int following;
   final List<String> postIds;
+  final String? avatarUrl;
 
   const ProfileData({
     required this.id,
@@ -17,6 +18,7 @@ class ProfileData {
     required this.followers,
     required this.following,
     required this.postIds,
+    this.avatarUrl,
   });
 }
 
