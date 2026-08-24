@@ -43,9 +43,7 @@ class ManoxComment {
 class SupabasePostRepository {
   SupabaseClient get _client {
     final client = SupabaseService.client;
-    if (client == null) {
-      throw StateError('MANOX backend is not configured.');
-    }
+    if (client == null) throw StateError('MANOX backend is not configured.');
     return client;
   }
 
@@ -56,15 +54,9 @@ class SupabasePostRepository {
   }
 
   Future<List<ManoxPost>> fetchFeed() async {
-    final rows = await _client
-        .from('contents')
-        .select('id, owner_user_id, description, media_url, media_urls, created_at, profiles!contents_owner_user_id_fkey(username, display_name), content_likes(user_id), content_comments(id)')
-        .eq('status', 'published')
-        .eq('visibility', 'public')
-        .order('published_at', ascending: false, nullsFirst: false)
-        .order('created_at', ascending: false)
-        .limit(50);
-
+    final rows = await _client.from('contents').select(
+      'id, owner_user_id, description, media_url, media_urls, created_at, profiles!contents_owner_user_id_fkey(username, display_name), content_likes(user_id), content_comments(id)',
+    ).eq('status', 'published').eq('visibility', 'public').order('published_at', ascending: false, nullsFirst: false).order('created_at', ascending: false).limit(50);
     final currentUser = _userId;
     return (rows as List).map((row) {
       final likes = List<Map<String, dynamic>>.from(row['content_likes'] ?? const []);
@@ -86,11 +78,7 @@ class SupabasePostRepository {
 
   Future<String?> uploadImage(Uint8List bytes, String extension, String? mimeType) async {
     final path = '$_userId/${DateTime.now().microsecondsSinceEpoch}.$extension';
-    await _client.storage.from('manox-media').uploadBinary(
-      path,
-      bytes,
-      fileOptions: FileOptions(contentType: mimeType, upsert: false, cacheControl: '3600'),
-    );
+    await _client.storage.from('manox-media').uploadBinary(path, bytes, fileOptions: FileOptions(contentType: mimeType, upsert: false, cacheControl: '3600'));
     return path;
   }
 
@@ -105,26 +93,19 @@ class SupabasePostRepository {
       'visibility': 'public',
       'published_at': DateTime.now().toIso8601String(),
     }).select('id').single();
-
     final id = row['id'] as String;
-    final posts = await _client
-        .from('contents')
-        .select('id, owner_user_id, description, media_url, media_urls, created_at, profiles!contents_owner_user_id_fkey(username, display_name)')
-        .eq('id', id)
-        .single();
-    final profile = posts['profiles'] as Map<String, dynamic>?;
-    return ManoxPost(
-      id: id,
-      creatorName: (profile?['display_name'] as String?) ?? 'You',
-      handle: '@${(profile?['username'] as String?) ?? 'you'}',
-      text: (posts['description'] as String?) ?? '',
-      likes: 0,
-      comments: 0,
-      likedByMe: false,
-      imageUrl: (posts['media_urls'] as List?)?.isNotEmpty == true
-          ? (posts['media_urls'] as List).first as String
-          : posts['media_url'] as String?,
-    );
+    final post = await _client.from('contents').select('id, owner_user_id, description, media_url, media_urls, created_at, profiles!contents_owner_user_id_fkey(username, display_name)').eq('id', id).single();
+    final profile = post['profiles'] as Map<String, dynamic>?;
+    final urls = post['media_urls'] as List?;
+    return ManoxPost(id: id, creatorName: (profile?['display_name'] as String?) ?? 'You', handle: '@${(profile?['username'] as String?) ?? 'you'}', text: (post['description'] as String?) ?? '', likes: 0, comments: 0, likedByMe: false, imageUrl: urls?.isNotEmpty == true ? urls!.first as String : post['media_url'] as String?);
+  }
+
+  Future<void> updatePost(String contentId, String text) async {
+    await _client.from('contents').update({'description': text.trim(), 'updated_at': DateTime.now().toIso8601String()}).eq('id', contentId).eq('owner_user_id', _userId);
+  }
+
+  Future<void> deletePost(String contentId) async {
+    await _client.from('contents').delete().eq('id', contentId).eq('owner_user_id', _userId);
   }
 
   Future<bool> toggleLike(String contentId, bool currentlyLiked) async {
@@ -137,47 +118,24 @@ class SupabasePostRepository {
   }
 
   Future<List<ManoxComment>> fetchComments(String contentId) async {
-    final rows = await _client
-        .from('content_comments')
-        .select('id, body, created_at, profiles!content_comments_user_id_fkey(display_name)')
-        .eq('content_id', contentId)
-        .eq('status', 'visible')
-        .order('created_at');
+    final rows = await _client.from('content_comments').select('id, body, created_at, profiles!content_comments_user_id_fkey(display_name)').eq('content_id', contentId).eq('status', 'visible').order('created_at');
     return (rows as List).map((row) {
       final profile = row['profiles'] as Map<String, dynamic>?;
-      return ManoxComment(
-        id: row['id'] as String,
-        userName: (profile?['display_name'] as String?) ?? 'MANOX User',
-        body: row['body'] as String,
-        createdAt: DateTime.parse(row['created_at'] as String),
-      );
+      return ManoxComment(id: row['id'] as String, userName: (profile?['display_name'] as String?) ?? 'MANOX User', body: row['body'] as String, createdAt: DateTime.parse(row['created_at'] as String));
     }).toList();
   }
 
   Future<void> addComment(String contentId, String body) async {
     final trimmed = body.trim();
     if (trimmed.isEmpty) return;
-    await _client.from('content_comments').insert({
-      'content_id': contentId,
-      'user_id': _userId,
-      'body': trimmed,
-      'status': 'visible',
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
-    });
+    await _client.from('content_comments').insert({'content_id': contentId, 'user_id': _userId, 'body': trimmed, 'status': 'visible', 'created_at': DateTime.now().toIso8601String(), 'updated_at': DateTime.now().toIso8601String()});
   }
 
   Future<void> recordShare(String contentId, {String target = 'system'}) async {
-    await _client.from('content_shares').insert({
-      'content_id': contentId,
-      'profile_id': _userId,
-      'share_target': target,
-    });
+    await _client.from('content_shares').insert({'content_id': contentId, 'profile_id': _userId, 'share_target': target});
   }
 
-  Future<String> createShareUrl(String contentId) async {
-    return 'https://manox.app/content/$contentId';
-  }
+  Future<String> createShareUrl(String contentId) async => 'https://manox.app/content/$contentId';
 
   Future<String?> signedMediaUrl(String path) async {
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
