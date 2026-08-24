@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/widgets/manox_brand.dart';
+import '../../../services/supabase_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -15,7 +16,7 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 650),
+    duration: const Duration(milliseconds: 500),
   )..forward();
 
   Timer? _timer;
@@ -23,8 +24,10 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(milliseconds: 2000), () {
-      if (mounted) context.go('/auth');
+    _timer = Timer(const Duration(milliseconds: 1000), () {
+      if (!mounted) return;
+      final session = SupabaseService.client?.auth.currentSession;
+      context.go(session == null ? '/auth' : '/home');
     });
   }
 
@@ -43,7 +46,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         child: FadeTransition(
           opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
           child: ScaleTransition(
-            scale: Tween<double>(begin: .94, end: 1).animate(
+            scale: Tween<double>(begin: .96, end: 1).animate(
               CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
             ),
             child: const ManoxBrand(),
