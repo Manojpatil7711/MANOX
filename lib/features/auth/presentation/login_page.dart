@@ -65,8 +65,8 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _verifyOtp() async {
     final code = _otpCtrl.text.trim();
-    if (code.length < 6) {
-      setState(() => _error = 'Enter the 6-digit code.');
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+      setState(() => _error = 'Enter the 6-digit verification code.');
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -86,8 +86,6 @@ class _LoginPageState extends State<LoginPage> {
     setState(() { _loading = true; _error = null; });
     try {
       await _repo.signInWithGoogle();
-      // OAuth completes outside the app; Supabase restores the session when
-      // the callback returns. The user can continue without another form.
     } on AuthException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
@@ -140,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordCtrl,
                 obscureText: _obscure,
                 decoration: InputDecoration(labelText: 'Password', prefixIcon: const Icon(Icons.lock_outline), suffixIcon: IconButton(icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined), onPressed: () => setState(() => _obscure = !_obscure))),
-                validator: (v) => v == null || v.isEmpty ? 'Password is required' : v.length < 6 ? 'Password must be at least 6 characters' : null,
+                validator: (v) => v == null || v.isEmpty ? 'Password is required' : v.length < 8 ? 'Password must be at least 8 characters' : null,
               ),
               Align(alignment: Alignment.centerRight, child: TextButton(onPressed: _loading ? null : () => context.go('/auth/forgot'), child: const Text('Forgot password?'))),
               if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!, key: const Key('login-error'), textAlign: TextAlign.center, style: TextStyle(color: scheme.error))),
@@ -148,18 +146,27 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 8),
               TextButton(onPressed: _loading ? null : () => setState(() { _otpMode = true; _error = null; }), child: const Text('USE EMAIL CODE INSTEAD')),
             ] else ...[
+              Text('We’ll send a secure one-time code to your email.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 6),
+              Text('6 digits • numbers only • one-time use • expires automatically', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: 16),
               if (!_otpSent) ...[
-                Text('We’ll send a one-time code to your email.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: 16),
                 if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!, key: const Key('login-error'), textAlign: TextAlign.center, style: TextStyle(color: scheme.error))),
                 ElevatedButton(key: const Key('send-email-code'), onPressed: _loading ? null : _sendOtp, child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SEND CODE')),
                 TextButton(onPressed: _loading ? null : () => setState(() { _otpMode = false; _error = null; }), child: const Text('USE PASSWORD INSTEAD')),
               ] else ...[
-                Text('Enter the 6-digit code sent to your email.', textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                TextField(key: const Key('email-otp'), controller: _otpCtrl, keyboardType: TextInputType.number, maxLength: 6, textAlign: TextAlign.center, decoration: const InputDecoration(labelText: 'Verification code')),
+                TextField(
+                  key: const Key('email-otp'),
+                  controller: _otpCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  textAlign: TextAlign.center,
+                  autofillHints: const [AutofillHints.oneTimeCode],
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(labelText: '6-digit verification code', counterText: ''),
+                ),
                 if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!, key: const Key('login-error'), textAlign: TextAlign.center, style: TextStyle(color: scheme.error))),
-                ElevatedButton(key: const Key('verify-email-code'), onPressed: _loading ? null : _verifyOtp, child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('VERIFY & CONTINUE')),
+                ElevatedButton(key: const Key('verify-email-code'), onPressed: _loading || !RegExp(r'^\d{6}$').hasMatch(_otpCtrl.text.trim()) ? null : _verifyOtp, child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('VERIFY & CONTINUE')),
                 TextButton(onPressed: _loading ? null : _sendOtp, child: const Text('RESEND CODE')),
                 TextButton(onPressed: _loading ? null : () => setState(() { _otpMode = false; _otpSent = false; _error = null; }), child: const Text('USE PASSWORD INSTEAD')),
               ],
