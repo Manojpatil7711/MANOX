@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import 'package:url_launcher/url_launcher.dart';
 import '../../../services/supabase_service.dart';
 import '../domain/auth_repository.dart';
 
@@ -60,7 +61,11 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<void> signInWithGoogle() async {
     final client = await _authClient();
     try {
-      await client.auth.signInWithOAuth(supabase.OAuthProvider.google, redirectTo: 'io.manox.app://login-callback/');
+      await client.auth.signInWithOAuth(
+        supabase.OAuthProvider.google,
+        redirectTo: 'io.manox.app://login-callback/',
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
     } on supabase.AuthException catch (e) { throw AuthException(_mapError(e)); }
     catch (e) { if (e is AuthException) rethrow; throw AuthException(_mapError(e)); }
   }
