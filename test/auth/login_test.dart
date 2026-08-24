@@ -21,13 +21,16 @@ class FakeAuthRepo implements AuthRepository {
   }
 
   @override
-  Future<void> signUp({
-    required String firstName,
-    required String surname,
-    required String mobile,
-    required String email,
-    required String password,
-  }) async {}
+  Future<void> signUp({required String firstName, required String surname, required String mobile, required String email, required String password}) async {}
+
+  @override
+  Future<void> sendEmailOtp(String email) async {}
+
+  @override
+  Future<void> verifyEmailOtp(String email, String token) async {}
+
+  @override
+  Future<void> signInWithGoogle() async {}
 
   @override
   Future<void> signOut() async {}
@@ -38,20 +41,16 @@ class FakeAuthRepo implements AuthRepository {
 
 void main() {
   Widget buildTestApp(FakeAuthRepo repo) {
-    final router = GoRouter(
-      routes: [
-        GoRoute(path: '/', builder: (context, state) => LoginPage(authRepository: repo)),
-        GoRoute(path: '/home', builder: (context, state) => const Scaffold(body: Center(child: Text('HOME')))),
-      ],
-    );
-
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (context, state) => LoginPage(authRepository: repo)),
+      GoRoute(path: '/home', builder: (context, state) => const Scaffold(body: Center(child: Text('HOME')))),
+    ]);
     return MaterialApp.router(routerConfig: router, theme: ThemeData.dark());
   }
 
   testWidgets('Login page renders and has required fields', (WidgetTester tester) async {
     final repo = FakeAuthRepo();
     await tester.pumpWidget(buildTestApp(repo));
-
     expect(find.byKey(const Key('login-email')), findsOneWidget);
     expect(find.byKey(const Key('login-password')), findsOneWidget);
     expect(find.byKey(const Key('login-submit')), findsOneWidget);
@@ -60,19 +59,15 @@ void main() {
   testWidgets('Login validation: empty and invalid inputs', (WidgetTester tester) async {
     final repo = FakeAuthRepo();
     await tester.pumpWidget(buildTestApp(repo));
-
     await tester.tap(find.byKey(const Key('login-submit')));
     await tester.pump();
-
     expect(find.text('Email is required'), findsOneWidget);
     expect(find.text('Password is required'), findsOneWidget);
-
     await tester.enterText(find.byKey(const Key('login-email')), 'bad-email');
     await tester.enterText(find.byKey(const Key('login-password')), '123456');
     await tester.tap(find.byKey(const Key('login-submit')));
     await tester.pump();
     expect(find.text('Enter a valid email'), findsOneWidget);
-
     await tester.enterText(find.byKey(const Key('login-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('login-password')), '123');
     await tester.tap(find.byKey(const Key('login-submit')));
@@ -83,12 +78,10 @@ void main() {
   testWidgets('Login success navigates to /home', (WidgetTester tester) async {
     final repo = FakeAuthRepo();
     await tester.pumpWidget(buildTestApp(repo));
-
     await tester.enterText(find.byKey(const Key('login-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('login-password')), 'password123');
     await tester.tap(find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
-
     expect(find.text('HOME'), findsOneWidget);
     expect(repo.signInCalls, 1);
   });
@@ -96,20 +89,14 @@ void main() {
   testWidgets('Login failure shows friendly error and prevents duplicate submissions', (WidgetTester tester) async {
     final repo = FakeAuthRepo()..shouldFail = true..delay = true;
     await tester.pumpWidget(buildTestApp(repo));
-
     await tester.enterText(find.byKey(const Key('login-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('login-password')), 'password123');
-
     final submit = find.byKey(const Key('login-submit'));
     await tester.tap(submit);
     await tester.pump();
-
-    // The first submission has started, so the button is disabled before the
-    // second tap. This verifies the real duplicate-submission guard.
     expect(tester.widget<ElevatedButton>(submit).onPressed, isNull);
     await tester.tap(submit, warnIfMissed: false);
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('login-error')), findsOneWidget);
     expect(find.text('Invalid email or password.'), findsOneWidget);
     expect(repo.signInCalls, 1);
