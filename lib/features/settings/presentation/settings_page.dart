@@ -19,7 +19,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _showLastSeen = false;
   bool _readReceipts = true;
   bool _notifications = true;
-  String _allowMessages = 'everyone';
+  String _whoCanMessage = 'everyone';
 
   SupabaseClient? get _client => SupabaseService.client;
 
@@ -36,24 +36,28 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) setState(() => _loading = false);
       return;
     }
+
     try {
       final row = await client
           .from('profile_privacy')
-          .select('private_account, allow_messages, allow_contact_sharing, show_online_status, show_last_seen, read_receipts')
+          .select(
+            'private_account, who_can_message, allow_contact_sharing, show_online_status, show_last_seen, read_receipts',
+          )
           .eq('user_id', user.id)
           .maybeSingle();
+
       if (!mounted) return;
       if (row != null) {
         setState(() {
           _privateAccount = row['private_account'] as bool? ?? false;
-          _allowMessages = row['allow_messages'] as String? ?? 'everyone';
+          _whoCanMessage = row['who_can_message'] as String? ?? 'everyone';
           _allowContactSharing = row['allow_contact_sharing'] as bool? ?? false;
           _showOnline = row['show_online_status'] as bool? ?? false;
           _showLastSeen = row['show_last_seen'] as bool? ?? false;
           _readReceipts = row['read_receipts'] as bool? ?? true;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Privacy settings could not be loaded.')),
@@ -68,26 +72,88 @@ class _SettingsPageState extends State<SettingsPage> {
     final client = _client;
     final user = client?.auth.currentUser;
     if (client == null || user == null || _saving) return;
+
     setState(() => _saving = true);
     try {
       await client.from('profile_privacy').upsert({
         'id': user.id,
         'user_id': user.id,
         'private_account': _privateAccount,
-        'allow_messages': _allowMessages,
+        'who_can_message': _whoCanMessage,
         'allow_contact_sharing': _allowContactSharing,
         'show_online_status': _showOnline,
         'show_last_seen': _showLastSeen,
         'read_receipts': _readReceipts,
       }, onConflict: 'id');
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Privacy settings saved.')));
-    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Privacy settings saved.')),
+      );
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save settings: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save privacy settings. Please try again.')),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _showKidsSafety() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        bool safeMode = true;
+        bool restrictMessages = true;
+        return StatefulBuilder(
+          builder: (context, setSheetState) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.child_care_rounded, size: 28),
+                      SizedBox(width: 10),
+                      Text('Kids & Safety', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'A safer experience for younger users. MANOX keeps privacy, messaging and discovery restrictions stricter in Kids mode.',
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Kids safety mode'),
+                    subtitle: const Text('Keep age-appropriate safety protections enabled.'),
+                    value: safeMode,
+                    onChanged: (value) => setSheetState(() => safeMode = value),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Restrict direct messages'),
+                    subtitle: const Text('Recommended for younger users.'),
+                    value: restrictMessages,
+                    onChanged: (value) => setSheetState(() => restrictMessages = value),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Safety note: Kids mode does not unlock monetization or withdrawal features.',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _section(String title, IconData icon, List<Widget> children) {
@@ -96,14 +162,26 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-          child: Row(children: [Icon(icon, size: 19), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.w700))]),
+          child: Row(
+            children: [
+              Icon(icon, size: 19),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            ],
+          ),
         ),
         Card(child: Column(children: children)),
       ],
     );
   }
 
-  ListTile _item({required IconData icon, required String title, String? subtitle, VoidCallback? onTap, Widget? trailing}) {
+  ListTile _item({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+    Widget? trailing,
+  }) {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
@@ -133,7 +211,12 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
               children: [
                 _section('Account', Icons.person_outline_rounded, [
-                  _item(icon: Icons.edit_outlined, title: 'Edit profile', subtitle: 'Name, username, bio and profile photo', onTap: () => Navigator.of(context).pop()),
+                  _item(
+                    icon: Icons.edit_outlined,
+                    title: 'Edit profile',
+                    subtitle: 'Name, username, bio and profile photo',
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
                   _item(icon: Icons.mail_outline_rounded, title: 'Email & account', subtitle: 'Private authentication information', onTap: () {}),
                   _item(icon: Icons.lock_outline_rounded, title: 'Password & security', subtitle: 'Securely managed by MANOX Authentication', onTap: () {}),
                 ]),
@@ -168,14 +251,19 @@ class _SettingsPageState extends State<SettingsPage> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                     child: DropdownButtonFormField<String>(
-                      value: _allowMessages,
-                      decoration: const InputDecoration(labelText: 'Who can message me', prefixIcon: Icon(Icons.chat_outlined)),
+                      value: _whoCanMessage,
+                      decoration: const InputDecoration(
+                        labelText: 'Who can message me',
+                        prefixIcon: Icon(Icons.chat_outlined),
+                      ),
                       items: const [
                         DropdownMenuItem(value: 'everyone', child: Text('Everyone')),
                         DropdownMenuItem(value: 'followers', child: Text('Followers')),
                         DropdownMenuItem(value: 'no_one', child: Text('No one')),
                       ],
-                      onChanged: (v) { if (v != null) setState(() => _allowMessages = v); },
+                      onChanged: (v) {
+                        if (v != null) setState(() => _whoCanMessage = v);
+                      },
                     ),
                   ),
                   SwitchListTile(
@@ -187,11 +275,19 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _item(icon: Icons.block_outlined, title: 'Blocked accounts', subtitle: 'Manage people you have blocked', onTap: () {}),
                 ]),
+                _section('Kids & Safety', Icons.child_care_rounded, [
+                  _item(
+                    icon: Icons.verified_user_outlined,
+                    title: 'Kids safety',
+                    subtitle: 'Age-appropriate privacy, discovery and messaging protections',
+                    onTap: _showKidsSafety,
+                  ),
+                ]),
                 _section('Notifications', Icons.notifications_none_rounded, [
                   SwitchListTile(
                     secondary: const Icon(Icons.notifications_active_outlined),
                     title: const Text('Notifications'),
-                    subtitle: const Text('Likes, comments, follows and messages'),
+                    subtitle: const Text('Likes, comments, VIBEs and messages'),
                     value: _notifications,
                     onChanged: (v) => setState(() => _notifications = v),
                   ),
