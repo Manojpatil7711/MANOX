@@ -15,6 +15,7 @@ dependencies:
   go_router: ^16.0.0
   image_picker: ^1.1.2
   share_plus: ^11.1.0
+  url_launcher: ^6.3.2
 
 dependency_overrides:
   # supabase_flutter uses app_links internally. Pin to the last app_links
