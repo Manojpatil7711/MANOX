@@ -21,14 +21,29 @@ class SupabaseService {
       _initialized = true;
       _initializationError = null;
     } catch (e, stackTrace) {
-      // Never expose initialization details to users. Keep them available only
-      // in debug logs so Auth failures are diagnosable without weakening
-      // security or privacy controls.
       _initialized = false;
       _initializationError = e;
       debugPrint('MANOX Supabase initialization failed: $e');
       debugPrintStack(stackTrace: stackTrace);
     }
+  }
+
+  /// Ensures Auth calls do not fail just because the first initialization
+  /// attempt was interrupted or temporarily failed.
+  static Future<SupabaseClient> ensureInitialized() async {
+    if (!_initialized) {
+      await initialize();
+    }
+
+    final supabaseClient = client;
+    if (supabaseClient == null) {
+      throw StateError(
+        _initializationError == null
+            ? 'Supabase authentication service is unavailable.'
+            : 'Supabase initialization failed.',
+      );
+    }
+    return supabaseClient;
   }
 
   static SupabaseClient? get client {
