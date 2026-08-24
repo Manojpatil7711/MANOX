@@ -18,6 +18,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _showOnline = false;
   bool _showLastSeen = false;
   bool _readReceipts = true;
+  bool _notifications = true;
   String _allowMessages = 'everyone';
 
   SupabaseClient? get _client => SupabaseService.client;
@@ -36,24 +37,30 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
     try {
-      final row = await client.from('profile_privacy').select('allow_messages, allow_contact_sharing, show_online_status, show_last_seen, read_receipts').eq('user_id', user.id).maybeSingle();
+      final row = await client
+          .from('profile_privacy')
+          .select('private_account, allow_messages, allow_contact_sharing, show_online_status, show_last_seen, read_receipts')
+          .eq('user_id', user.id)
+          .maybeSingle();
       if (!mounted) return;
       if (row != null) {
         setState(() {
+          _privateAccount = row['private_account'] as bool? ?? false;
           _allowMessages = row['allow_messages'] as String? ?? 'everyone';
           _allowContactSharing = row['allow_contact_sharing'] as bool? ?? false;
           _showOnline = row['show_online_status'] as bool? ?? false;
           _showLastSeen = row['show_last_seen'] as bool? ?? false;
           _readReceipts = row['read_receipts'] as bool? ?? true;
-          _loading = false;
         });
-      } else {
-        setState(() => _loading = false);
       }
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Privacy settings unavailable: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Privacy settings could not be loaded.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -64,81 +71,142 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _saving = true);
     try {
       await client.from('profile_privacy').upsert({
+        'id': user.id,
         'user_id': user.id,
+        'private_account': _privateAccount,
         'allow_messages': _allowMessages,
         'allow_contact_sharing': _allowContactSharing,
         'show_online_status': _showOnline,
         'show_last_seen': _showLastSeen,
         'read_receipts': _readReceipts,
-      });
+      }, onConflict: 'id');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Privacy settings saved.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save privacy settings: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save settings: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Widget _section(String title, IconData icon, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+          child: Row(children: [Icon(icon, size: 19), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.w700))]),
+        ),
+        Card(child: Column(children: children)),
+      ],
+    );
+  }
+
+  ListTile _item({required IconData icon, required String title, String? subtitle, VoidCallback? onTap, Widget? trailing}) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: subtitle == null ? null : Text(subtitle),
+      trailing: trailing ?? (onTap == null ? null : const Icon(Icons.chevron_right_rounded)),
+      onTap: onTap,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Settings & Privacy'),
         actions: [
           TextButton(
             onPressed: _saving ? null : _savePrivacy,
-            child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SAVE'),
+            child: _saving
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('SAVE'),
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
               children: [
-                const Text('Account', style: TextStyle(fontWeight: FontWeight.bold)),
-                SwitchListTile(
-                  title: const Text('Private account'),
-                  subtitle: const Text('Your contact details are never public by default.'),
-                  value: _privateAccount,
-                  onChanged: (v) => setState(() => _privateAccount = v),
-                ),
-                const Divider(),
-                const Text('Messages & Contact', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _allowMessages,
-                  decoration: const InputDecoration(labelText: 'Who can message me'),
-                  items: const [
-                    DropdownMenuItem(value: 'everyone', child: Text('Everyone')),
-                    DropdownMenuItem(value: 'followers', child: Text('Followers')),
-                    DropdownMenuItem(value: 'no_one', child: Text('No one')),
-                  ],
-                  onChanged: (v) { if (v != null) setState(() => _allowMessages = v); },
-                ),
-                SwitchListTile(
-                  title: const Text('Allow contact sharing'),
-                  subtitle: const Text('Only share contact information when you explicitly choose to share it.'),
-                  value: _allowContactSharing,
-                  onChanged: (v) => setState(() => _allowContactSharing = v),
-                ),
-                const Divider(),
-                const Text('Privacy', style: TextStyle(fontWeight: FontWeight.bold)),
-                SwitchListTile(title: const Text('Show online status'), value: _showOnline, onChanged: (v) => setState(() => _showOnline = v)),
-                SwitchListTile(title: const Text('Show last seen'), value: _showLastSeen, onChanged: (v) => setState(() => _showLastSeen = v)),
-                SwitchListTile(title: const Text('Read receipts'), value: _readReceipts, onChanged: (v) => setState(() => _readReceipts = v)),
-                const Divider(),
-                const Text('Security', style: TextStyle(fontWeight: FontWeight.bold)),
-                ListTile(
-                  title: const Text('Password & security'),
-                  subtitle: const Text('Managed securely by MANOX Authentication'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
-                ),
-                const SizedBox(height: 12),
-                const Text('Email address and mobile number are account information. They are not displayed on your public profile. Contact sharing will be implemented as an explicit per-person action.', style: TextStyle(fontSize: 12)),
+                _section('Account', Icons.person_outline_rounded, [
+                  _item(icon: Icons.edit_outlined, title: 'Edit profile', subtitle: 'Name, username, bio and profile photo', onTap: () => Navigator.of(context).pop()),
+                  _item(icon: Icons.mail_outline_rounded, title: 'Email & account', subtitle: 'Private authentication information', onTap: () {}),
+                  _item(icon: Icons.lock_outline_rounded, title: 'Password & security', subtitle: 'Securely managed by MANOX Authentication', onTap: () {}),
+                ]),
+                _section('Privacy', Icons.shield_outlined, [
+                  SwitchListTile(
+                    secondary: const Icon(Icons.lock_person_outlined),
+                    title: const Text('Private account'),
+                    subtitle: const Text('Control who can discover and interact with you.'),
+                    value: _privateAccount,
+                    onChanged: (v) => setState(() => _privateAccount = v),
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.visibility_outlined),
+                    title: const Text('Show online status'),
+                    value: _showOnline,
+                    onChanged: (v) => setState(() => _showOnline = v),
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.access_time_rounded),
+                    title: const Text('Show last seen'),
+                    value: _showLastSeen,
+                    onChanged: (v) => setState(() => _showLastSeen = v),
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.done_all_rounded),
+                    title: const Text('Read receipts'),
+                    value: _readReceipts,
+                    onChanged: (v) => setState(() => _readReceipts = v),
+                  ),
+                ]),
+                _section('Messages & Contacts', Icons.chat_bubble_outline_rounded, [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: DropdownButtonFormField<String>(
+                      value: _allowMessages,
+                      decoration: const InputDecoration(labelText: 'Who can message me', prefixIcon: Icon(Icons.chat_outlined)),
+                      items: const [
+                        DropdownMenuItem(value: 'everyone', child: Text('Everyone')),
+                        DropdownMenuItem(value: 'followers', child: Text('Followers')),
+                        DropdownMenuItem(value: 'no_one', child: Text('No one')),
+                      ],
+                      onChanged: (v) { if (v != null) setState(() => _allowMessages = v); },
+                    ),
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.contact_page_outlined),
+                    title: const Text('Allow contact sharing'),
+                    subtitle: const Text('Contact details stay hidden unless you explicitly share them.'),
+                    value: _allowContactSharing,
+                    onChanged: (v) => setState(() => _allowContactSharing = v),
+                  ),
+                  _item(icon: Icons.block_outlined, title: 'Blocked accounts', subtitle: 'Manage people you have blocked', onTap: () {}),
+                ]),
+                _section('Notifications', Icons.notifications_none_rounded, [
+                  SwitchListTile(
+                    secondary: const Icon(Icons.notifications_active_outlined),
+                    title: const Text('Notifications'),
+                    subtitle: const Text('Likes, comments, follows and messages'),
+                    value: _notifications,
+                    onChanged: (v) => setState(() => _notifications = v),
+                  ),
+                ]),
+                _section('Content & Activity', Icons.tune_rounded, [
+                  _item(icon: Icons.bookmark_border_rounded, title: 'Saved content', onTap: () {}),
+                  _item(icon: Icons.history_rounded, title: 'Activity history', onTap: () {}),
+                ]),
+                _section('Help & Safety', Icons.help_outline_rounded, [
+                  _item(icon: Icons.report_gmailerrorred_outlined, title: 'Report a problem', onTap: () {}),
+                  _item(icon: Icons.info_outline_rounded, title: 'Community guidelines', onTap: () {}),
+                  _item(icon: Icons.privacy_tip_outlined, title: 'Privacy policy', onTap: () {}),
+                ]),
+                const SizedBox(height: 16),
+                Center(child: Text('MANOX • WEAR YOUR IDENTITY', style: Theme.of(context).textTheme.bodySmall)),
               ],
             ),
     );
