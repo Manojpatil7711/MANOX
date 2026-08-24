@@ -6,11 +6,7 @@ class ManoxMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(painter: _ManoxMarkPainter()),
-    );
+    return SizedBox(width: size, height: size, child: CustomPaint(painter: _ManoxMarkPainter()));
   }
 }
 
@@ -25,33 +21,15 @@ class ManoxBrand extends StatelessWidget {
       children: [
         ManoxMark(size: compact ? 34 : 42),
         const SizedBox(width: 10),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'MANOX',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: compact ? 18 : 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: compact ? 2.4 : 3.2,
-                height: 1,
-              ),
-            ),
-            if (!compact) ...[
-              const SizedBox(height: 4),
-              Text(
-                'WEAR YOUR IDENTITY',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.8,
-                ),
-              ),
-            ],
-          ],
+        Text(
+          'MANOX',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: compact ? 18 : 22,
+            fontWeight: FontWeight.w800,
+            letterSpacing: compact ? 2.4 : 3.2,
+            height: 1,
+          ),
         ),
       ],
     );
@@ -67,7 +45,6 @@ class _ManoxMarkPainter extends CustomPainter {
       ..strokeWidth = size.width * .105
       ..strokeCap = StrokeCap.square
       ..strokeJoin = StrokeJoin.miter;
-
     final w = size.width;
     final h = size.height;
     final p = Path()
