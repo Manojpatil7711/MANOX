@@ -74,8 +74,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _submitPost() async {
     final text = _composerCtrl.text.trim();
-    if (text.isEmpty && _selectedImagePath == null) return;
-
+    if (text.isEmpty && _selectedImagePath == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Add text or an image before posting.')));
+      return;
+    }
     setState(() => _posting = true);
     try {
       String? imagePath;
@@ -85,30 +87,67 @@ class _HomePageState extends State<HomePage> {
         final extension = picked.path.split('.').last.toLowerCase();
         imagePath = await _repository.uploadImage(bytes, extension, picked.mimeType);
       }
-
       final post = await _repository.createPost(text: text, imagePath: imagePath);
       if (!mounted) return;
       setState(() {
-        _posts.insert(0, HomeDemoData(
-          id: post.id,
-          creatorName: post.creatorName,
-          handle: post.handle,
-          text: post.text,
-          likes: 0,
-          comments: 0,
-          imagePath: post.imageUrl,
-          isRemote: true,
-        ));
+        _posts.insert(0, HomeDemoData(id: post.id, creatorName: post.creatorName, handle: post.handle, text: post.text, likes: 0, comments: 0, imagePath: post.imageUrl, isRemote: true));
         _composerCtrl.clear();
         _selectedImagePath = null;
         _posting = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Posted successfully.')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _posting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Post failed: ${e.toString().replaceFirst('Exception: ', '')}')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Post failed: ${e.toString().replaceFirst('Exception: ', '')}')));
+    }
+  }
+
+  void _openCreateSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Align(alignment: Alignment.centerLeft, child: Text('Create on MANOX', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
+            const SizedBox(height: 14),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              _createAction(sheetContext, Icons.image_outlined, 'Image', _pickImage),
+              _createAction(sheetContext, Icons.videocam_outlined, 'Video', () => _showComingSoon('Video upload')),
+              _createAction(sheetContext, Icons.bolt_rounded, 'Shorts', () => _showComingSoon('Shorts')), 
+              _createAction(sheetContext, Icons.school_outlined, 'Lecture', () => _showComingSoon('Lecture')), 
+              _createAction(sheetContext, Icons.radio_outlined, 'Live', () => _showComingSoon('Live')), 
+              _createAction(sheetContext, Icons.edit_outlined, 'Text', () { Navigator.pop(sheetContext); FocusScope.of(context).requestFocus(); }),
+            ]),
+            const SizedBox(height: 12),
+            FilledButton.icon(onPressed: _posting ? null : () { Navigator.pop(sheetContext); }, icon: const Icon(Icons.post_add_rounded), label: const Text('Open post composer')),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _createAction(BuildContext sheetContext, IconData icon, String label, VoidCallback action) {
+    return ActionChip(avatar: Icon(icon, size: 19), label: Text(label), onPressed: () { Navigator.pop(sheetContext); action(); });
+  }
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$feature is being prepared for MANOX.')));
+  }
+
+  void _openNotifications() => context.push('/notifications');
+
+  void _openMessages() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Messages are ready to open from the chat entry when messaging is enabled.')));
+  }
+
+  void _openSearch() {
+    try {
+      context.push('/search');
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Search is not available yet.')));
     }
   }
 
@@ -118,162 +157,84 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const ManoxBrand(compact: true),
-        leading: const SizedBox.shrink(),
+        leading: IconButton(tooltip: 'Search MANOX', icon: const Icon(Icons.search_rounded), onPressed: _openSearch),
         actions: [
-          IconButton(
-            tooltip: 'Profile',
-            icon: const Icon(Icons.person_outline),
-            onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadingFeed ? null : _loadFeed,
-          ),
-          const SizedBox(width: 6),
+          _headerIcon(Icons.add_box_outlined, 'Create', _openCreateSheet),
+          _headerIcon(Icons.chat_bubble_outline_rounded, 'Messages', _openMessages),
+          _headerIcon(Icons.notifications_none_rounded, 'Notifications', _openNotifications),
+          IconButton(tooltip: 'Profile', icon: const Icon(Icons.person_outline_rounded), onPressed: () => context.push('/profile')),
+          const SizedBox(width: 4),
         ],
       ),
       body: SafeArea(
-        child: LayoutBuilder(builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 800;
-          return Row(
+        child: RefreshIndicator(
+          onRefresh: _loadFeed,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 28),
             children: [
-              Expanded(
-                flex: isWide ? 2 : 1,
-                child: RefreshIndicator(
-                  onRefresh: _loadFeed,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const ManoxBrand(),
-                                const SizedBox(height: 18),
-                                Text('Creator community', style: theme.textTheme.headlineSmall),
-                                const SizedBox(height: 6),
-                                Text('Share what you create, discover makers, and grow together.', style: theme.textTheme.bodyMedium),
-                                const SizedBox(height: 16),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: OutlinedButton(
-                                    onPressed: () => context.push('/auth'),
-                                    child: const Text('Get started'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Row(
-                                  children: [
-                                    const ManoxMark(size: 34),
-                                    const SizedBox(width: 10),
-                                    Text('Create a post', style: theme.textTheme.titleMedium),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                TextField(
-                                  key: const Key('post-composer-field'),
-                                  controller: _composerCtrl,
-                                  maxLines: 4,
-                                  minLines: 2,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Share something with the community...',
-                                  ),
-                                ),
-                                if (_selectedImagePath != null) ...[
-                                  const SizedBox(height: 10),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: Image.file(File(_selectedImagePath!), height: 180, fit: BoxFit.cover),
-                                  ),
-                                ],
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    OutlinedButton.icon(
-                                      onPressed: _posting ? null : _pickImage,
-                                      icon: const Icon(Icons.image_outlined),
-                                      label: const Text('Add image'),
-                                    ),
-                                    const Spacer(),
-                                    ElevatedButton(
-                                      key: const Key('post-compose-submit'),
-                                      onPressed: _posting ? null : _submitPost,
-                                      child: _posting
-                                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                          : const Text('Post'),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            Text('Community', style: theme.textTheme.titleLarge),
-                            const Spacer(),
-                            if (!_loadingFeed) Text('${_posts.length} posts', style: theme.textTheme.bodySmall),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        if (_loadingFeed)
-                          const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
-                        else if (_posts.isEmpty)
-                          SizedBox(height: 180, child: Center(child: Text('No posts yet. Be the first to create!', style: theme.textTheme.bodyMedium)))
-                        else
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemBuilder: (context, index) => PostCard(data: _posts[index], repository: _repository),
-                            separatorBuilder: (context, index) => const SizedBox(height: 10),
-                            itemCount: _posts.length,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (isWide)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const ManoxMark(size: 34),
-                            const SizedBox(height: 16),
-                            Text('Build your identity.', style: theme.textTheme.headlineSmall),
-                            const SizedBox(height: 8),
-                            Text('Create. Connect. Grow.', style: theme.textTheme.bodyMedium),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              _discoveryRow(theme),
+              const SizedBox(height: 12),
+              _composerCard(theme),
+              const SizedBox(height: 16),
+              Row(children: [Text('For You', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)), const Spacer(), if (!_loadingFeed) Text('${_posts.length}', style: theme.textTheme.bodySmall)]),
+              const SizedBox(height: 10),
+              if (_loadingFeed)
+                const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
+              else if (_posts.isEmpty)
+                const Padding(padding: EdgeInsets.all(36), child: Center(child: Text('No content yet. Be the first to create.')))
+              else
+                ..._posts.map((post) => Padding(padding: const EdgeInsets.only(bottom: 10), child: PostCard(data: post, repository: _repository))),
             ],
-          );
-        }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _headerIcon(IconData icon, String tooltip, VoidCallback onPressed) {
+    return IconButton(tooltip: tooltip, icon: Icon(icon), onPressed: onPressed);
+  }
+
+  Widget _discoveryRow(ThemeData theme) {
+    const items = [
+      ('Live', Icons.radio_rounded),
+      ('Trending', Icons.local_fire_department_rounded),
+      ('Learn', Icons.school_rounded),
+      ('Entertainment', Icons.movie_rounded),
+      ('Sports', Icons.sports_soccer_rounded),
+      ('BEATS', Icons.auto_awesome_rounded),
+    ];
+    return SizedBox(
+      height: 86,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, index) => InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${items[index].$1} discovery selected.'))),
+          child: Container(
+            width: 82,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: theme.dividerColor)),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(items[index].$2, size: 25), const SizedBox(height: 5), Text(items[index].$1, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _composerCard(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(children: [
+          Row(children: [const ManoxMark(size: 34), const SizedBox(width: 10), Expanded(child: TextField(key: const Key('post-composer-field'), controller: _composerCtrl, maxLines: 2, minLines: 1, decoration: const InputDecoration(hintText: 'Share a Beat…', border: InputBorder.none))), IconButton(tooltip: 'Add image', onPressed: _posting ? null : _pickImage, icon: const Icon(Icons.image_outlined))]),
+          if (_selectedImagePath != null) ...[const SizedBox(height: 8), ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(_selectedImagePath!), height: 150, width: double.infinity, fit: BoxFit.cover))],
+          const Divider(height: 16),
+          Row(children: [TextButton.icon(onPressed: _posting ? null : _openCreateSheet, icon: const Icon(Icons.add_circle_outline_rounded), label: const Text('Create')), const Spacer(), FilledButton(onPressed: _posting ? null : _submitPost, child: _posting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Post'))]),
+        ]),
       ),
     );
   }
