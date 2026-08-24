@@ -18,6 +18,8 @@ class _PostCardState extends State<PostCard> {
   bool _busy = false;
   bool _isOwner = false;
   bool _vibed = false;
+  bool _saved = false;
+  bool _saveBusy = false;
 
   @override
   void initState() {
@@ -26,6 +28,7 @@ class _PostCardState extends State<PostCard> {
     _likes = widget.data.likes;
     _comments = widget.data.comments;
     _checkOwner();
+    _checkSaved();
   }
 
   Future<void> _checkOwner() async {
@@ -35,6 +38,46 @@ class _PostCardState extends State<PostCard> {
       final owner = await repo.isOwner(widget.data.id);
       if (mounted) setState(() => _isOwner = owner);
     } catch (_) {}
+  }
+
+  Future<void> _checkSaved() async {
+    final repo = widget.repository;
+    if (repo == null || !widget.data.isRemote) return;
+    try {
+      final saved = await repo.isSaved(widget.data.id);
+      if (mounted) setState(() => _saved = saved);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleSave() async {
+    if (_saveBusy) return;
+    final repo = widget.repository;
+    if (repo == null || !widget.data.isRemote) {
+      if (mounted) {
+        setState(() => _saved = !_saved);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_saved ? 'Saved.' : 'Removed from saved.')),
+        );
+      }
+      return;
+    }
+    setState(() => _saveBusy = true);
+    try {
+      if (_saved) {
+        await repo.unsaveContent(widget.data.id);
+      } else {
+        await repo.saveContent(widget.data.id);
+      }
+      if (!mounted) return;
+      setState(() => _saved = !_saved);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_saved ? 'Saved to Saved Content.' : 'Removed from Saved Content.')),
+      );
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _saveBusy = false);
+    }
   }
 
   void _toggleVibe() {
@@ -109,8 +152,21 @@ class _PostCardState extends State<PostCard> {
   }
 
   Future<void> _showPostMenu() async {
-    if (!_isOwner) return;
-    final choice = await showModalBottomSheet<String>(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit post'), onTap: () => Navigator.pop(context, 'edit')), ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Delete post'), onTap: () => Navigator.pop(context, 'delete'))])));
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+          leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
+          title: Text(_saved ? 'Remove from Saved' : 'Save'),
+          onTap: () => Navigator.pop(context, 'save'),
+        ),
+        if (_isOwner) ...[
+          ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit post'), onTap: () => Navigator.pop(context, 'edit')),
+          ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Delete post'), onTap: () => Navigator.pop(context, 'delete')),
+        ],
+      ])),
+    );
+    if (choice == 'save') await _toggleSave();
     if (choice == 'edit') await _editPost();
     if (choice == 'delete') await _deletePost();
   }
@@ -155,7 +211,7 @@ class _PostCardState extends State<PostCard> {
               Text(data.handle, style: Theme.of(context).textTheme.bodySmall),
             ])),
             if (!_isOwner) FilledButton.icon(key: Key('post-vibe-${data.id}'), onPressed: _toggleVibe, icon: Icon(_vibed ? Icons.auto_awesome : Icons.auto_awesome_outlined, size: 16), label: const Text('VIBE')),
-            if (_isOwner) IconButton(icon: const Icon(Icons.more_vert), onPressed: _showPostMenu, tooltip: 'More'),
+            IconButton(key: Key('post-menu-${data.id}'), icon: const Icon(Icons.more_vert), onPressed: _showPostMenu, tooltip: 'More'),
           ]),
           const SizedBox(height: 8),
           Text(data.text),
@@ -167,6 +223,7 @@ class _PostCardState extends State<PostCard> {
           Row(children: [
             IconButton(key: Key('post-like-${data.id}'), onPressed: _busy ? null : _toggleLike, icon: Icon(_liked ? Icons.favorite : Icons.favorite_border), tooltip: 'Like'), Text('$_likes'), const SizedBox(width: 8),
             IconButton(key: Key('post-comment-${data.id}'), onPressed: _showComments, icon: const Icon(Icons.comment_outlined), tooltip: 'Comment'), Text('$_comments'), const SizedBox(width: 8),
+            IconButton(key: Key('post-save-${data.id}'), onPressed: _saveBusy ? null : _toggleSave, icon: Icon(_saved ? Icons.bookmark : Icons.bookmark_border), tooltip: _saved ? 'Unsave' : 'Save'),
             IconButton(key: Key('post-monetize-${data.id}'), onPressed: _showMonetizationLock, icon: const Icon(Icons.currency_rupee), tooltip: 'Earnings'), const Icon(Icons.lock_outline, size: 17), const Spacer(),
             IconButton(key: Key('post-share-${data.id}'), onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'),
           ]),
