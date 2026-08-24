@@ -8,13 +8,29 @@ import 'package:manox/core/theme/theme.dart';
 
 class FakeProfileRepository implements ProfileRepository {
   @override
-  Future<ProfileData> fetchProfile() async {
-    return demoProfile;
+  Future<ProfileData> fetchProfile() async => demoProfile;
+
+  @override
+  Future<List<String>> fetchPostIds() async => demoProfile.postIds;
+
+  @override
+  Future<ProfileData> updateProfile({
+    required String displayName,
+    required String username,
+    required String bio,
+    String? avatarPath,
+  }) async {
+    return demoProfile.copyWith(
+      displayName: displayName,
+      handle: username.startsWith('@') ? username : '@$username',
+      bio: bio,
+      avatarUrl: avatarPath ?? demoProfile.avatarUrl,
+    );
   }
 
   @override
-  Future<List<String>> fetchPostIds() async {
-    return demoProfile.postIds;
+  Future<String?> uploadAvatar(List<int> bytes, String extension, String? mimeType) async {
+    return 'test/avatar.$extension';
   }
 }
 
@@ -23,8 +39,6 @@ void main() {
     'ProfilePage renders and shows basic info',
     (WidgetTester tester) async {
       final view = tester.view;
-
-      // Give the profile page enough room to render its complete layout.
       view.devicePixelRatio = 1.0;
       view.physicalSize = const Size(800, 1200);
 
@@ -33,56 +47,24 @@ void main() {
         view.resetPhysicalSize();
       });
 
-      final repository = FakeProfileRepository();
-
       await tester.pumpWidget(
         MaterialApp(
           theme: manoxTheme(),
-          home: ProfilePage(
-            repository: repository,
-          ),
+          home: ProfilePage(repository: FakeProfileRepository()),
         ),
       );
 
-      // Wait for fetchProfile/fetchPostIds and all resulting rebuilds.
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const Key('profile-avatar')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('profile-name')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('profile-handle')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('profile-bio')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('profile-edit-button')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('profile-settings-button')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('profile-post-count')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('profile-followers-count')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('profile-following-count')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('profile-avatar')), findsOneWidget);
+      expect(find.byKey(const Key('profile-name')), findsOneWidget);
+      expect(find.byKey(const Key('profile-handle')), findsOneWidget);
+      expect(find.byKey(const Key('profile-bio')), findsOneWidget);
+      expect(find.byKey(const Key('profile-edit-button')), findsOneWidget);
+      expect(find.byKey(const Key('profile-settings-button')), findsOneWidget);
+      expect(find.byKey(const Key('profile-post-count')), findsOneWidget);
+      expect(find.byKey(const Key('profile-followers-count')), findsOneWidget);
+      expect(find.byKey(const Key('profile-following-count')), findsOneWidget);
     },
   );
 }
