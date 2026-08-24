@@ -17,19 +17,13 @@ class _AuthRefreshNotifier extends ChangeNotifier {
     final stream = SupabaseService.authStateChanges();
     _subscription = stream?.listen((_) => notifyListeners());
   }
-
   StreamSubscription? _subscription;
-
   @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
+  void dispose() { _subscription?.cancel(); super.dispose(); }
 }
 
 class ManoxApp extends StatelessWidget {
   const ManoxApp({super.key});
-
   static final _authRefresh = _AuthRefreshNotifier();
   static final GoRouter _router = GoRouter(
     initialLocation: '/splash',
@@ -57,12 +51,8 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
     ],
   );
-
   @override
   Widget build(BuildContext context) => MaterialApp.router(
-        title: 'MANOX',
-        debugShowCheckedModeBanner: false,
-        theme: manoxTheme(),
-        routerConfig: _router,
-      );
+    title: 'MANOX', debugShowCheckedModeBanner: false, theme: manoxTheme(), routerConfig: _router,
+  );
 }
