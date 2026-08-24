@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -10,14 +12,7 @@ class EditProfilePage extends StatefulWidget {
   final String initialBio;
   final String? initialAvatarUrl;
 
-  const EditProfilePage({
-    super.key,
-    required this.repository,
-    required this.initialName,
-    required this.initialUsername,
-    required this.initialBio,
-    this.initialAvatarUrl,
-  });
+  const EditProfilePage({super.key, required this.repository, required this.initialName, required this.initialUsername, required this.initialBio, this.initialAvatarUrl});
 
   @override
   State<EditProfilePage> createState() => _EditProfilePageState();
@@ -65,12 +60,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final bytes = await _avatar!.readAsBytes();
         avatarPath = await widget.repository.uploadAvatar(bytes, 'jpg', 'image/jpeg');
       }
-      final updated = await widget.repository.updateProfile(
-        displayName: _name.text,
-        username: _username.text,
-        bio: _bio.text,
-        avatarPath: avatarPath,
-      );
+      final updated = await widget.repository.updateProfile(displayName: _name.text, username: _username.text, bio: _bio.text, avatarPath: avatarPath);
       if (!mounted) return;
       Navigator.of(context).pop(updated);
     } catch (e) {
@@ -83,13 +73,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    ImageProvider<Object>? image;
+    if (_avatar != null) {
+      image = FileImage(File(_avatar!.path));
+    } else if (widget.initialAvatarUrl != null) {
+      image = NetworkImage(widget.initialAvatarUrl!);
+    }
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        actions: [
-          TextButton(onPressed: _saving ? null : _save, child: const Text('SAVE')),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Edit Profile'), actions: [TextButton(onPressed: _saving ? null : _save, child: const Text('SAVE'))]),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -97,21 +88,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
             Center(
               child: GestureDetector(
                 onTap: _pickAvatar,
-                child: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 52,
-                      backgroundImage: _avatar != null ? FileImage(File(_avatar!.path)) : (widget.initialAvatarUrl != null ? NetworkImage(widget.initialAvatarUrl!) : null) as ImageProvider?,
-                      child: _avatar == null && widget.initialAvatarUrl == null ? const Icon(Icons.person_outline, size: 52) : null,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: theme.colorScheme.primary, shape: BoxShape.circle),
-                      child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 18),
-                    ),
-                  ],
-                ),
+                child: Stack(alignment: Alignment.bottomRight, children: [
+                  CircleAvatar(radius: 52, backgroundImage: image, child: image == null ? const Icon(Icons.person_outline, size: 52) : null),
+                  Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: theme.colorScheme.primary, shape: BoxShape.circle), child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 18)),
+                ]),
               ),
             ),
             const SizedBox(height: 28),
@@ -121,7 +101,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             const SizedBox(height: 16),
             TextField(controller: _bio, maxLines: 4, maxLength: 160, decoration: const InputDecoration(labelText: 'Bio', alignLabelWithHint: true, prefixIcon: Icon(Icons.edit_note_outlined))),
             const SizedBox(height: 12),
-            Text('Your profile name, username and bio are shown publicly. Never add private payout or KYC information here.', style: theme.textTheme.bodySmall),
+            Text('Your profile name, username and bio are public. Never add private payout or KYC information here.', style: theme.textTheme.bodySmall),
             if (_saving) ...const [SizedBox(height: 24), Center(child: CircularProgressIndicator())],
           ],
         ),
