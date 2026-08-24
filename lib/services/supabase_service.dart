@@ -47,8 +47,13 @@ class SupabaseService {
     _deepLinkSubscription = appLinks.uriLinkStream.listen((uri) async {
       if (uri.scheme != 'io.manox.app' || uri.host != 'login-callback') return;
 
-      final client = client;
-      if (client == null || client.auth.currentSession != null) return;
+      // Use a differently named local variable so it does not shadow the
+      // SupabaseService.client getter.
+      final supabaseClient = client;
+      if (supabaseClient == null ||
+          supabaseClient.auth.currentSession != null) {
+        return;
+      }
 
       final error = uri.queryParameters['error'];
       if (error != null) {
@@ -60,7 +65,7 @@ class SupabaseService {
       if (code == null || code.isEmpty) return;
 
       try {
-        await client.auth.exchangeCodeForSession(code);
+        await supabaseClient.auth.exchangeCodeForSession(code);
         debugPrint('MANOX OAuth callback: PKCE session established.');
       } catch (e, stackTrace) {
         debugPrint('MANOX OAuth callback session exchange failed: $e');
