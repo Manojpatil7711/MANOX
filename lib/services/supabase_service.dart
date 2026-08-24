@@ -27,7 +27,7 @@ class SupabaseService {
       );
       _initialized = true;
       _initializationError = null;
-      _startAuthDeepLinkFallback();
+      await _startAuthDeepLinkFallback();
     } catch (e, stackTrace) {
       _initialized = false;
       _initializationError = e;
@@ -36,19 +36,19 @@ class SupabaseService {
     }
   }
 
-  /// Supabase Flutter normally handles auth deep links internally. This
-  /// explicit listener is a safe fallback for Android custom-scheme callbacks
-  /// so a PKCE `code` is exchanged even if the platform callback arrives
-  /// before the SDK's internal listener is ready.
-  static void _startAuthDeepLinkFallback() {
+  /// Handles both warm and cold Android custom-scheme OAuth callbacks.
+  /// Supabase Flutter handles the normal callback; this listener covers the
+  /// case where Android launches/recreates the app with the callback URI.
+  static Future<void> _startAuthDeepLinkFallback() async {
     if (kIsWeb || _deepLinkSubscription != null) return;
 
     final appLinks = AppLinks();
-    _deepLinkSubscription = appLinks.uriLinkStream.listen((uri) async {
-      if (uri.scheme != 'io.manox.app' || uri.host != 'login-callback') return;
 
-      // Use a differently named local variable so it does not shadow the
-      // SupabaseService.client getter.
+    Future<void> handleUri(Uri uri) async {
+      if (uri.scheme != 'io.manox.app' || uri.host != 'login-callback') {
+        return;
+      }
+
       final supabaseClient = client;
       if (supabaseClient == null ||
           supabaseClient.auth.currentSession != null) {
@@ -71,6 +71,22 @@ class SupabaseService {
         debugPrint('MANOX OAuth callback session exchange failed: $e');
         debugPrintStack(stackTrace: stackTrace);
       }
+    }
+
+    // Important for Android cold-start: capture the URI that launched the app
+    // before subscribing to future URI events.
+    try {
+      final initialUri = await appLinks.getInitialLink();
+      if (initialUri != null) {
+        await handleUri(initialUri);
+      }
+    } catch (e, stackTrace) {
+      debugPrint('MANOX initial OAuth link read failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+
+    _deepLinkSubscription = appLinks.uriLinkStream.listen((uri) {
+      handleUri(uri);
     });
   }
 
