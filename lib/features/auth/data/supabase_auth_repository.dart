@@ -51,6 +51,7 @@ class SupabaseAuthRepository implements AuthRepository {
       final res = await client.auth.signUp(
         email: email.trim(),
         password: password,
+        emailRedirectTo: 'io.manox.app://login-callback/',
         data: {
           'first_name': firstName.trim(),
           'surname': surname.trim(),
