@@ -31,6 +31,15 @@ class FakeAuthRepo implements AuthRepository {
   Future<void> signIn(String email, String password) async {}
 
   @override
+  Future<void> sendEmailOtp(String email) async {}
+
+  @override
+  Future<void> verifyEmailOtp(String email, String token) async {}
+
+  @override
+  Future<void> signInWithGoogle() async {}
+
+  @override
   Future<void> signOut() async {}
 
   @override
