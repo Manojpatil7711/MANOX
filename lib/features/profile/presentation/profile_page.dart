@@ -4,7 +4,6 @@ import 'package:manox/features/home/data/demo_posts.dart';
 import 'package:manox/features/home/presentation/widgets/post_card.dart';
 
 import '../data/demo_profile.dart';
-import '../data/local_profile_repository.dart';
 import '../data/supabase_profile_repository.dart';
 import '../domain/profile_repository.dart';
 import 'edit_profile_page.dart';
@@ -26,7 +25,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _repo = widget.repository ?? const SupabaseProfileRepository();
+    _repo = widget.repository ?? SupabaseProfileRepository();
     _load();
   }
 
@@ -144,9 +143,9 @@ class _ProfilePageState extends State<ProfilePage> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                 children: [
-                                  _Stat(value: '${_profile!.postIds.length}', label: 'Posts'),
-                                  _Stat(value: '${_profile!.followers}', label: 'Followers'),
-                                  _Stat(value: '${_profile!.following}', label: 'Following'),
+                                  _Stat(key: const Key('profile-post-count'), value: '${_profile!.postIds.length}', label: 'Posts'),
+                                  _Stat(key: const Key('profile-followers-count'), value: '${_profile!.followers}', label: 'Followers'),
+                                  _Stat(key: const Key('profile-following-count'), value: '${_profile!.following}', label: 'Following'),
                                 ],
                               ),
                             ),
@@ -181,7 +180,7 @@ class _ProfilePageState extends State<ProfilePage> {
 class _Stat extends StatelessWidget {
   final String value;
   final String label;
-  const _Stat({required this.value, required this.label});
+  const _Stat({super.key, required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) => Column(children: [Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(label)]);
