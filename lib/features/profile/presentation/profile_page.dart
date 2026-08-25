@@ -23,6 +23,7 @@ class _ProfilePageState extends State<ProfilePage> {
   ProfileData? _profile;
   bool _loading = true;
   List<ManoxPost> _posts = [];
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -105,6 +106,13 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _openProfileSection(String label) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$label will appear here as you add content.')),
+    );
+  }
+
   HomeDemoData _toHomePost(ManoxPost post) {
     return HomeDemoData(
       id: post.id,
@@ -158,131 +166,67 @@ class _ProfilePageState extends State<ProfilePage> {
                 CircleAvatar(
                   key: const Key('profile-avatar'),
                   radius: 48,
-                  backgroundImage: profile.avatarUrl != null
-                      ? NetworkImage(profile.avatarUrl!)
-                      : null,
-                  child: profile.avatarUrl == null
-                      ? const Icon(Icons.person_outline_rounded, size: 48)
-                      : null,
+                  backgroundImage: profile.avatarUrl != null ? NetworkImage(profile.avatarUrl!) : null,
+                  child: profile.avatarUrl == null ? const Icon(Icons.person_outline_rounded, size: 48) : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        profile.displayName,
-                        key: const Key('profile-name'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontSize: 23,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.35,
-                          height: 1.1,
-                        ),
-                      ),
+                      Text(profile.displayName, key: const Key('profile-name'), maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.headlineSmall?.copyWith(fontSize: 23, fontWeight: FontWeight.w800, letterSpacing: -0.35, height: 1.1)),
                       const SizedBox(height: 5),
-                      Text(
-                        profile.handle,
-                        key: const Key('profile-handle'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.15,
-                        ),
-                      ),
+                      Text(profile.handle, key: const Key('profile-handle'), maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.15)),
+                      if (profile.isCreator) ...[
+                        const SizedBox(height: 8),
+                        Row(children: [Icon(Icons.verified_rounded, size: 16, color: theme.colorScheme.primary), const SizedBox(width: 5), const Text('CREATOR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8))]),
+                      ],
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 14),
-            if (profile.bio.trim().isNotEmpty)
-              Text(
-                profile.bio,
-                key: const Key('profile-bio'),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
-              ),
+            if (profile.bio.trim().isNotEmpty) Text(profile.bio, key: const Key('profile-bio'), maxLines: 4, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(height: 1.35)),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    key: const Key('profile-edit-button'),
-                    onPressed: _editProfile,
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('EDIT PROFILE'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    key: const Key('profile-share-button'),
-                    onPressed: _shareProfile,
-                    icon: const Icon(Icons.ios_share_outlined, size: 18),
-                    label: const Text('SHARE'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(key: const Key('profile-edit-button'), onPressed: _editProfile, icon: const Icon(Icons.edit_outlined, size: 18), label: const Text('EDIT PROFILE'))),
+              const SizedBox(width: 10),
+              Expanded(child: OutlinedButton.icon(key: const Key('profile-share-button'), onPressed: _shareProfile, icon: const Icon(Icons.ios_share_outlined, size: 18), label: const Text('SHARE'))),
+            ]),
+            const SizedBox(height: 18),
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _Stat(value: '${profile.postIds.length}', label: 'Posts'),
-                    _Stat(value: '${profile.followers}', label: 'Followers'),
-                    _Stat(value: '${profile.following}', label: 'Following'),
-                  ],
-                ),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                  _Stat(value: '${profile.postIds.length}', label: 'Posts'),
+                  _Stat(value: '${profile.followers}', label: 'Followers'),
+                  _Stat(value: '${profile.following}', label: 'Following'),
+                ]),
               ),
             ),
+            const SizedBox(height: 14),
+            Row(children: [
+              Expanded(child: _ProfileAction(icon: Icons.monetization_on_outlined, title: 'Monetization', subtitle: profile.isCreator ? 'Creator earnings' : 'Creator tools', onTap: () => _openProfileSection('Monetization'))),
+              const SizedBox(width: 10),
+              Expanded(child: _ProfileAction(icon: Icons.account_balance_wallet_outlined, title: 'Wallet', subtitle: 'Balance & payouts', onTap: () => _openProfileSection('Wallet'))),
+            ]),
             const SizedBox(height: 22),
-            Container(
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: theme.dividerColor)),
-              ),
-              child: const Row(
-                children: [
-                  Expanded(child: _ProfileTab(icon: Icons.grid_on_rounded, label: 'POSTS', selected: true)),
-                  Expanded(child: _ProfileTab(icon: Icons.play_circle_outline_rounded, label: 'BEATS', selected: false)),
-                  Expanded(child: _ProfileTab(icon: Icons.video_library_outlined, label: 'MEDIA', selected: false)),
-                ],
-              ),
-            ),
+            Row(children: [
+              _ProfileTab(icon: Icons.grid_on_rounded, label: 'POSTS', selected: _selectedTab == 0, onTap: () => setState(() => _selectedTab = 0)),
+              _ProfileTab(icon: Icons.play_circle_outline_rounded, label: 'BEATS', selected: _selectedTab == 1, onTap: () => setState(() => _selectedTab = 1)),
+              _ProfileTab(icon: Icons.video_library_outlined, label: 'MEDIA', selected: _selectedTab == 2, onTap: () => setState(() => _selectedTab = 2)),
+            ]),
+            Container(height: 1, color: theme.dividerColor),
             const SizedBox(height: 12),
-            if (_posts.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: Column(
-                    children: const [
-                      Icon(Icons.inbox_outlined, size: 48),
-                      SizedBox(height: 8),
-                      Text('Your posts will appear here.'),
-                    ],
-                  ),
-                ),
-              )
+            if (_selectedTab == 0)
+              if (_posts.isEmpty)
+                const _EmptySection(message: 'Your posts will appear here.')
+              else
+                ..._posts.map((post) => Padding(padding: const EdgeInsets.only(bottom: 8), child: PostCard(data: _toHomePost(post), repository: _postRepo, onChanged: _load)))
             else
-              ..._posts.map(
-                (post) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: PostCard(
-                    data: _toHomePost(post),
-                    repository: _postRepo,
-                    onChanged: _load,
-                  ),
-                ),
-              ),
+              _EmptySection(message: _selectedTab == 1 ? 'Your BEATS will appear here.' : 'Your media will appear here.'),
           ],
         ),
       );
@@ -290,21 +234,34 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          key: const Key('profile-back-button'),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: _goBack,
-        ),
+        leading: IconButton(key: const Key('profile-back-button'), icon: const Icon(Icons.arrow_back_ios_new_rounded), onPressed: _goBack),
         title: const Text('Profile'),
-        actions: [
-          IconButton(
-            key: const Key('profile-settings-button'),
-            onPressed: () => context.push('/settings'),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
+        actions: [IconButton(key: const Key('profile-settings-button'), onPressed: () => context.push('/settings'), icon: const Icon(Icons.settings_outlined))],
       ),
       body: SafeArea(child: body),
+    );
+  }
+}
+
+class _ProfileAction extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _ProfileAction({required this.icon, required this.title, required this.subtitle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(13),
+          child: Row(children: [Icon(icon, size: 24), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall)])]),
+        ),
+      ),
     );
   }
 }
@@ -313,37 +270,27 @@ class _ProfileTab extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
-  const _ProfileTab({required this.icon, required this.label, required this.selected});
+  final VoidCallback onTap;
+  const _ProfileTab({required this.icon, required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        children: [
-          Icon(icon, size: 21, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant),
-          const SizedBox(height: 5),
-          Text(label, style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-        ],
-      ),
-    );
+    return Expanded(child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.only(bottom: 10), child: Column(children: [Icon(icon, size: 21, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant), const SizedBox(height: 5), Text(label, style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5, color: selected ? theme.colorScheme.primary : null))])));
   }
+}
+
+class _EmptySection extends StatelessWidget {
+  final String message;
+  const _EmptySection({required this.message});
+  @override
+  Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(28), child: Column(children: [const Icon(Icons.inbox_outlined, size: 42), const SizedBox(height: 8), Text(message)])));
 }
 
 class _Stat extends StatelessWidget {
   final String value;
   final String label;
   const _Stat({required this.value, required this.label});
-
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(label),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Column(children: [Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(label)]);
 }
