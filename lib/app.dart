@@ -53,6 +53,8 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
       GoRoute(path: '/profile/:userId', builder: (context, state) => PublicProfilePage(userId: state.pathParameters['userId']!)),
       GoRoute(path: '/creator', builder: (context, state) => const CreatorPage()),
+      GoRoute(path: '/monetization', builder: (context, state) => const MonetizationPage()),
+      GoRoute(path: '/payout', builder: (context, state) => const PayoutPage()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
       GoRoute(path: '/messages', builder: (context, state) => const MessagesPage()),
       GoRoute(path: '/notifications', builder: (context, state) => const NotificationsPage()),
