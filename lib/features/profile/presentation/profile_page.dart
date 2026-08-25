@@ -77,6 +77,34 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _shareProfile() async {
+    if (_profile == null) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                leading: Icon(Icons.ios_share_rounded),
+                title: Text('Share profile'),
+                subtitle: Text('MANOX profile sharing'),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: () => Navigator.of(sheetContext).pop(),
+                child: const Text('DONE'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   HomeDemoData _toHomePost(ManoxPost post) {
     return HomeDemoData(
       id: post.id,
@@ -166,27 +194,45 @@ class _ProfilePageState extends State<ProfilePage> {
                           letterSpacing: 0.15,
                         ),
                       ),
-                      if (profile.bio.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(profile.bio, key: const Key('profile-bio')),
-                      ],
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          key: const Key('profile-edit-button'),
-                          onPressed: _editProfile,
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                          label: const Text('EDIT PROFILE'),
-                        ),
-                      ),
                     ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (profile.bio.trim().isNotEmpty)
+              Text(
+                profile.bio,
+                key: const Key('profile-bio'),
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
+              ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('profile-edit-button'),
+                    onPressed: _editProfile,
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('EDIT PROFILE'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('profile-share-button'),
+                    onPressed: _shareProfile,
+                    icon: const Icon(Icons.ios_share_outlined, size: 18),
+                    label: const Text('SHARE'),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
             Card(
+              margin: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Row(
@@ -199,18 +245,24 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Posts',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
+            const SizedBox(height: 22),
+            Container(
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: theme.dividerColor)),
+              ),
+              child: const Row(
+                children: [
+                  Expanded(child: _ProfileTab(icon: Icons.grid_on_rounded, label: 'POSTS', selected: true)),
+                  Expanded(child: _ProfileTab(icon: Icons.play_circle_outline_rounded, label: 'BEATS', selected: false)),
+                  Expanded(child: _ProfileTab(icon: Icons.video_library_outlined, label: 'MEDIA', selected: false)),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             if (_posts.isEmpty)
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(28),
                   child: Column(
                     children: const [
                       Icon(Icons.inbox_outlined, size: 48),
@@ -257,6 +309,28 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 }
 
+class _ProfileTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  const _ProfileTab({required this.icon, required this.label, required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        children: [
+          Icon(icon, size: 21, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: 5),
+          Text(label, style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+        ],
+      ),
+    );
+  }
+}
+
 class _Stat extends StatelessWidget {
   final String value;
   final String label;
@@ -266,10 +340,7 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Text(label),
       ],
