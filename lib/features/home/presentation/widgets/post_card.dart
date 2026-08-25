@@ -4,24 +4,338 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/demo_posts.dart';
 import '../../data/supabase_post_repository.dart';
 
-class PostCard extends StatefulWidget { final HomeDemoData data; final SupabasePostRepository? repository; final Future<void> Function()? onChanged; const PostCard({super.key,required this.data,this.repository,this.onChanged}); @override State<PostCard> createState()=>_PostCardState(); }
-class _PostCardState extends State<PostCard>{
- late bool _liked; late int _likes; late int _comments; bool _busy=false; bool _isOwner=false; bool _vibed=false; bool _saved=false; bool _saveBusy=false;
- @override void initState(){super.initState();_liked=widget.data.likedByMe;_likes=widget.data.likes;_comments=widget.data.comments;_checkOwner();_checkSaved();}
- Future<void> _checkOwner()async{final r=widget.repository;if(r==null||!widget.data.isRemote)return;try{final v=await r.isOwner(widget.data.id);if(mounted)setState(()=>_isOwner=v);}catch(_) {}}
- Future<void> _checkSaved()async{final r=widget.repository;if(r==null||!widget.data.isRemote)return;try{final v=await r.isSaved(widget.data.id);if(mounted)setState(()=>_saved=v);}catch(_) {}}
- void _openCreator(){final id=widget.data.ownerUserId;if(id==null||id.trim().isEmpty)return;context.push('/profile/${Uri.encodeComponent(id)}');}
- void _toggleVibe(){if(_isOwner)return;setState(()=>_vibed=!_vibed);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(_vibed?'VIBE added.':'VIBE removed.')));}
- Future<void> _toggleSave()async{if(_saveBusy)return;final r=widget.repository;if(r==null||!widget.data.isRemote){setState(()=>_saved=!_saved);return;}setState(()=>_saveBusy=true);try{if(_saved){await r.unsaveContent(widget.data.id);}else{await r.saveContent(widget.data.id);}if(mounted)setState(()=>_saved=!_saved);}catch(e){if(mounted)_showError(e.toString());}finally{if(mounted)setState(()=>_saveBusy=false);}}
- Future<void> _toggleLike()async{if(_busy)return;final r=widget.repository;if(r==null||!widget.data.isRemote){setState(()=>{_liked=!_liked;_likes+=_liked?1:-1;});return;}setState(()=>_busy=true);try{final v=await r.toggleLike(widget.data.id,_liked);if(mounted)setState(()=>{_liked=v;_likes+=v?1:-1;});}catch(e){if(mounted)_showError(e.toString());}finally{if(mounted)setState(()=>_busy=false);}}
- Future<void> _showComments()async{final r=widget.repository;if(r==null||!widget.data.isRemote){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Comments will be available on live posts.')));return;}final c=TextEditingController();try{await showModalBottomSheet<void>(context:context,isScrollControlled:true,builder:(s)=>Padding(padding:EdgeInsets.only(bottom:MediaQuery.of(s).viewInsets.bottom),child:SizedBox(height:MediaQuery.of(context).size.height*.65,child:Column(children:[const Padding(padding:EdgeInsets.all(16),child:Text('Comments',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold))),Expanded(child:FutureBuilder<List<ManoxComment>>(future:r.fetchComments(widget.data.id),builder:(context,s){if(s.connectionState==ConnectionState.waiting)return const Center(child:CircularProgressIndicator());if(s.hasError)return const Center(child:Text('Unable to load comments.'));final cs=s.data??const <ManoxComment>[];if(cs.isEmpty)return const Center(child:Text('No comments yet. Be the first!'));return ListView.separated(padding:const EdgeInsets.symmetric(horizontal:16),itemCount:cs.length,separatorBuilder:(_,__)=>const Divider(),itemBuilder:(_,i)=>ListTile(title:Text(cs[i].userName,style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text(cs[i].body)));})),Padding(padding:const EdgeInsets.fromLTRB(16,8,16,16),child:Row(children:[Expanded(child:TextField(controller:c,textInputAction:TextInputAction.send,onSubmitted:(_)=>_sendComment(c,r),decoration:const InputDecoration(hintText:'Write a comment...'))),IconButton(onPressed:()=>_sendComment(c,r),icon:const Icon(Icons.send))]))]))));}finally{c.dispose();}}
- Future<void> _sendComment(TextEditingController c,SupabasePostRepository r)async{final t=c.text.trim();if(t.isEmpty)return;try{await r.addComment(widget.data.id,t);c.clear();if(mounted)setState(()=>_comments++);}catch(e){if(mounted)_showError(e.toString());}}
- Future<void> _share()async{final r=widget.repository;final url=r==null||!widget.data.isRemote?'https://manox.app':await r.createShareUrl(widget.data.id);if(r!=null&&widget.data.isRemote){try{await r.recordShare(widget.data.id);}catch(_) {}}await SharePlus.instance.share(ShareParams(text:'Open this MANOX Beat directly:\n$url\n\n${widget.data.text}',title:'MANOX • ${widget.data.creatorName}'));}
- Future<void> _openFullPost()async{await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(s)=>SafeArea(child:DraggableScrollableSheet(expand:false,initialChildSize:.88,minChildSize:.55,maxChildSize:.96,builder:(_,controller)=>ListView(controller:controller,padding:const EdgeInsets.fromLTRB(16,4,16,28),children:[_creatorHeader(),const SizedBox(height:16),Text(widget.data.text,style:Theme.of(context).textTheme.bodyLarge),if(widget.data.imagePath!=null)...[const SizedBox(height:16),FutureBuilder<String?>(future:widget.repository?.signedMediaUrl(widget.data.imagePath!),builder:(context,s){if(!s.hasData)return const SizedBox(height:220,child:Center(child:CircularProgressIndicator()));return ClipRRect(borderRadius:BorderRadius.circular(14),child:Image.network(s.data!,width:double.infinity,fit:BoxFit.contain));})],const SizedBox(height:16),Row(children:[IconButton(onPressed:_busy?null:_toggleLike,icon:Icon(_liked?Icons.favorite:Icons.favorite_border)),Text('$_likes'),IconButton(onPressed:_showComments,icon:const Icon(Icons.comment_outlined)),Text('$_comments'),IconButton(onPressed:_saveBusy?null:_toggleSave,icon:Icon(_saved?Icons.bookmark:Icons.bookmark_border)),const Spacer(),IconButton(onPressed:_share,icon:const Icon(Icons.share_outlined))])]))));}
- Widget _creatorHeader(){return InkWell(onTap:_openCreator,borderRadius:BorderRadius.circular(12),child:Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Row(children:[CircleAvatar(radius:22,child:const Icon(Icons.person)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.data.creatorName,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800,fontSize:15)),Text(widget.data.handle.replaceFirst(RegExp(r'^@+'),'@'),maxLines:1,overflow:TextOverflow.ellipsis,style:Theme.of(context).textTheme.bodySmall)])),if(!_isOwner)SizedBox(height:30,child:OutlinedButton(onPressed:_toggleVibe,style:OutlinedButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:10),minimumSize:const Size(0,30),tapTargetSize:MaterialTapTargetSize.shrinkWrap,visualDensity:VisualDensity.compact),child:Text(_vibed?'UNVIBE':'VIBE',style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800))))]));}
- Future<void> _showPostMenu()async{final c=await showModalBottomSheet<String>(context:context,builder:(context)=>SafeArea(child:Column(mainAxisSize:MainAxisSize.min,children:[ListTile(leading:Icon(_saved?Icons.bookmark:Icons.bookmark_border),title:Text(_saved?'Remove from Saved':'Save'),onTap:()=>Navigator.pop(context,'save')),if(_isOwner)...[ListTile(leading:const Icon(Icons.edit_outlined),title:const Text('Edit post'),onTap:()=>Navigator.pop(context,'edit')),ListTile(leading:const Icon(Icons.delete_outline),title:const Text('Delete post'),onTap:()=>Navigator.pop(context,'delete'))]])));if(c=='save')await _toggleSave();if(c=='edit')await _editPost();if(c=='delete')await _deletePost();}
- Future<void> _editPost()async{final r=widget.repository;if(r==null)return;final c=TextEditingController(text:widget.data.text);final save=await showDialog<bool>(context:context,builder:(x)=>AlertDialog(title:const Text('Edit post'),content:TextField(controller:c,maxLines:6,autofocus:true),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))]));if(save!=true||c.text.trim().isEmpty){c.dispose();return;}try{await r.updatePost(widget.data.id,c.text);if(mounted)await widget.onChanged?.call();}catch(e){if(mounted)_showError(e.toString());}c.dispose();}
- Future<void> _deletePost()async{final r=widget.repository;if(r==null)return;final ok=await showDialog<bool>(context:context,builder:(x)=>AlertDialog(title:const Text('Delete post?'),content:const Text('This post will be permanently removed.'),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Delete'))]));if(ok!=true)return;try{await r.deletePost(widget.data.id);if(mounted)await widget.onChanged?.call();}catch(e){if(mounted)_showError(e.toString());}}
- void _showError(String m)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(m.replaceFirst('Exception: ',''))));
- @override Widget build(BuildContext context){final d=widget.data;return Card(key:Key('post-card-${d.id}'),margin:const EdgeInsets.symmetric(vertical:4),child:InkWell(borderRadius:BorderRadius.circular(12),onTap:_openFullPost,child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_creatorHeader(),const SizedBox(height:8),Text(d.text),if(d.imagePath!=null)...[const SizedBox(height:12),FutureBuilder<String?>(future:widget.repository?.signedMediaUrl(d.imagePath!),builder:(context,s){if(!s.hasData)return const SizedBox(height:180,child:Center(child:CircularProgressIndicator()));return ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(s.data!,width:double.infinity,height:240,fit:BoxFit.cover));})],const SizedBox(height:12),Row(children:[IconButton(onPressed:_busy?null:_toggleLike,icon:Icon(_liked?Icons.favorite:Icons.favorite_border),tooltip:'Like'),Text('$_likes'),const SizedBox(width:8),IconButton(onPressed:_showComments,icon:const Icon(Icons.comment_outlined),tooltip:'Comment'),Text('$_comments'),const SizedBox(width:8),IconButton(onPressed:_saveBusy?null:_toggleSave,icon:Icon(_saved?Icons.bookmark:Icons.bookmark_border),tooltip:'Save'),const Spacer(),IconButton(icon:const Icon(Icons.more_vert),onPressed:_showPostMenu),IconButton(onPressed:_share,icon:const Icon(Icons.share_outlined),tooltip:'Share')])]))));}
+class PostCard extends StatefulWidget {
+  final HomeDemoData data;
+  final SupabasePostRepository? repository;
+  final Future<void> Function()? onChanged;
+  const PostCard({super.key, required this.data, this.repository, this.onChanged});
+  @override State<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<PostCard> {
+  late bool _liked;
+  late int _likes;
+  late int _comments;
+  bool _busy = false;
+  bool _isOwner = false;
+  bool _vibed = false;
+  bool _saved = false;
+  bool _saveBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _liked = widget.data.likedByMe;
+    _likes = widget.data.likes;
+    _comments = widget.data.comments;
+    _checkOwner();
+    _checkSaved();
+  }
+
+  Future<void> _checkOwner() async {
+    final r = widget.repository;
+    if (r == null || !widget.data.isRemote) return;
+    try {
+      final v = await r.isOwner(widget.data.id);
+      if (mounted) setState(() => _isOwner = v);
+    } catch (_) {}
+  }
+
+  Future<void> _checkSaved() async {
+    final r = widget.repository;
+    if (r == null || !widget.data.isRemote) return;
+    try {
+      final v = await r.isSaved(widget.data.id);
+      if (mounted) setState(() => _saved = v);
+    } catch (_) {}
+  }
+
+  void _openCreator() {
+    final id = widget.data.ownerUserId;
+    if (id == null || id.trim().isEmpty) return;
+    context.push('/profile/${Uri.encodeComponent(id)}');
+  }
+
+  void _toggleVibe() {
+    if (_isOwner) return;
+    setState(() => _vibed = !_vibed);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_vibed ? 'VIBE added.' : 'VIBE removed.')));
+  }
+
+  Future<void> _toggleSave() async {
+    if (_saveBusy) return;
+    final r = widget.repository;
+    if (r == null || !widget.data.isRemote) {
+      setState(() => _saved = !_saved);
+      return;
+    }
+    setState(() => _saveBusy = true);
+    try {
+      if (_saved) {
+        await r.unsaveContent(widget.data.id);
+      } else {
+        await r.saveContent(widget.data.id);
+      }
+      if (mounted) setState(() => _saved = !_saved);
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _saveBusy = false);
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    if (_busy) return;
+    final r = widget.repository;
+    if (r == null || !widget.data.isRemote) {
+      setState(() {
+        _liked = !_liked;
+        _likes += _liked ? 1 : -1;
+      });
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final v = await r.toggleLike(widget.data.id, _liked);
+      if (mounted) {
+        setState(() {
+          _liked = v;
+          _likes += v ? 1 : -1;
+        });
+      }
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _showComments() async {
+    final r = widget.repository;
+    if (r == null || !widget.data.isRemote) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Comments will be available on live posts.')));
+      return;
+    }
+    final c = TextEditingController();
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (s) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(s).viewInsets.bottom),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * .65,
+            child: Column(
+              children: [
+                const Padding(padding: EdgeInsets.all(16), child: Text('Comments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                Expanded(
+                  child: FutureBuilder<List<ManoxComment>>(
+                    future: r.fetchComments(widget.data.id),
+                    builder: (context, s) {
+                      if (s.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                      if (s.hasError) return const Center(child: Text('Unable to load comments.'));
+                      final cs = s.data ?? const <ManoxComment>[];
+                      if (cs.isEmpty) return const Center(child: Text('No comments yet. Be the first!'));
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: cs.length,
+                        separatorBuilder: (_, __) => const Divider(),
+                        itemBuilder: (_, i) => ListTile(title: Text(cs[i].userName, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(cs[i].body)),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Row(children: [
+                    Expanded(child: TextField(controller: c, textInputAction: TextInputAction.send, onSubmitted: (_) => _sendComment(c, r), decoration: const InputDecoration(hintText: 'Write a comment...'))),
+                    IconButton(onPressed: () => _sendComment(c, r), icon: const Icon(Icons.send)),
+                  ]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } finally {
+      c.dispose();
+    }
+  }
+
+  Future<void> _sendComment(TextEditingController c, SupabasePostRepository r) async {
+    final t = c.text.trim();
+    if (t.isEmpty) return;
+    try {
+      await r.addComment(widget.data.id, t);
+      c.clear();
+      if (mounted) setState(() => _comments++);
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    }
+  }
+
+  Future<void> _share() async {
+    final r = widget.repository;
+    final url = r == null || !widget.data.isRemote ? 'https://manox.app' : await r.createShareUrl(widget.data.id);
+    if (r != null && widget.data.isRemote) {
+      try { await r.recordShare(widget.data.id); } catch (_) {}
+    }
+    await SharePlus.instance.share(ShareParams(text: 'Open this MANOX Beat directly:\n$url\n\n${widget.data.text}', title: 'MANOX • ${widget.data.creatorName}'));
+  }
+
+  Future<void> _openFullPost() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (s) => SafeArea(
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: .88,
+          minChildSize: .55,
+          maxChildSize: .96,
+          builder: (_, controller) => ListView(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+            children: [
+              _creatorHeader(),
+              const SizedBox(height: 16),
+              Text(widget.data.text, style: Theme.of(context).textTheme.bodyLarge),
+              if (widget.data.imagePath != null) ...[
+                const SizedBox(height: 16),
+                FutureBuilder<String?>(
+                  future: widget.repository?.signedMediaUrl(widget.data.imagePath!),
+                  builder: (context, s) {
+                    if (!s.hasData) return const SizedBox(height: 220, child: Center(child: CircularProgressIndicator()));
+                    return ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(s.data!, width: double.infinity, fit: BoxFit.contain));
+                  },
+                ),
+              ],
+              const SizedBox(height: 16),
+              Row(children: [
+                IconButton(onPressed: _busy ? null : _toggleLike, icon: Icon(_liked ? Icons.favorite : Icons.favorite_border)),
+                Text('$_likes'),
+                IconButton(onPressed: _showComments, icon: const Icon(Icons.comment_outlined)),
+                Text('$_comments'),
+                IconButton(onPressed: _saveBusy ? null : _toggleSave, icon: Icon(_saved ? Icons.bookmark : Icons.bookmark_border)),
+                const Spacer(),
+                IconButton(onPressed: _share, icon: const Icon(Icons.share_outlined)),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _creatorHeader() {
+    return InkWell(
+      onTap: _openCreator,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(children: [
+          const CircleAvatar(radius: 22, child: Icon(Icons.person)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.data.creatorName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              Text(widget.data.handle.replaceFirst(RegExp(r'^@+'), '@'), maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+            ]),
+          ),
+          if (!_isOwner)
+            SizedBox(
+              height: 30,
+              child: OutlinedButton(
+                onPressed: _toggleVibe,
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10), minimumSize: const Size(0, 30), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
+                child: Text(_vibed ? 'UNVIBE' : 'VIBE', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _showPostMenu() async {
+    final c = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border), title: Text(_saved ? 'Remove from Saved' : 'Save'), onTap: () => Navigator.pop(context, 'save')),
+          if (_isOwner) ...[
+            ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit post'), onTap: () => Navigator.pop(context, 'edit')),
+            ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Delete post'), onTap: () => Navigator.pop(context, 'delete')),
+          ],
+        ]),
+      ),
+    );
+    if (c == 'save') await _toggleSave();
+    if (c == 'edit') await _editPost();
+    if (c == 'delete') await _deletePost();
+  }
+
+  Future<void> _editPost() async {
+    final r = widget.repository;
+    if (r == null) return;
+    final c = TextEditingController(text: widget.data.text);
+    final save = await showDialog<bool>(context: context, builder: (x) => AlertDialog(title: const Text('Edit post'), content: TextField(controller: c, maxLines: 6, autofocus: true), actions: [TextButton(onPressed: () => Navigator.pop(x, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(x, true), child: const Text('Save'))]));
+    if (save != true || c.text.trim().isEmpty) { c.dispose(); return; }
+    try { await r.updatePost(widget.data.id, c.text); if (mounted) await widget.onChanged?.call(); } catch (e) { if (mounted) _showError(e.toString()); }
+    c.dispose();
+  }
+
+  Future<void> _deletePost() async {
+    final r = widget.repository;
+    if (r == null) return;
+    final ok = await showDialog<bool>(context: context, builder: (x) => AlertDialog(title: const Text('Delete post?'), content: const Text('This post will be permanently removed.'), actions: [TextButton(onPressed: () => Navigator.pop(x, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(x, true), child: const Text('Delete'))]));
+    if (ok != true) return;
+    try { await r.deletePost(widget.data.id); if (mounted) await widget.onChanged?.call(); } catch (e) { if (mounted) _showError(e.toString()); }
+  }
+
+  void _showError(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m.replaceFirst('Exception: ', ''))));
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.data;
+    return Card(
+      key: Key('post-card-${d.id}'),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _openFullPost,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _creatorHeader(),
+            const SizedBox(height: 8),
+            Text(d.text),
+            if (d.imagePath != null) ...[
+              const SizedBox(height: 12),
+              FutureBuilder<String?>(
+                future: widget.repository?.signedMediaUrl(d.imagePath!),
+                builder: (context, s) {
+                  if (!s.hasData) return const SizedBox(height: 180, child: Center(child: CircularProgressIndicator()));
+                  return ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(s.data!, width: double.infinity, height: 240, fit: BoxFit.cover));
+                },
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(children: [
+              IconButton(onPressed: _busy ? null : _toggleLike, icon: Icon(_liked ? Icons.favorite : Icons.favorite_border), tooltip: 'Like'),
+              Text('$_likes'),
+              const SizedBox(width: 8),
+              IconButton(onPressed: _showComments, icon: const Icon(Icons.comment_outlined), tooltip: 'Comment'),
+              Text('$_comments'),
+              const SizedBox(width: 8),
+              IconButton(onPressed: _saveBusy ? null : _toggleSave, icon: Icon(_saved ? Icons.bookmark : Icons.bookmark_border), tooltip: 'Save'),
+              const Spacer(),
+              IconButton(icon: const Icon(Icons.more_vert), onPressed: _showPostMenu),
+              IconButton(onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
 }
