@@ -10,6 +10,7 @@ import 'features/profile/profile.dart';
 import 'features/onboarding/onboarding.dart';
 import 'features/creator/creator.dart';
 import 'features/settings/settings.dart';
+import 'features/communication/presentation/communication_pages.dart';
 import 'services/supabase_service.dart';
 
 class _AuthRefreshNotifier extends ChangeNotifier {
@@ -49,6 +50,9 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
       GoRoute(path: '/creator', builder: (context, state) => const CreatorPage()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
+      GoRoute(path: '/messages', builder: (context, state) => const MessagesPage()),
+      GoRoute(path: '/notifications', builder: (context, state) => const NotificationsPage()),
+      GoRoute(path: '/search', builder: (context, state) => const SearchPage()),
     ],
   );
   @override
