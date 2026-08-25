@@ -6,6 +6,7 @@ class HomeDemoData {
   final int likes;
   final int comments;
   final String? imagePath;
+  final String mediaType;
   final bool likedByMe;
   final bool isRemote;
   final String? ownerUserId;
@@ -18,6 +19,7 @@ class HomeDemoData {
     this.likes = 0,
     this.comments = 0,
     this.imagePath,
+    this.mediaType = 'post',
     this.likedByMe = false,
     this.isRemote = false,
     this.ownerUserId,
