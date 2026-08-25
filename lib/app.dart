@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'core/theme/theme.dart';
 import 'features/auth/auth.dart';
 import 'features/auth/presentation/splash_page.dart';
-import 'features/home/presentation/youtube_home_page.dart';
+import 'features/home/presentation/home_page.dart';
 import 'features/home/presentation/beats_page.dart';
 import 'features/profile/profile.dart';
 import 'features/profile/presentation/public_profile_page.dart';
@@ -43,12 +43,12 @@ class ManoxApp extends StatelessWidget {
     },
     routes: <GoRoute>[
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
-      GoRoute(path: '/', builder: (context, state) => const YoutubeHomePage()),
+      GoRoute(path: '/', builder: (context, state) => const HomePage()),
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
       GoRoute(path: '/auth', builder: (context, state) => const LoginPage()),
       GoRoute(path: '/auth/signup', builder: (context, state) => const SignupPage()),
       GoRoute(path: '/auth/forgot', builder: (context, state) => const ForgotPasswordPage()),
-      GoRoute(path: '/home', builder: (context, state) => const YoutubeHomePage()),
+      GoRoute(path: '/home', builder: (context, state) => const HomePage()),
       GoRoute(path: '/beats', builder: (context, state) => const BeatsPage()),
       GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
       GoRoute(path: '/profile/:userId', builder: (context, state) => PublicProfilePage(userId: state.pathParameters['userId']!)),
