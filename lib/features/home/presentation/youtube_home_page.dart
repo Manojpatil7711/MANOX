@@ -15,7 +15,7 @@ class _YoutubeHomePageState extends State<YoutubeHomePage> {
   bool _loading = true;
   int _category = 0;
   int _bottom = 0;
-  static const categories = ['For You','Following','Videos','Shorts','Live','Trending','Learn','Sports'];
+  static const categories = ['MANOX', 'BEATS', 'Learn', 'Live'];
 
   @override void initState() { super.initState(); _loadFeed(); }
 
@@ -42,7 +42,23 @@ class _YoutubeHomePageState extends State<YoutubeHomePage> {
     child: SafeArea(bottom: false, child: Padding(
       padding: const EdgeInsets.fromLTRB(12,6,8,6),
       child: Row(children: [
-        Container(width:36,height:36,decoration:BoxDecoration(color:Theme.of(context).colorScheme.onSurface,borderRadius:BorderRadius.circular(10)),child:Icon(Icons.change_history_rounded,color:Theme.of(context).colorScheme.surface)),
+        Container(
+          width:36,
+          height:36,
+          decoration:BoxDecoration(
+            color:Theme.of(context).colorScheme.onSurface,
+            borderRadius:BorderRadius.circular(10),
+          ),
+          alignment:Alignment.center,
+          child:Text(
+            'M',
+            style:TextStyle(
+              color:Theme.of(context).colorScheme.surface,
+              fontSize:22,
+              fontWeight:FontWeight.w900,
+            ),
+          ),
+        ),
         const SizedBox(width:9), const Text('MANOX',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900,letterSpacing:.7)), const Spacer(),
         IconButton(tooltip:'Search',onPressed:()=>context.push('/search'),icon:const Icon(Icons.search_rounded)),
         IconButton(tooltip:'Create',onPressed:_openCreate,icon:const Icon(Icons.add_box_outlined)),
@@ -57,14 +73,6 @@ class _YoutubeHomePageState extends State<YoutubeHomePage> {
     separatorBuilder:(_,__)=>const SizedBox(width:8),itemBuilder:(_,i)=>ChoiceChip(label:Text(categories[i]),selected:i==_category,showCheckmark:false,onSelected:(_)=>setState(()=>_category=i)),
   ));
 
-  Widget _creatorShortcuts() {
-    const items=<({String title,IconData icon})>[(title:'BEATS',icon:Icons.auto_awesome_rounded),(title:'Live',icon:Icons.radio_rounded),(title:'Trending',icon:Icons.local_fire_department_rounded),(title:'Learn',icon:Icons.school_rounded),(title:'Sports',icon:Icons.sports_soccer_rounded)];
-    return SizedBox(height:74,child:ListView.separated(
-      padding:const EdgeInsets.fromLTRB(12,5,12,7),scrollDirection:Axis.horizontal,itemCount:items.length,separatorBuilder:(_,__)=>const SizedBox(width:8),
-      itemBuilder:(_,i)=>InkWell(borderRadius:BorderRadius.circular(16),onTap:(){if(items[i].title=='BEATS')context.push('/beats');else if(items[i].title=='Live')context.push('/creator');},child:Container(width:86,decoration:BoxDecoration(borderRadius:BorderRadius.circular(16),border:Border.all(color:Theme.of(context).dividerColor)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(items[i].icon,size:22),const SizedBox(height:4),Text(items[i].title,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w700))]))),
-    ));
-  }
-
   Widget _sectionHeader()=>Padding(padding:const EdgeInsets.fromLTRB(12,10,8,4),child:Row(children:[Text(categories[_category],style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const Spacer(),IconButton(onPressed:_loadFeed,tooltip:'Refresh',icon:const Icon(Icons.refresh_rounded))]));
 
   Widget _bottomNavigation()=>NavigationBar(selectedIndex:_bottom,onDestinationSelected:(i){if(i==0)setState(()=>_bottom=0);if(i==1){setState(()=>_bottom=1);context.push('/search');}if(i==2){setState(()=>_bottom=0);_openCreate();}if(i==3){setState(()=>_bottom=3);context.push('/notifications');}if(i==4){setState(()=>_bottom=4);context.push('/profile');}},destinations:const[
@@ -78,7 +86,7 @@ class _YoutubeHomePageState extends State<YoutubeHomePage> {
   @override Widget build(BuildContext context)=>Scaffold(
     appBar:PreferredSize(preferredSize:const Size.fromHeight(54),child:_topBar()),
     body:RefreshIndicator(onRefresh:_loadFeed,child:ListView(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.only(bottom:16),children:[
-      _categories(),_creatorShortcuts(),_sectionHeader(),
+      _categories(),_sectionHeader(),
       if(_loading)const Padding(padding:EdgeInsets.all(48),child:Center(child:CircularProgressIndicator()))
       else if(_posts.isEmpty)const Padding(padding:EdgeInsets.all(48),child:Center(child:Text('No content yet. Be the first creator.')))
       else ..._posts.map((post)=>Padding(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),child:PostCard(data:post,repository:_repository,onChanged:_loadFeed))),
