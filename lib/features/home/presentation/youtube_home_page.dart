@@ -27,7 +27,10 @@ class _YoutubeHomePageState extends State<YoutubeHomePage> {
         _posts = remote.map((p) => HomeDemoData(
           id: p.id, creatorName: p.creatorName, handle: p.handle, text: p.text,
           likes: p.likes, comments: p.comments, imagePath: p.imageUrl,
-          mediaType: p.contentType, likedByMe: p.likedByMe, isRemote: true,
+          // ManoxPost exposes contentType as the canonical persisted media type.
+          // Keep the UI model's mediaType field explicitly String-typed.
+          mediaType: p.contentType.isEmpty ? 'post' : p.contentType,
+          likedByMe: p.likedByMe, isRemote: true,
           ownerUserId: p.ownerUserId,
         )).toList();
         _loading = false;
