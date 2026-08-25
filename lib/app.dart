@@ -12,6 +12,7 @@ import 'features/onboarding/onboarding.dart';
 import 'features/creator/creator.dart';
 import 'features/settings/settings.dart';
 import 'features/communication/presentation/communication_pages.dart';
+import 'features/editor/presentation/media_editor_page.dart';
 import 'services/supabase_service.dart';
 
 class _AuthRefreshNotifier extends ChangeNotifier { _AuthRefreshNotifier(){ final stream=SupabaseService.authStateChanges(); _subscription=stream?.listen((_)=>notifyListeners()); } StreamSubscription? _subscription; @override void dispose(){_subscription?.cancel();super.dispose();} }
@@ -25,6 +26,7 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path:'/splash',builder:(context,state)=>const SplashPage()), GoRoute(path:'/',builder:(context,state)=>const HomePage()), GoRoute(path:'/onboarding',builder:(context,state)=>const OnboardingPage()), GoRoute(path:'/auth',builder:(context,state)=>const LoginPage()), GoRoute(path:'/auth/signup',builder:(context,state)=>const SignupPage()), GoRoute(path:'/auth/forgot',builder:(context,state)=>const ForgotPasswordPage()), GoRoute(path:'/home',builder:(context,state)=>const HomePage()), GoRoute(path:'/beats',builder:(context,state)=>const BeatsPage()), GoRoute(path:'/profile',builder:(context,state)=>const ProfilePage()),
       GoRoute(path:'/profile/:userId',builder:(context,state)=>PublicProfilePage(userId:state.pathParameters['userId']!)),
       GoRoute(path:'/creator',builder:(context,state)=>const CreatorPage()), GoRoute(path:'/settings',builder:(context,state)=>const SettingsPage()), GoRoute(path:'/messages',builder:(context,state)=>const MessagesPage()), GoRoute(path:'/notifications',builder:(context,state)=>const NotificationsPage()), GoRoute(path:'/search',builder:(context,state)=>const SearchPage()),
+      GoRoute(path:'/editor',builder:(context,state){ final extra=state.extra as Map<String,dynamic>?; return MediaEditorPage(isVideo:extra?['isVideo'] == true, mediaPath:extra?['mediaPath'] as String?); }),
     ],
   );
   @override Widget build(BuildContext context)=>MaterialApp.router(title:'MANOX',debugShowCheckedModeBanner:false,theme:manoxTheme(),routerConfig:_router);
