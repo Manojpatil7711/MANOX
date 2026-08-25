@@ -6,8 +6,11 @@ import 'package:video_player/video_player.dart';
 class MediaEditorPage extends StatefulWidget {
   final bool isVideo;
   final String? mediaPath;
+
   const MediaEditorPage({super.key, required this.isVideo, this.mediaPath});
-  @override State<MediaEditorPage> createState() => _MediaEditorPageState();
+
+  @override
+  State<MediaEditorPage> createState() => _MediaEditorPageState();
 }
 
 class _MediaEditorPageState extends State<MediaEditorPage> {
@@ -20,8 +23,26 @@ class _MediaEditorPageState extends State<MediaEditorPage> {
   double _speedValue = 1.0;
   String? _overlayText;
   bool _ready = false;
-  static const _filters = ['None','Natural','Cinema','Warm','Cool','Vintage','B&W','Vivid'];
-  static const _crops = ['Original','9:16','4:5','1:1','16:9','4:3'];
+
+  static const List<String> _filterOptions = [
+    'None',
+    'Natural',
+    'Cinema',
+    'Warm',
+    'Cool',
+    'Vintage',
+    'B&W',
+    'Vivid',
+  ];
+
+  static const List<String> _cropOptions = [
+    'Original',
+    '9:16',
+    '4:5',
+    '1:1',
+    '16:9',
+    '4:3',
+  ];
 
   @override
   void initState() {
@@ -32,15 +53,20 @@ class _MediaEditorPageState extends State<MediaEditorPage> {
 
   Future<void> _initMedia() async {
     if (widget.isVideo && (widget.mediaPath?.isNotEmpty ?? false)) {
-      final c = VideoPlayerController.file(File(widget.mediaPath!));
-      _video = c;
+      final controller = VideoPlayerController.file(File(widget.mediaPath!));
+      _video = controller;
       try {
-        await c.initialize();
-        await c.setLooping(true);
-        await c.play();
-      } catch (_) {}
+        await controller.initialize();
+        await controller.setLooping(true);
+        await controller.play();
+      } catch (_) {
+        // Keep the editor usable even if the preview cannot be initialized.
+      }
     }
-    if (mounted) setState(() => _ready = true);
+
+    if (mounted) {
+      setState(() => _ready = true);
+    }
   }
 
   @override
@@ -50,157 +76,474 @@ class _MediaEditorPageState extends State<MediaEditorPage> {
     super.dispose();
   }
 
-  void _set(VoidCallback fn) => setState(fn);
+  void _set(VoidCallback fn) {
+    if (mounted) {
+      setState(fn);
+    }
+  }
 
-  Future<void> _filters() async {
+  Future<void> _openFilters() async {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF171717),
       showDragHandle: true,
-      builder: (sheet) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      builder: (sheet) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Filters',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 104,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _filterOptions.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (_, index) {
+                      final name = _filterOptions[index];
+                      final selected = name == _filter;
+                      return GestureDetector(
+                        onTap: () {
+                          _set(() => _filter = name);
+                          Navigator.pop(sheet);
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: selected ? Colors.white : Colors.white24,
+                                  width: selected ? 2 : 1,
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  name == 'B&W'
+                                      ? Icons.filter_b_and_w
+                                      : Icons.auto_awesome_rounded,
+                                  size: 28,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(name, style: const TextStyle(fontSize: 11)),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openAdjust() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF171717),
+      showDragHandle: true,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setSheet) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Adjust',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    ),
+                    _slider('Brightness', _brightness, (value) {
+                      setSheet(() => _brightness = value);
+                      setState(() {});
+                    }),
+                    _slider('Contrast', _contrast, (value) {
+                      setSheet(() => _contrast = value);
+                      setState(() {});
+                    }),
+                    _slider('Saturation', _saturation, (value) {
+                      setSheet(() => _saturation = value);
+                      setState(() {});
+                    }),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _slider(
+    String label,
+    double value,
+    ValueChanged<double> onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label),
+            const Spacer(),
+            Text(value.toStringAsFixed(1)),
+          ],
+        ),
+        Slider(
+          min: -1.0,
+          max: 1.0,
+          value: value,
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openCrop() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF171717),
+      showDragHandle: true,
+      builder: (sheet) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _cropOptions.map((name) {
+                return ChoiceChip(
+                  label: Text(name),
+                  selected: name == _crop,
+                  onSelected: (_) {
+                    _set(() => _crop = name);
+                    Navigator.pop(sheet);
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openText() async {
+    final controller = TextEditingController(text: _overlayText ?? '');
+    final value = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF171717),
+      showDragHandle: true,
+      builder: (sheet) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            4,
+            16,
+            MediaQuery.of(sheet).viewInsets.bottom + 24,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Filters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 104,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _filters.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, i) {
-                    final n = _filters[i];
-                    final selected = n == _filter;
-                    return GestureDetector(
-                      onTap: () { _set(() => _filter = n); Navigator.pop(sheet); },
-                      child: Column(children: [
-                        Container(width: 72, height: 72, decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: selected ? Colors.white : Colors.white24, width: selected ? 2 : 1)), child: Center(child: Icon(n == 'B&W' ? Icons.filter_b_and_w : Icons.auto_awesome_rounded, size: 28))),
-                        const SizedBox(height: 6),
-                        Text(n, style: const TextStyle(fontSize: 11)),
-                      ]),
-                    );
-                  },
-                ),
+              const Text(
+                'Add Text',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLength: 120,
+                decoration: const InputDecoration(hintText: 'Write on your media'),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: () => Navigator.pop(sheet, controller.text.trim()),
+                child: const Text('DONE'),
               ),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
-  }
 
-  Future<void> _adjust() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF171717),
-      showDragHandle: true,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setSheet) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('Adjust', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-              _slider('Brightness', _brightness, (double v) { setSheet(() => _brightness = v); setState(() {}); }),
-              _slider('Contrast', _contrast, (double v) { setSheet(() => _contrast = v); setState(() {}); }),
-              _slider('Saturation', _saturation, (double v) { setSheet(() => _saturation = v); setState(() {}); }),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _slider(String label, double value, ValueChanged<double> onChanged) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(children: [Text(label), const Spacer(), Text(value.toStringAsFixed(1))]),
-      Slider(min: -1.0, max: 1.0, value: value, onChanged: onChanged),
-    ],
-  );
-
-  Future<void> _crop() async {
-    await showModalBottomSheet<void>(context: context, backgroundColor: const Color(0xFF171717), showDragHandle: true,
-      builder: (sheet) => SafeArea(child: Padding(padding: const EdgeInsets.all(16), child: Wrap(spacing: 8, runSpacing: 8, children: _crops.map((n) => ChoiceChip(label: Text(n), selected: n == _crop, onSelected: (_) { _set(() => _crop = n); Navigator.pop(sheet); })).toList()))));
-  }
-
-  Future<void> _text() async {
-    final c = TextEditingController(text: _overlayText ?? '');
-    final value = await showModalBottomSheet<String>(context: context, isScrollControlled: true, backgroundColor: const Color(0xFF171717), showDragHandle: true,
-      builder: (sheet) => Padding(padding: EdgeInsets.fromLTRB(16, 4, 16, MediaQuery.of(sheet).viewInsets.bottom + 24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('Add Text', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 12),
-        TextField(controller: c, autofocus: true, maxLength: 120, decoration: const InputDecoration(hintText: 'Write on your media')),
-        const SizedBox(height: 8),
-        FilledButton(onPressed: () => Navigator.pop(sheet, c.text.trim()), child: const Text('DONE')),
-      ]));
-    c.dispose();
-    if (value != null && mounted) _set(() => _overlayText = value.isEmpty ? null : value);
+    controller.dispose();
+    if (value != null && mounted) {
+      _set(() => _overlayText = value.isEmpty ? null : value);
+    }
   }
 
   void _changeSpeed() {
-    final double next = _speedValue == 1.0 ? 1.5 : _speedValue == 1.5 ? 2.0 : _speedValue == 2.0 ? 0.5 : 1.0;
+    final double next = _speedValue == 1.0
+        ? 1.5
+        : _speedValue == 1.5
+            ? 2.0
+            : _speedValue == 2.0
+                ? 0.5
+                : 1.0;
     _set(() => _speedValue = next);
     _video?.setPlaybackSpeed(next);
   }
 
   Future<void> _done() async {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    if (mounted) Navigator.of(context).pop(true);
+    if (mounted) {
+      Navigator.of(context).pop(true);
+    }
   }
 
-  void _msg(String s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
+  void _msg(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final List<({String label, IconData icon, VoidCallback action})> tools = [
-      if (widget.isVideo) (label: 'Trim', icon: Icons.content_cut_rounded, action: () => _msg('Trim timeline ready.')),
-      if (widget.isVideo) (label: '${_speedValue}x', icon: Icons.speed_rounded, action: _changeSpeed),
-      (label: 'Crop', icon: Icons.crop_rounded, action: _crop),
-      (label: 'Adjust', icon: Icons.tune_rounded, action: _adjust),
-      (label: 'Filter', icon: Icons.auto_awesome_rounded, action: _filters),
-      (label: 'Text', icon: Icons.text_fields_rounded, action: _text),
-      if (widget.isVideo) (label: 'Sound', icon: Icons.music_note_rounded, action: () => _msg('Sound controls ready.')),
+      if (widget.isVideo)
+        (
+          label: 'Trim',
+          icon: Icons.content_cut_rounded,
+          action: () => _msg('Trim timeline ready.'),
+        ),
+      if (widget.isVideo)
+        (
+          label: '${_speedValue}x',
+          icon: Icons.speed_rounded,
+          action: _changeSpeed,
+        ),
+      (
+        label: 'Crop',
+        icon: Icons.crop_rounded,
+        action: _openCrop,
+      ),
+      (
+        label: 'Adjust',
+        icon: Icons.tune_rounded,
+        action: _openAdjust,
+      ),
+      (
+        label: 'Filter',
+        icon: Icons.auto_awesome_rounded,
+        action: _openFilters,
+      ),
+      (
+        label: 'Text',
+        icon: Icons.text_fields_rounded,
+        action: _openText,
+      ),
+      if (widget.isVideo)
+        (
+          label: 'Sound',
+          icon: Icons.music_note_rounded,
+          action: () => _msg('Sound controls ready.'),
+        ),
     ];
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(child: Column(children: [
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Row(children: [
-          IconButton(onPressed: () => Navigator.of(context).pop(false), icon: const Icon(Icons.close_rounded)),
-          const Expanded(child: Center(child: Text('EDIT', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1.5)))),
-          TextButton(onPressed: _done, child: const Text('DONE', style: TextStyle(fontWeight: FontWeight.w800))),
-        ])),
-        Expanded(child: _preview()),
-        if (widget.isVideo) _timeline(),
-        _tools(tools),
-      ])),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        'EDIT',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _done,
+                    child: const Text(
+                      'DONE',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: _preview()),
+            if (widget.isVideo) _timeline(),
+            _tools(tools),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _preview() {
-    if (!_ready || (widget.isVideo && _video != null && !_video!.value.isInitialized)) return const Center(child: CircularProgressIndicator());
+    if (!_ready ||
+        (widget.isVideo &&
+            _video != null &&
+            !_video!.value.isInitialized)) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     Widget media;
     if (widget.isVideo && _video != null && _video!.value.isInitialized) {
-      final Size s = _video!.value.size;
-      media = FittedBox(fit: BoxFit.contain, child: SizedBox(width: s.width, height: s.height, child: VideoPlayer(_video!)));
+      final Size size = _video!.value.size;
+      media = FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: size.width,
+          height: size.height,
+          child: VideoPlayer(_video!),
+        ),
+      );
     } else if (widget.mediaPath?.isNotEmpty ?? false) {
       media = Image.file(File(widget.mediaPath!), fit: BoxFit.contain);
     } else {
-      media = const Icon(Icons.add_photo_alternate_outlined, size: 72, color: Colors.white38);
+      media = const Icon(
+        Icons.add_photo_alternate_outlined,
+        size: 72,
+        color: Colors.white38,
+      );
     }
-    return Container(width: double.infinity, color: Colors.black, child: Stack(fit: StackFit.expand, children: [
-      Center(child: media),
-      if (_overlayText != null) Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_overlayText!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, shadows: [Shadow(blurRadius: 8, color: Colors.black)])))),
-      Positioned(top: 12, left: 12, child: _pill(_crop)),
-      Positioned(top: 12, right: 12, child: _pill(_filter)),
-    ]));
+
+    return Container(
+      width: double.infinity,
+      color: Colors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(child: media),
+          if (_overlayText != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _overlayText!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+                  ),
+                ),
+              ),
+            ),
+          Positioned(top: 12, left: 12, child: _pill(_crop)),
+          Positioned(top: 12, right: 12, child: _pill(_filter)),
+        ],
+      ),
+    );
   }
 
-  Widget _pill(String text) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)), child: Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)));
-  Widget _timeline() => SizedBox(height: 54, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Row(children: [const Icon(Icons.timeline_rounded, size: 20), const SizedBox(width: 8), Expanded(child: Container(height: 6, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(6)))), const SizedBox(width: 8), const Text('VIDEO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700))])));
-  Widget _tools(List<({String label, IconData icon, VoidCallback action})> tools) => SizedBox(height: 92, child: ListView.separated(padding: const EdgeInsets.symmetric(horizontal: 12), scrollDirection: Axis.horizontal, itemCount: tools.length, separatorBuilder: (_, __) => const SizedBox(width: 8), itemBuilder: (_, i) { final t = tools[i]; return InkWell(borderRadius: BorderRadius.circular(14), onTap: t.action, child: SizedBox(width: 70, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircleAvatar(radius: 22, backgroundColor: const Color(0xFF242424), child: Icon(t.icon, color: Colors.white)), const SizedBox(height: 5), Text(t.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700))]))); }));
+  Widget _pill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _timeline() {
+    return SizedBox(
+      height: 54,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: [
+            const Icon(Icons.timeline_rounded, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'VIDEO',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _tools(List<({String label, IconData icon, VoidCallback action})> tools) {
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        scrollDirection: Axis.horizontal,
+        itemCount: tools.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, index) {
+          final tool = tools[index];
+          return InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: tool.action,
+            child: SizedBox(
+              width: 70,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: const Color(0xFF242424),
+                    child: Icon(tool.icon, color: Colors.white),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    tool.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
