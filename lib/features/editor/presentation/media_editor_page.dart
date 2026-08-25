@@ -11,154 +11,69 @@ class MediaEditorPage extends StatefulWidget {
 }
 
 class _MediaEditorPageState extends State<MediaEditorPage> {
-  int _selectedTool = 0;
-  bool _changed = false;
+  String _filter = 'None';
+  String _crop = 'Original';
   double _brightness = 0;
   double _contrast = 0;
   double _saturation = 0;
-  double _rotation = 0;
   double _speed = 1;
-  String _filter = 'None';
-  String _crop = 'Original';
-  final List<String> _history = ['Original'];
-  int _historyIndex = 0;
+  bool _changed = false;
 
-  List<_EditorTool> get _tools => [
-        if (widget.isVideo) const _EditorTool(Icons.content_cut_rounded, 'Trim'),
-        if (widget.isVideo) const _EditorTool(Icons.speed_rounded, 'Speed'),
-        const _EditorTool(Icons.crop_rounded, 'Crop'),
-        const _EditorTool(Icons.tune_rounded, 'Adjust'),
-        const _EditorTool(Icons.auto_awesome_rounded, 'Filter'),
-        const _EditorTool(Icons.text_fields_rounded, 'Text'),
-        const _EditorTool(Icons.emoji_emotions_outlined, 'Sticker'),
-        const _EditorTool(Icons.brush_rounded, 'Draw'),
-        const _EditorTool(Icons.blur_on_rounded, 'Blur'),
-        const _EditorTool(Icons.rotate_right_rounded, 'Rotate'),
-        if (widget.isVideo) const _EditorTool(Icons.music_note_rounded, 'Sound'),
-        if (widget.isVideo) const _EditorTool(Icons.mic_rounded, 'Voice'),
-      ];
+  static const _filters = ['None', 'Natural', 'Cinema', 'Warm', 'Cool', 'Vintage', 'B&W', 'Vivid'];
+  static const _crops = ['Original', '9:16', '4:5', '1:1', '16:9', '4:3'];
 
-  void _select(int index) {
-    setState(() => _selectedTool = index);
-    _showTool(_tools[index].label);
-  }
+  void _changedNow() => setState(() => _changed = true);
 
-  void _markChanged() {
-    setState(() {
-      _changed = true;
-      final state = 'b:${_brightness.toStringAsFixed(1)}|c:${_contrast.toStringAsFixed(1)}|s:${_saturation.toStringAsFixed(1)}|r:${_rotation.toStringAsFixed(0)}|f:$_filter|crop:$_crop|speed:$_speed';
-      if (_historyIndex < _history.length - 1) {
-        _history.removeRange(_historyIndex + 1, _history.length);
-      }
-      _history.add(state);
-      _historyIndex = _history.length - 1;
-    });
-  }
-
-  void _undo() {
-    if (_historyIndex == 0) return;
-    setState(() => _historyIndex--);
-    _restoreHistory(_history[_historyIndex]);
-  }
-
-  void _redo() {
-    if (_historyIndex >= _history.length - 1) return;
-    setState(() => _historyIndex++);
-    _restoreHistory(_history[_historyIndex]);
-  }
-
-  void _restoreHistory(String value) {
-    if (value == 'Original') {
-      _brightness = 0;
-      _contrast = 0;
-      _saturation = 0;
-      _rotation = 0;
-      _speed = 1;
-      _filter = 'None';
-      _crop = 'Original';
-    }
-    setState(() => _changed = _historyIndex > 0);
-  }
-
-  void _reset() {
-    setState(() {
-      _brightness = 0;
-      _contrast = 0;
-      _saturation = 0;
-      _rotation = 0;
-      _speed = 1;
-      _filter = 'None';
-      _crop = 'Original';
-      _changed = false;
-      _history
-        ..clear()
-        ..add('Original');
-      _historyIndex = 0;
-    });
-  }
-
-  void _showTool(String label) {
-    switch (label) {
-      case 'Adjust':
-        _showAdjust();
-        break;
-      case 'Filter':
-        _showFilters();
-        break;
-      case 'Crop':
-        _showCrop();
-        break;
-      case 'Speed':
-        _showSpeed();
-        break;
-      case 'Rotate':
-        _showRotate();
-        break;
-      case 'Text':
-        _showText();
-        break;
-      case 'Sticker':
-        _showMessage('Sticker', 'Choose a sticker to place on your media.');
-        break;
-      case 'Draw':
-        _showMessage('Draw', 'Pen, highlighter and eraser are ready for the drawing layer.');
-        break;
-      case 'Blur':
-        _showMessage('Blur', 'Choose an area to blur in the media.');
-        break;
-      case 'Trim':
-        _showMessage('Trim', 'Set the start and end points on the video timeline.');
-        break;
-      case 'Sound':
-        _showMessage('Sound', 'Choose MANOX sound or manage original audio.');
-        break;
-      case 'Voice':
-        _showMessage('Voice', 'Record a voice-over for the video.');
-        break;
-    }
-  }
-
-  void _showAdjust() {
-    showModalBottomSheet(
+  void _showFilters() {
+    showModalBottomSheet<void>(
       context: context,
+      backgroundColor: const Color(0xFF171717),
       isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheet) => _EditorSheet(
-          title: 'Adjust',
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _slider('Brightness', _brightness, (value) {
-                setSheet(() => _brightness = value);
-                _markChanged();
-              }),
-              _slider('Contrast', _contrast, (value) {
-                setSheet(() => _contrast = value);
-                _markChanged();
-              }),
-              _slider('Saturation', _saturation, (value) {
-                setSheet(() => _saturation = value);
-                _markChanged();
-              }),
+              const Text('Filters', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 104,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _filters.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (_, index) {
+                    final name = _filters[index];
+                    final selected = name == _filter;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _filter = name;
+                          _changed = true;
+                        });
+                        Navigator.pop(sheetContext);
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: selected ? Colors.white : Colors.white24, width: selected ? 2 : 1),
+                            ),
+                            child: Center(child: Icon(name == 'B&W' ? Icons.filter_b_and_w : Icons.auto_awesome_rounded, size: 28)),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(name, style: const TextStyle(fontSize: 11)),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ),
@@ -166,107 +81,57 @@ class _MediaEditorPageState extends State<MediaEditorPage> {
     );
   }
 
-  Widget _slider(String title, double value, ValueChanged<double> onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title),
-        Slider(min: -1, max: 1, value: value, onChanged: onChanged),
-      ],
-    );
-  }
-
-  void _showFilters() {
-    const names = ['None', 'Natural', 'Cinema', 'Warm', 'Cool', 'Vintage', 'B&W', 'Vivid'];
-    showModalBottomSheet(
+  void _showAdjust() {
+    showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => _EditorSheet(
-        title: 'Filter',
-        child: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: names.map<Widget>((name) {
-            return ChoiceChip(
-              label: Text(name),
-              selected: _filter == name,
-              onSelected: (_) {
-                setState(() => _filter = name);
-                _markChanged();
-                Navigator.pop(sheetContext);
-              },
-            );
-          }).toList(),
+      backgroundColor: const Color(0xFF171717),
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (sheetContext, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Adjust', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                _slider('Brightness', _brightness, (v) { setSheet(() => _brightness = v); _changedNow(); }),
+                _slider('Contrast', _contrast, (v) { setSheet(() => _contrast = v); _changedNow(); }),
+                _slider('Saturation', _saturation, (v) { setSheet(() => _saturation = v); _changedNow(); }),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+
+  Widget _slider(String label, double value, ValueChanged<double> onChanged) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label),
+      Slider(min: -1, max: 1, value: value, onChanged: onChanged),
+    ],
+  );
 
   void _showCrop() {
-    const names = ['Original', 'Free', '9:16', '4:5', '1:1', '16:9', '4:3'];
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => _EditorSheet(
-        title: 'Crop',
-        child: Wrap(
-          spacing: 8,
-          children: names.map<Widget>((name) {
-            return ChoiceChip(
+      backgroundColor: const Color(0xFF171717),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _crops.map((name) => ChoiceChip(
               label: Text(name),
-              selected: _crop == name,
+              selected: name == _crop,
               onSelected: (_) {
-                setState(() => _crop = name);
-                _markChanged();
+                setState(() { _crop = name; _changed = true; });
                 Navigator.pop(sheetContext);
               },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  void _showSpeed() {
-    const speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
-    showModalBottomSheet(
-      context: context,
-      builder: (sheetContext) => _EditorSheet(
-        title: 'Speed',
-        child: Wrap(
-          spacing: 8,
-          children: speeds.map<Widget>((value) {
-            return ChoiceChip(
-              label: Text('${value}x'),
-              selected: _speed == value,
-              onSelected: (_) {
-                setState(() => _speed = value);
-                _markChanged();
-                Navigator.pop(sheetContext);
-              },
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  void _showRotate() {
-    const degrees = [90, 180, 270];
-    showModalBottomSheet(
-      context: context,
-      builder: (sheetContext) => _EditorSheet(
-        title: 'Rotate',
-        child: Wrap(
-          spacing: 8,
-          children: degrees.map<Widget>((value) {
-            return ElevatedButton(
-              onPressed: () {
-                setState(() => _rotation = (_rotation + value) % 360);
-                _markChanged();
-                Navigator.pop(sheetContext);
-              },
-              child: Text('$value°'),
-            );
-          }).toList(),
+            )).toList(),
+          ),
         ),
       ),
     );
@@ -274,25 +139,21 @@ class _MediaEditorPageState extends State<MediaEditorPage> {
 
   void _showText() {
     final controller = TextEditingController();
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => _EditorSheet(
-        title: 'Text',
+      backgroundColor: const Color(0xFF171717),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(sheetContext).viewInsets.bottom + 24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(hintText: 'Type your text'),
-            ),
+            const Text('Add Text', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () {
-                if (controller.text.trim().isNotEmpty) {
-                  _markChanged();
-                  Navigator.pop(sheetContext);
-                }
-              },
+            TextField(controller: controller, autofocus: true, decoration: const InputDecoration(hintText: 'Type text on your media')), 
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: controller.text.trim().isEmpty ? null : () { _changedNow(); Navigator.pop(sheetContext); },
               child: const Text('ADD TEXT'),
             ),
           ],
@@ -301,40 +162,30 @@ class _MediaEditorPageState extends State<MediaEditorPage> {
     );
   }
 
-  void _showMessage(String title, String message) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => _EditorSheet(
-        title: title,
-        child: Padding(padding: const EdgeInsets.all(8), child: Text(message)),
-      ),
-    );
+  void _tool(String name) {
+    switch (name) {
+      case 'Filter': _showFilters(); break;
+      case 'Adjust': _showAdjust(); break;
+      case 'Crop': _showCrop(); break;
+      case 'Text': _showText(); break;
+      case 'Trim':
+      case 'Speed':
+      case 'Sound':
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$name controls are ready for the next editor step.')));
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tools = _tools;
-    final selected = tools[_selectedTool.clamp(0, tools.length - 1)];
+    final tools = <String>[if (widget.isVideo) 'Trim', if (widget.isVideo) 'Speed', 'Crop', 'Adjust', 'Filter', 'Text', if (widget.isVideo) 'Sound'];
     return Scaffold(
-      backgroundColor: const Color(0xFF101010),
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF101010),
-        title: Text(widget.isVideo ? 'Edit Video' : 'Edit Image'),
+        backgroundColor: Colors.black,
+        title: Text(widget.isVideo ? 'Edit Video' : 'Edit Photo'),
         actions: [
-          IconButton(
-            tooltip: 'Undo',
-            onPressed: _historyIndex > 0 ? _undo : null,
-            icon: const Icon(Icons.undo_rounded),
-          ),
-          IconButton(
-            tooltip: 'Redo',
-            onPressed: _historyIndex < _history.length - 1 ? _redo : null,
-            icon: const Icon(Icons.redo_rounded),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('DONE'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('DONE')),
         ],
       ),
       body: Column(
@@ -342,72 +193,58 @@ class _MediaEditorPageState extends State<MediaEditorPage> {
           Expanded(
             child: Container(
               width: double.infinity,
-              margin: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Center(
-                child: widget.mediaPath == null
-                    ? Icon(
-                        widget.isVideo
-                            ? Icons.video_library_rounded
-                            : Icons.image_rounded,
-                        size: 72,
-                        color: Colors.white38,
-                      )
-                    : const Icon(Icons.preview_rounded,
-                        size: 72, color: Colors.white38),
-              ),
-            ),
-          ),
-          if (_changed)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+              margin: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+              color: const Color(0xFF050505),
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(selected.label,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const Spacer(),
-                  TextButton(onPressed: _reset, child: const Text('RESET')),
+                  Center(child: Icon(widget.isVideo ? Icons.play_circle_outline_rounded : Icons.image_rounded, size: 76, color: Colors.white38)),
+                  if (_changed)
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
+                      child: Text('Filter: $_filter  •  Crop: $_crop', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                    ),
                 ],
               ),
             ),
+          ),
+          if (widget.isVideo)
+            SizedBox(
+              height: 54,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(children: [
+                  const Icon(Icons.timeline_rounded, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Container(height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(4)))),
+                  const SizedBox(width: 8),
+                  Text('${_speed}x', style: const TextStyle(fontSize: 12)),
+                ]),
+              ),
+            ),
           SizedBox(
-            height: 92,
+            height: 98,
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               scrollDirection: Axis.horizontal,
               itemCount: tools.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, index) {
-                final tool = tools[index];
-                final isSelected = index == _selectedTool;
-                return GestureDetector(
-                  onTap: () => _select(index),
-                  child: SizedBox(
-                    width: 72,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 23,
-                          backgroundColor: isSelected
-                              ? Colors.white
-                              : const Color(0xFF252525),
-                          child: Icon(tool.icon,
-                              color: isSelected ? Colors.black : Colors.white),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(tool.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11)),
-                      ],
-                    ),
+              itemBuilder: (_, index) => GestureDetector(
+                onTap: () => _tool(tools[index]),
+                child: SizedBox(
+                  width: 70,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircleAvatar(radius: 23, backgroundColor: const Color(0xFF242424), child: Icon(_icon(tools[index]), color: Colors.white)),
+                      const SizedBox(height: 5),
+                      Text(tools[index], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                    ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -415,39 +252,17 @@ class _MediaEditorPageState extends State<MediaEditorPage> {
       ),
     );
   }
-}
 
-class _EditorSheet extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _EditorSheet({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            child,
-          ],
-        ),
-      ),
-    );
+  IconData _icon(String name) {
+    switch (name) {
+      case 'Trim': return Icons.content_cut_rounded;
+      case 'Speed': return Icons.speed_rounded;
+      case 'Crop': return Icons.crop_rounded;
+      case 'Adjust': return Icons.tune_rounded;
+      case 'Filter': return Icons.auto_awesome_rounded;
+      case 'Text': return Icons.text_fields_rounded;
+      case 'Sound': return Icons.music_note_rounded;
+      default: return Icons.edit_rounded;
+    }
   }
-}
-
-class _EditorTool {
-  final IconData icon;
-  final String label;
-  const _EditorTool(this.icon, this.label);
 }
