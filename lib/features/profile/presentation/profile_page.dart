@@ -145,13 +145,27 @@ class _ProfilePageState extends State<ProfilePage> {
                       Text(
                         profile.displayName,
                         key: const Key('profile-name'),
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.35,
+                          height: 1.1,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(profile.handle, key: const Key('profile-handle')),
+                      const SizedBox(height: 5),
+                      Text(
+                        profile.handle,
+                        key: const Key('profile-handle'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.15,
+                        ),
+                      ),
                       if (profile.bio.trim().isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text(profile.bio, key: const Key('profile-bio')),
