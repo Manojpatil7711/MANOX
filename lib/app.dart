@@ -17,6 +17,7 @@ import 'features/creator/creator.dart';
 import 'features/settings/settings.dart';
 import 'features/communication/presentation/communication_pages.dart';
 import 'features/editor/presentation/safe_media_editor_page.dart';
+import 'features/compliance/presentation/community_safety_page.dart';
 import 'services/supabase_service.dart';
 
 class _AuthRefreshNotifier extends ChangeNotifier {
@@ -57,6 +58,7 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/monetization', builder: (context, state) => const MonetizationPage()),
       GoRoute(path: '/payout', builder: (context, state) => const PayoutPage()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
+      GoRoute(path: '/community-safety', builder: (context, state) => const CommunitySafetyPage()),
       GoRoute(path: '/messages', builder: (context, state) => const MessagesPage()),
       GoRoute(path: '/notifications', builder: (context, state) => const NotificationsPage()),
       GoRoute(path: '/search', builder: (context, state) => const SearchPage()),
