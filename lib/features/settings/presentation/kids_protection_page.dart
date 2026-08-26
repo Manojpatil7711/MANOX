@@ -4,16 +4,13 @@ import '../../../services/supabase_service.dart';
 
 class KidsProtectionPage extends StatefulWidget {
   const KidsProtectionPage({super.key});
-
-  @override
-  State<KidsProtectionPage> createState() => _KidsProtectionPageState();
+  @override State<KidsProtectionPage> createState() => _KidsProtectionPageState();
 }
 
 class _KidsProtectionPageState extends State<KidsProtectionPage> {
   bool _enabled = false;
   bool _loading = true;
   bool _saving = false;
-
   SupabaseClient? get _client => SupabaseService.client;
 
   static const List<Map<String, dynamic>> _categories = [
@@ -25,167 +22,85 @@ class _KidsProtectionPageState extends State<KidsProtectionPage> {
     {'title': 'Beats', 'icon': Icons.music_note_outlined},
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+  @override void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
-    final client = _client;
-    final user = client?.auth.currentUser;
-    if (client == null || user == null) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
-
+    final client = _client; final user = client?.auth.currentUser;
+    if (client == null || user == null) { if (mounted) setState(() => _loading = false); return; }
     try {
-      final row = await client
-          .from('kids_protection')
-          .select('enabled')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      final row = await client.from('kids_protection').select('enabled').eq('user_id', user.id).maybeSingle();
       if (mounted) setState(() => _enabled = row?['enabled'] == true);
-    } catch (_) {
-      if (mounted) setState(() => _enabled = false);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    } catch (_) { if (mounted) setState(() => _enabled = false); }
+    finally { if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _toggle(bool value) async {
-    final client = _client;
-    final user = client?.auth.currentUser;
+    final client = _client; final user = client?.auth.currentUser;
     if (client == null || user == null || _saving) return;
-
     if (!value && !await _parentVerify()) return;
-
     if (mounted) setState(() => _saving = true);
     try {
-      await client.from('kids_protection').upsert(
-        {
-          'user_id': user.id,
-          'enabled': value,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        },
-        onConflict: 'user_id',
-      );
+      await client.from('kids_protection').upsert({'user_id': user.id, 'enabled': value, 'updated_at': DateTime.now().toUtc().toIso8601String()}, onConflict: 'user_id');
       if (!mounted) return;
       setState(() => _enabled = value);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(value ? 'Kids Protection ON' : 'Kids Protection OFF')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value ? 'Kids Protection ON • Main flow locked' : 'Kids Protection OFF')));
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save Kids Protection.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save Kids Protection.')));
+    } finally { if (mounted) setState(() => _saving = false); }
   }
 
   Future<bool> _parentVerify() async {
-    final client = _client;
-    final email = client?.auth.currentUser?.email;
+    final client = _client; final email = client?.auth.currentUser?.email;
     if (client == null || email == null || email.isEmpty) return false;
-
     final controller = TextEditingController();
-    final password = await showDialog<String>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('Parent verification'),
-        content: TextField(
-          controller: controller,
-          obscureText: true,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Account password'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog),
-            child: const Text('CANCEL'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, controller.text),
-            child: const Text('UNLOCK'),
-          ),
-        ],
-      ),
-    );
+    final password = await showDialog<String>(context: context, builder: (dialog) => AlertDialog(
+      title: const Text('Parent verification'),
+      content: TextField(controller: controller, obscureText: true, autofocus: true, decoration: const InputDecoration(labelText: 'Parent/account password')),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialog, controller.text), child: const Text('UNLOCK'))],
+    ));
     controller.dispose();
-
     if (password == null || password.isEmpty) return false;
+    try { await client.auth.signInWithPassword(email: email, password: password); return true; }
+    catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification failed. Kids Protection remains locked.'))); return false; }
+  }
+
+  Future<void> _changeParentPassword() async {
+    if (!await _parentVerify()) return;
+    final controller = TextEditingController();
+    final newPassword = await showDialog<String>(context: context, builder: (dialog) => AlertDialog(
+      title: const Text('Set Parent Password'),
+      content: TextField(controller: controller, obscureText: true, autofocus: true, decoration: const InputDecoration(labelText: 'New parent password', helperText: 'Use at least 8 characters. This is also your MANOX account password.')),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialog, controller.text), child: const Text('SAVE'))],
+    ));
+    controller.dispose();
+    if (newPassword == null || newPassword.length < 8) {
+      if (newPassword != null && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Parent password must be at least 8 characters.')));
+      return;
+    }
     try {
-      await client.auth.signInWithPassword(email: email, password: password);
-      return true;
+      await _client!.auth.updateUser(UserAttributes(password: newPassword));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Parent Password updated securely.')));
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Verification failed. Kids Protection remains locked.')),
-        );
-      }
-      return false;
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not update Parent Password.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
+    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Kids Protection',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: SwitchListTile.adaptive(
-              secondary: Icon(
-                _enabled ? Icons.lock_rounded : Icons.lock_open_rounded,
-              ),
-              title: const Text(
-                'Kids Protection',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-              subtitle: Text(
-                _enabled
-                    ? 'ON • Main flow locked to Kids mode'
-                    : 'OFF • Adult/main flow available',
-              ),
-              value: _enabled,
-              onChanged: _saving ? null : _toggle,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Kids-only categories',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          ..._categories.map(
-            (item) => Card(
-              child: ListTile(
-                leading: Icon(item['icon'] as IconData),
-                title: Text(item['title'] as String),
-                trailing: const Icon(Icons.lock_outline_rounded),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Only Science Experiments, History, Geography Knowledge, GK, Cartoon and Beats are exposed in Kids mode. Adult feed, monetization, withdrawal and messaging stay locked.',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Kids Protection', style: TextStyle(fontWeight: FontWeight.w800))),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        Card(child: SwitchListTile.adaptive(secondary: Icon(_enabled ? Icons.lock_rounded : Icons.lock_open_rounded), title: const Text('Kids Protection', style: TextStyle(fontWeight: FontWeight.w900)), subtitle: Text(_enabled ? 'ON • Main flow locked to Kids mode' : 'OFF • Adult/main flow available'), value: _enabled, onChanged: _saving ? null : _toggle)),
+        const SizedBox(height: 10),
+        Card(child: ListTile(leading: const Icon(Icons.password_rounded), title: const Text('Parent Password', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Required to unlock Kids Protection and return to the main flow'), trailing: const Icon(Icons.chevron_right_rounded), onTap: _changeParentPassword)),
+        const SizedBox(height: 16),
+        const Text('Kids-only categories', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 8),
+        ..._categories.map((item) => Card(child: ListTile(leading: Icon(item['icon'] as IconData), title: Text(item['title'] as String), trailing: const Icon(Icons.lock_outline_rounded)))),
+        const SizedBox(height: 8),
+        const Text('Only Science Experiments, History, Geography Knowledge, GK, Cartoon and Beats are exposed in Kids mode. Adult feed, monetization, withdrawal and messaging stay locked.', style: TextStyle(fontWeight: FontWeight.w600)),
+      ]),
     );
   }
 }
