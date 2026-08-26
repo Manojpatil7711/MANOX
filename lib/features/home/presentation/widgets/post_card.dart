@@ -10,12 +10,7 @@ class PostCard extends StatefulWidget {
   final SupabasePostRepository? repository;
   final Future<void> Function()? onChanged;
 
-  const PostCard({
-    super.key,
-    required this.data,
-    this.repository,
-    this.onChanged,
-  });
+  const PostCard({super.key, required this.data, this.repository, this.onChanged});
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -107,9 +102,7 @@ class _PostCardState extends State<PostCard> {
       final value = await r.toggleLike(widget.data.id, _liked);
       if (mounted) {
         setState(() {
-          if (value != _liked) {
-            _likes += value ? 1 : -1;
-          }
+          if (value != _liked) _likes += value ? 1 : -1;
           _liked = value;
         });
       }
@@ -126,7 +119,6 @@ class _PostCardState extends State<PostCard> {
       _showError('Comments will be available on live posts.');
       return;
     }
-
     final controller = TextEditingController();
     try {
       await showModalBottomSheet<void>(
@@ -135,44 +127,25 @@ class _PostCardState extends State<PostCard> {
         builder: (sheetContext) {
           final height = MediaQuery.of(sheetContext).size.height * 0.65;
           return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-            ),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
             child: SizedBox(
               height: height,
               child: Column(
                 children: [
                   const Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Comments',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: Text('Comments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                   Expanded(
                     child: FutureBuilder<List<ManoxComment>>(
                       future: r.fetchComments(widget.data.id),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
+                          return const Center(child: CircularProgressIndicator());
                         }
-                        if (snapshot.hasError) {
-                          return const Center(
-                            child: Text('Unable to load comments.'),
-                          );
-                        }
-                        final comments =
-                            snapshot.data ?? const <ManoxComment>[];
-                        if (comments.isEmpty) {
-                          return const Center(
-                            child: Text('No comments yet. Be the first!'),
-                          );
-                        }
+                        if (snapshot.hasError) return const Center(child: Text('Unable to load comments.'));
+                        final comments = snapshot.data ?? const <ManoxComment>[];
+                        if (comments.isEmpty) return const Center(child: Text('No comments yet. Be the first!'));
                         return ListView.separated(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: comments.length,
@@ -180,12 +153,7 @@ class _PostCardState extends State<PostCard> {
                           itemBuilder: (_, index) {
                             final comment = comments[index];
                             return ListTile(
-                              title: Text(
-                                comment.userName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              title: Text(comment.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: Text(comment.body),
                             );
                           },
@@ -201,17 +169,11 @@ class _PostCardState extends State<PostCard> {
                           child: TextField(
                             controller: controller,
                             textInputAction: TextInputAction.send,
-                            onSubmitted: (_) =>
-                                _sendComment(controller, r),
-                            decoration: const InputDecoration(
-                              hintText: 'Write a comment...',
-                            ),
+                            onSubmitted: (_) => _sendComment(controller, r),
+                            decoration: const InputDecoration(hintText: 'Write a comment...'),
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => _sendComment(controller, r),
-                          icon: const Icon(Icons.send),
-                        ),
+                        IconButton(onPressed: () => _sendComment(controller, r), icon: const Icon(Icons.send)),
                       ],
                     ),
                   ),
@@ -226,10 +188,7 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
-  Future<void> _sendComment(
-    TextEditingController controller,
-    SupabasePostRepository repository,
-  ) async {
+  Future<void> _sendComment(TextEditingController controller, SupabasePostRepository repository) async {
     final text = controller.text.trim();
     if (text.isEmpty) return;
     try {
@@ -250,12 +209,10 @@ class _PostCardState extends State<PostCard> {
         await r.recordShare(widget.data.id);
       } catch (_) {}
     }
-    await SharePlus.instance.share(
-      ShareParams(
-        text: 'Open this MANOX content directly:\n$url\n\n${widget.data.text}',
-        title: 'MANOX • ${widget.data.creatorName}',
-      ),
-    );
+    await SharePlus.instance.share(ShareParams(
+      text: 'Open this MANOX content directly:\n$url\n\n${widget.data.text}',
+      title: 'MANOX • ${widget.data.creatorName}',
+    ));
   }
 
   Future<String?> _mediaUrl() async {
@@ -269,7 +226,6 @@ class _PostCardState extends State<PostCard> {
     if (path == null || !isManoxVideo(path)) return;
     final url = await _mediaUrl();
     if (!mounted || url == null || url.isEmpty) return;
-
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
         opaque: true,
@@ -300,8 +256,7 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
         ),
-        transitionsBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
+        transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -312,38 +267,18 @@ class _PostCardState extends State<PostCard> {
     return FutureBuilder<String?>(
       future: _mediaUrl(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return SizedBox(
-            height: height,
-            child: const Center(child: CircularProgressIndicator()),
-          );
-        }
+        if (!snapshot.hasData) return SizedBox(height: height, child: const Center(child: CircularProgressIndicator()));
         final url = snapshot.data;
-        if (url == null || url.isEmpty) {
-          return SizedBox(
-            height: height,
-            child: const Center(child: Icon(Icons.broken_image_outlined)),
-          );
-        }
+        if (url == null || url.isEmpty) return SizedBox(height: height, child: const Center(child: Icon(Icons.broken_image_outlined)));
         if (isManoxVideo(path)) {
-          return ManoxMediaPreview(
-            url: url,
-            height: height,
-            fit: BoxFit.contain,
-            onVideoTap: _openVideoFullScreen,
-          );
+          return ManoxMediaPreview(url: url, height: height, fit: BoxFit.cover, onVideoTap: _openVideoFullScreen);
         }
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: SizedBox(
             width: double.infinity,
             height: height,
-            child: Image.network(
-              url,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) =>
-                  const Center(child: Icon(Icons.broken_image_outlined)),
-            ),
+            child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined))),
           ),
         );
       },
@@ -358,20 +293,10 @@ class _PostCardState extends State<PostCard> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Edit post'),
-        content: TextField(
-          controller: controller,
-          maxLines: 6,
-          autofocus: true,
-        ),
+        content: TextField(controller: controller, maxLines: 6, autofocus: true),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Save'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save')),
         ],
       ),
     );
@@ -399,14 +324,8 @@ class _PostCardState extends State<PostCard> {
         title: const Text('Delete post?'),
         content: const Text('This post will be permanently removed.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete')),
         ],
       ),
     );
@@ -428,38 +347,25 @@ class _PostCardState extends State<PostCard> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(
-                _saved ? Icons.bookmark : Icons.bookmark_border,
-              ),
+              leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
               title: Text(_saved ? 'Remove from Saved' : 'Save'),
               onTap: () => Navigator.pop(sheetContext, 'save'),
             ),
             if (_isOwner) ...[
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit post'),
-                onTap: () => Navigator.pop(sheetContext, 'edit'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Delete post'),
-                onTap: () => Navigator.pop(sheetContext, 'delete'),
-              ),
+              ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit post'), onTap: () => Navigator.pop(sheetContext, 'edit')),
+              ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Delete post'), onTap: () => Navigator.pop(sheetContext, 'delete')),
             ],
           ],
         ),
       ),
     );
-
     if (action == 'save') await _toggleSave();
     if (action == 'edit') await _editPost();
     if (action == 'delete') await _deletePost();
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message.replaceFirst('Exception: ', ''))),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.replaceFirst('Exception: ', ''))));
   }
 
   Widget _creatorHeader() {
@@ -470,30 +376,14 @@ class _PostCardState extends State<PostCard> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            const CircleAvatar(
-              radius: 22,
-              child: Icon(Icons.person),
-            ),
+            const CircleAvatar(radius: 22, child: Icon(Icons.person)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.data.creatorName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                    ),
-                  ),
-                  Text(
-                    widget.data.handle.replaceFirst(RegExp(r'^@+'), '@'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                  Text(widget.data.creatorName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  Text(widget.data.handle.replaceFirst(RegExp(r'^@+'), '@'), maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
             ),
@@ -502,26 +392,11 @@ class _PostCardState extends State<PostCard> {
                 height: 30,
                 child: OutlinedButton(
                   onPressed: _toggleVibe,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    minimumSize: const Size(0, 30),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: Text(
-                    _vibed ? 'UNVIBE' : 'VIBE',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10), minimumSize: const Size(0, 30), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
+                  child: Text(_vibed ? 'UNVIBE' : 'VIBE', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
                 ),
               ),
-            IconButton(
-              onPressed: _showPostMenu,
-              tooltip: 'More',
-              icon: const Icon(Icons.more_vert),
-            ),
+            IconButton(onPressed: _showPostMenu, tooltip: 'More', icon: const Icon(Icons.more_vert)),
           ],
         ),
       ),
@@ -531,36 +406,14 @@ class _PostCardState extends State<PostCard> {
   Widget _engagementRow() {
     return Row(
       children: [
-        IconButton(
-          onPressed: _busy ? null : _toggleLike,
-          icon: Icon(
-            _liked ? Icons.favorite : Icons.favorite_border,
-          ),
-          tooltip: 'Like',
-        ),
+        IconButton(onPressed: _busy ? null : _toggleLike, icon: Icon(_liked ? Icons.favorite : Icons.favorite_border), tooltip: 'Like'),
         Text('$_likes'),
         const SizedBox(width: 4),
-        IconButton(
-          onPressed: _showComments,
-          icon: const Icon(Icons.comment_outlined),
-          tooltip: 'Comment',
-        ),
+        IconButton(onPressed: _showComments, icon: const Icon(Icons.comment_outlined), tooltip: 'Comment'),
         Text('$_comments'),
         const SizedBox(width: 4),
-        IconButton(
-          onPressed: _share,
-          icon: const Icon(Icons.share_outlined),
-          tooltip: 'Share',
-        ),
+        IconButton(onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'),
         const Spacer(),
-        const Icon(Icons.currency_rupee, size: 17),
-        const SizedBox(width: 3),
-        const Text(
-          '0.5',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(width: 8),
-        const Icon(Icons.lock_outline, size: 18),
       ],
     );
   }
@@ -581,12 +434,12 @@ class _PostCardState extends State<PostCard> {
             children: [
               _creatorHeader(),
               const SizedBox(height: 8),
-              Text(data.text),
+              if (data.text.isNotEmpty) Text(data.text),
               if (data.imagePath != null) ...[
                 const SizedBox(height: 12),
-                _media(320),
+                _media(300),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               _engagementRow(),
             ],
           ),
@@ -612,10 +465,7 @@ class _PostCardState extends State<PostCard> {
             children: [
               _creatorHeader(),
               const SizedBox(height: 16),
-              Text(
-                widget.data.text,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
+              if (widget.data.text.isNotEmpty) Text(widget.data.text, style: Theme.of(context).textTheme.bodyLarge),
               if (widget.data.imagePath != null) ...[
                 const SizedBox(height: 16),
                 _media(420),
