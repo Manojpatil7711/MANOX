@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/widgets/manox_brand.dart';
 import '../data/demo_posts.dart';
 import '../data/supabase_post_repository.dart';
-import 'widgets/media_preview.dart';
 import 'widgets/post_card.dart';
 
 class HomePage extends StatefulWidget {
@@ -18,14 +15,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _composerCtrl = TextEditingController();
   final _repository = SupabasePostRepository();
   final _picker = ImagePicker();
   final _feedScrollController = ScrollController();
 
   List<HomeDemoData> _posts = List<HomeDemoData>.from(demoPosts);
-  String? _selectedMediaPath;
-  bool _selectedVideo = false;
   bool _loadingFeed = true;
 
   @override
@@ -36,7 +30,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    _composerCtrl.dispose();
     _feedScrollController.dispose();
     super.dispose();
   }
@@ -69,43 +62,23 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _pickImage() async {
-    final image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 2000,
-    );
-    if (image != null && mounted) {
-      setState(() {
-        _selectedMediaPath = image.path;
-        _selectedVideo = false;
-      });
-    }
-  }
-
-  Future<void> _pickVideo(ImageSource source) async {
-    try {
-      final video = await _picker.pickVideo(
-        source: source,
-        maxDuration: const Duration(minutes: 10),
-      );
-      if (video != null && mounted) {
-        setState(() {
-          _selectedMediaPath = video.path;
-          _selectedVideo = true;
-        });
-      }
-    } catch (e) {
-      if (mounted) _showMessage('Video could not be selected: ${_cleanError(e)}');
-    }
-  }
-
   Future<void> _openCreate() async {
     final posted = await context.push<bool>('/create');
     if (posted == true && mounted) await _loadFeed();
   }
 
-  void _openLiveCamera() => _pickVideo(ImageSource.camera);
+  Future<void> _openLiveCamera() async {
+    try {
+      await _picker.pickVideo(
+        source: ImageSource.camera,
+        maxDuration: const Duration(minutes: 10),
+      );
+      if (mounted) _showMessage('Camera video selected. Open Create to publish it.');
+    } catch (e) {
+      if (mounted) _showMessage('Camera could not open: ${_cleanError(e)}');
+    }
+  }
+
   void _openBeats() => context.push('/beats');
   void _openNotifications() => context.push('/notifications');
   void _openMessages() => context.push('/messages');
@@ -135,41 +108,18 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Row(
                     children: [
-                      IconButton(
-                        tooltip: 'Search MANOX',
-                        icon: const Icon(Icons.search_rounded),
-                        onPressed: _openSearch,
-                      ),
+                      IconButton(tooltip: 'Search MANOX', icon: const Icon(Icons.search_rounded), onPressed: _openSearch),
                       Expanded(
                         child: Align(
                           alignment: compact ? Alignment.center : Alignment.centerLeft,
-                          child: const FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: ManoxBrand(compact: true),
-                          ),
+                          child: const FittedBox(fit: BoxFit.scaleDown, child: ManoxBrand(compact: true)),
                         ),
                       ),
                       if (!compact)
-                        IconButton(
-                          tooltip: 'Create post',
-                          icon: const Icon(Icons.add_box_outlined),
-                          onPressed: _openCreate,
-                        ),
-                      IconButton(
-                        tooltip: 'Messages',
-                        icon: const Icon(Icons.chat_bubble_outline_rounded),
-                        onPressed: _openMessages,
-                      ),
-                      IconButton(
-                        tooltip: 'Notifications',
-                        icon: const Icon(Icons.notifications_none_rounded),
-                        onPressed: _openNotifications,
-                      ),
-                      IconButton(
-                        tooltip: 'Profile',
-                        icon: const Icon(Icons.person_outline_rounded),
-                        onPressed: () => context.push('/profile'),
-                      ),
+                        IconButton(tooltip: 'Create post', icon: const Icon(Icons.add_box_outlined), onPressed: _openCreate),
+                      IconButton(tooltip: 'Messages', icon: const Icon(Icons.chat_bubble_outline_rounded), onPressed: _openMessages),
+                      IconButton(tooltip: 'Notifications', icon: const Icon(Icons.notifications_none_rounded), onPressed: _openNotifications),
+                      IconButton(tooltip: 'Profile', icon: const Icon(Icons.person_outline_rounded), onPressed: () => context.push('/profile')),
                     ],
                   ),
                 ),
@@ -188,29 +138,20 @@ class _HomePageState extends State<HomePage> {
             children: [
               _discoveryRow(theme),
               const SizedBox(height: 12),
-              _composerCard(theme),
+              _composerCard(),
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Text(
-                    'For You',
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-                  ),
+                  Text('For You', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                   const Spacer(),
                   if (!_loadingFeed) Text('${_posts.length}', style: theme.textTheme.bodySmall),
                 ],
               ),
               const SizedBox(height: 10),
               if (_loadingFeed)
-                const Padding(
-                  padding: EdgeInsets.all(36),
-                  child: Center(child: CircularProgressIndicator()),
-                )
+                const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
               else if (_posts.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(36),
-                  child: Center(child: Text('No content yet. Be the first to create.')),
-                )
+                const Padding(padding: EdgeInsets.all(36), child: Center(child: Text('No content yet. Be the first to create.')))
               else
                 ..._posts.map(
                   (post) => Padding(
@@ -250,30 +191,20 @@ class _HomePageState extends State<HomePage> {
                 _openBeats();
               } else if (item.label == 'Live') {
                 _openLiveCamera();
-              } else if (item.label == 'Entertainment') {
-                _showDiscovery(item.label);
               } else {
                 _showDiscovery(item.label);
               }
             },
             child: Container(
               width: 76,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: theme.dividerColor),
-              ),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: theme.dividerColor)),
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(item.icon, size: 23),
                   const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
-                  ),
+                  Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700)),
                 ],
               ),
             ),
@@ -283,32 +214,21 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _composerCard(ThemeData theme) {
+  Widget _composerCard() {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: _openCreate,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
+        child: const Padding(
+          padding: EdgeInsets.all(14),
           child: Row(
             children: [
-              const ManoxMark(size: 40),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Create a post…',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Add photo or video',
-                onPressed: _openCreate,
-                icon: const Icon(Icons.image_outlined),
-              ),
-              FilledButton(
-                onPressed: _openCreate,
-                child: const Text('Create'),
-              ),
+              ManoxMark(size: 40),
+              SizedBox(width: 12),
+              Expanded(child: Text('Create a post…', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+              Icon(Icons.add_circle_outline_rounded),
+              SizedBox(width: 8),
+              Text('Create', style: TextStyle(fontWeight: FontWeight.w800)),
             ],
           ),
         ),
