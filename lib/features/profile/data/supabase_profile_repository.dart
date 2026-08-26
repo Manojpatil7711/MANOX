@@ -27,6 +27,9 @@ class SupabaseProfileRepository implements ProfileRepository {
       postIds = (rows as List).map((e) => e['id'] as String).toList();
     } catch (_) {}
     final username = (row['username'] as String?)?.trim() ?? 'user';
+    DateTime? dob;
+    final rawDob = row['date_of_birth'];
+    if (rawDob is String && rawDob.isNotEmpty) dob = DateTime.tryParse(rawDob);
     return ProfileData(
       id: id,
       displayName: (row['display_name'] as String?)?.trim().isNotEmpty == true ? row['display_name'] as String : 'MANOX User',
@@ -37,6 +40,10 @@ class SupabaseProfileRepository implements ProfileRepository {
       following: 0,
       postIds: postIds,
       avatarUrl: await _resolveAvatar(row['avatar_url'] as String?),
+      countryCode: row['country_code'] as String?,
+      gender: row['gender'] as String?,
+      profession: row['profession'] as String?,
+      dateOfBirth: dob,
     );
   }
 
@@ -45,9 +52,9 @@ class SupabaseProfileRepository implements ProfileRepository {
     final userId = _userId;
     Map<String, dynamic>? row;
     try {
-      row = await _client.from('profiles').select('id, user_id, username, display_name, avatar_url, bio, is_creator').eq('user_id', userId).maybeSingle();
+      row = await _client.from('profiles').select('id, user_id, username, display_name, avatar_url, bio, country_code, gender, profession, date_of_birth, is_creator').eq('user_id', userId).maybeSingle();
     } catch (_) {
-      row = await _client.from('profiles').select('id, username, display_name, avatar_url, bio').eq('id', userId).maybeSingle();
+      row = await _client.from('profiles').select('id, username, display_name, avatar_url, bio, country_code, gender, profession, date_of_birth, is_creator').eq('id', userId).maybeSingle();
     }
     if (row == null) {
       final emailName = _client.auth.currentUser?.email?.split('@').first ?? 'user';
@@ -56,7 +63,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       } catch (_) {
         await _client.from('profiles').upsert({'id': userId, 'username': emailName, 'display_name': emailName});
       }
-      row = await _client.from('profiles').select('id, user_id, username, display_name, avatar_url, bio, is_creator').eq('id', userId).maybeSingle();
+      row = await _client.from('profiles').select('id, user_id, username, display_name, avatar_url, bio, country_code, gender, profession, date_of_birth, is_creator').eq('id', userId).maybeSingle();
     }
     if (row == null) throw StateError('Profile could not be created.');
     return _profileFromRow(row);
@@ -68,9 +75,9 @@ class SupabaseProfileRepository implements ProfileRepository {
     if (cleanId.isEmpty) throw StateError('Invalid profile id.');
     Map<String, dynamic>? row;
     try {
-      row = await _client.from('profiles').select('id, user_id, username, display_name, avatar_url, bio, is_creator').eq('user_id', cleanId).maybeSingle();
+      row = await _client.from('profiles').select('id, user_id, username, display_name, avatar_url, bio, country_code, gender, profession, date_of_birth, is_creator').eq('user_id', cleanId).maybeSingle();
     } catch (_) {
-      row = await _client.from('profiles').select('id, username, display_name, avatar_url, bio').eq('id', cleanId).maybeSingle();
+      row = await _client.from('profiles').select('id, username, display_name, avatar_url, bio, is_creator').eq('id', cleanId).maybeSingle();
     }
     if (row == null) throw StateError('Profile not found.');
     return _profileFromRow(row);
@@ -97,7 +104,7 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   @override
-  Future<ProfileData> updateProfile({required String displayName, required String username, required String bio, String? avatarPath, String? gender}) async {
+  Future<ProfileData> updateProfile({required String displayName, required String username, required String bio, String? avatarPath, String? countryCode, String? gender, String? profession, DateTime? dateOfBirth}) async {
     final cleanUsername = username.replaceFirst(RegExp(r'^@+'), '').trim();
     if (cleanUsername.isEmpty) throw StateError('Username cannot be empty.');
     final values = <String, dynamic>{
@@ -105,7 +112,10 @@ class SupabaseProfileRepository implements ProfileRepository {
       'username': cleanUsername,
       'bio': bio.trim(),
       if (avatarPath != null) 'avatar_url': avatarPath,
+      if (countryCode != null) 'country_code': countryCode.trim().toUpperCase(),
       if (gender != null) 'gender': gender,
+      if (profession != null) 'profession': profession.trim(),
+      if (dateOfBirth != null) 'date_of_birth': dateOfBirth.toIso8601String().split('T').first,
     };
     try {
       await _client.from('profiles').update(values).eq('user_id', _userId);
