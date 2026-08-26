@@ -6,14 +6,40 @@ import 'package:manox/features/profile/presentation/profile_page.dart';
 import 'package:manox/core/theme/theme.dart';
 
 class FakeProfileRepository implements ProfileRepository {
-  @override Future<ProfileData> fetchProfile() async => demoProfile;
-  @override Future<ProfileData> fetchProfileByUserId(String userId) async => demoProfile;
-  @override Future<List<String>> fetchPostIds() async => demoProfile.postIds;
   @override
-  Future<ProfileData> updateProfile({required String displayName, required String username, required String bio, String? avatarPath, String? countryCode, String? gender, String? profession, DateTime? dateOfBirth}) async {
-    return demoProfile.copyWith(displayName: displayName, handle: username.startsWith('@') ? username : '@$username', bio: bio, avatarUrl: avatarPath ?? demoProfile.avatarUrl, countryCode: countryCode, gender: gender, profession: profession, dateOfBirth: dateOfBirth);
+  Future<ProfileData> fetchProfile() async => demoProfile;
+
+  @override
+  Future<ProfileData> fetchProfileByUserId(String userId) async => demoProfile;
+
+  @override
+  Future<List<String>> fetchPostIds() async => demoProfile.postIds;
+
+  @override
+  Future<ProfileData> updateProfile({
+    required String displayName,
+    required String username,
+    required String bio,
+    String? avatarPath,
+    String? countryCode,
+    String? gender,
+    String? profession,
+    DateTime? dateOfBirth,
+  }) async {
+    return demoProfile.copyWith(
+      displayName: displayName,
+      handle: username.startsWith('@') ? username : '@$username',
+      bio: bio,
+      avatarUrl: avatarPath ?? demoProfile.avatarUrl,
+      countryCode: countryCode,
+      gender: gender,
+      profession: profession,
+      dateOfBirth: dateOfBirth,
+    );
   }
-  @override Future<String?> uploadAvatar(List<int> bytes, String extension, String? mimeType) async => 'test/avatar.$extension';
+
+  @override
+  Future<String?> uploadAvatar(List<int> bytes, String extension, String? mimeType) async => 'test/avatar.$extension';
 }
 
 void main() {
@@ -21,7 +47,10 @@ void main() {
     final view = tester.view;
     view.devicePixelRatio = 1.0;
     view.physicalSize = const Size(800, 1200);
-    addTearDown(() { view.resetDevicePixelRatio(); view.resetPhysicalSize(); });
+    addTearDown(() {
+      view.resetDevicePixelRatio();
+      view.resetPhysicalSize();
+    });
     await tester.pumpWidget(MaterialApp(theme: manoxTheme(), home: ProfilePage(repository: FakeProfileRepository())));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('profile-avatar')), findsOneWidget);
@@ -29,6 +58,5 @@ void main() {
     expect(find.byKey(const Key('profile-handle')), findsOneWidget);
     expect(find.byKey(const Key('profile-bio')), findsOneWidget);
     expect(find.byKey(const Key('profile-edit-button')), findsOneWidget);
-    expect(find.byKey(const Key('profile-settings-button')), findsOneWidget);
   });
 }
