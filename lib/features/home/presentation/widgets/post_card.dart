@@ -151,6 +151,7 @@ class _PostCardState extends State<PostCard> {
     const SizedBox(width: 4), IconButton(onPressed: _showComments, icon: const Icon(Icons.comment_outlined), tooltip: 'Comment'), Text('$_comments'),
     const Spacer(), const Icon(Icons.currency_rupee, size: 17), _moneyRate('10'),
     IconButton(onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'), const SizedBox(width: 2),
+    IconButton(onPressed: _showPostMenu, icon: const Icon(Icons.more_vert), tooltip: 'Post options'),
     const Icon(Icons.lock_outline, size: 18), const Icon(Icons.currency_rupee, size: 16),
   ]);
 
