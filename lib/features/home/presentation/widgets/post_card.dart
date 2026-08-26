@@ -132,27 +132,48 @@ class _PostCardState extends State<PostCard> {
     return widget.repository?.signedMediaUrl(path);
   }
 
+  Future<void> _openVideoFullScreen() async {
+    final path = widget.data.imagePath;
+    if (path == null || !isManoxVideo(path)) return;
+    final url = await _mediaUrl();
+    if (!mounted || url == null || url.isEmpty) return;
+    await Navigator.of(context).push(PageRouteBuilder<void>(
+      opaque: true,
+      pageBuilder: (_, __, ___) => Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Stack(children: [
+            Center(child: ManoxMediaPreview(url: url, height: MediaQuery.sizeOf(context).height, fit: BoxFit.contain, autoPlay: true, fullScreenStyle: true)),
+            Positioned(top: 8, left: 8, child: IconButton(onPressed: () => Navigator.pop(context), color: Colors.white, icon: const Icon(Icons.close, size: 30))),
+          ]),
+        ),
+      ),
+      transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
+    ));
+  }
+
   Widget _media(double height, {bool contain = true}) {
     final path = widget.data.imagePath;
     if (path == null) return const SizedBox.shrink();
     return FutureBuilder<String?>(future: _mediaUrl(), builder: (context, s) {
       if (!s.hasData) return SizedBox(height: height, child: const Center(child: CircularProgressIndicator()));
       final url = s.data!;
-      if (isManoxVideo(path)) return ManoxMediaPreview(url: url, height: height, fit: contain ? BoxFit.contain : BoxFit.cover);
-      return ClipRRect(borderRadius: BorderRadius.circular(12), child: Container(width: double.infinity, height: height, color: Colors.black12, child: Image.network(url, width: double.infinity, height: height, fit: contain ? BoxFit.contain : BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined)))));
+      if (isManoxVideo(path)) return ManoxMediaPreview(url: url, height: height, fit: contain ? BoxFit.contain : BoxFit.cover, onVideoTap: _openVideoFullScreen);
+      return ClipRRect(borderRadius: BorderRadius.circular(12), child: Container(width: double.infinity, height: height, color: Colors.black12, child: Image.network(url, width: double.infinity, height: height, fit: contain ? BoxFit.contain : BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined))));
     });
   }
 
   Widget _moneyRate(String value) => Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800));
 
+  // Engagement stays in the normal post area. The earning indicators are only
+  // attached to the action row, not displayed as a large/full-screen overlay.
   Widget _engagementRow() => Row(children: [
-    const Icon(Icons.currency_rupee, size: 17), _moneyRate('0.5'),
     IconButton(onPressed: _busy ? null : _toggleLike, icon: Icon(_liked ? Icons.favorite : Icons.favorite_border), tooltip: 'Like'), Text('$_likes'),
     const SizedBox(width: 4), IconButton(onPressed: _showComments, icon: const Icon(Icons.comment_outlined), tooltip: 'Comment'), Text('$_comments'),
-    const Spacer(), const Icon(Icons.currency_rupee, size: 17), _moneyRate('10'),
-    IconButton(onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'), const SizedBox(width: 2),
-    IconButton(onPressed: _showPostMenu, icon: const Icon(Icons.more_vert), tooltip: 'Post options'),
-    const Icon(Icons.lock_outline, size: 18), const Icon(Icons.currency_rupee, size: 16),
+    const SizedBox(width: 4), IconButton(onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'),
+    const Spacer(),
+    const Icon(Icons.currency_rupee, size: 17), _moneyRate('0.5'),
+    const SizedBox(width: 8), const Icon(Icons.lock_outline, size: 18),
   ]);
 
   Widget _creatorHeader() => InkWell(
