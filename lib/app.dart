@@ -11,6 +11,7 @@ import 'features/home/presentation/create_post_page.dart';
 import 'features/home/presentation/tools_page.dart';
 import 'features/home/presentation/live_page.dart';
 import 'features/home/presentation/entertainment_page.dart';
+import 'features/home/presentation/discovery_page.dart';
 import 'features/profile/profile.dart';
 import 'features/profile/presentation/public_profile_page.dart';
 import 'features/onboarding/onboarding.dart';
@@ -22,13 +23,11 @@ import 'features/editor/presentation/safe_media_editor_page.dart';
 import 'features/editor/presentation/professional_media_editor_page.dart';
 import 'features/compliance/presentation/community_safety_page.dart';
 import 'features/safety/presentation/safety_alert_button.dart';
+import 'features/safety/presentation/women_safety_page.dart';
 import 'services/supabase_service.dart';
 
 class _AuthRefreshNotifier extends ChangeNotifier {
-  _AuthRefreshNotifier() {
-    final stream = SupabaseService.authStateChanges();
-    _subscription = stream?.listen((_) => notifyListeners());
-  }
+  _AuthRefreshNotifier() { final stream = SupabaseService.authStateChanges(); _subscription = stream?.listen((_) => notifyListeners()); }
   StreamSubscription? _subscription;
   @override void dispose() { _subscription?.cancel(); super.dispose(); }
 }
@@ -37,12 +36,10 @@ class ManoxApp extends StatelessWidget {
   const ManoxApp({super.key});
   static final _authRefresh = _AuthRefreshNotifier();
   static final GoRouter _router = GoRouter(
-    initialLocation: '/splash',
-    refreshListenable: _authRefresh,
+    initialLocation: '/splash', refreshListenable: _authRefresh,
     redirect: (context, state) {
       final authenticated = SupabaseService.client?.auth.currentSession != null;
-      final path = state.matchedLocation;
-      final authRoute = path.startsWith('/auth');
+      final path = state.matchedLocation; final authRoute = path.startsWith('/auth');
       if (path == '/splash' || path == '/onboarding') return null;
       if (!authenticated && !authRoute) return '/auth';
       if (authenticated && authRoute) return '/home';
@@ -63,6 +60,10 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/beats', builder: (_, __) => const BeatsPage()),
       GoRoute(path: '/live', builder: (_, __) => const LivePage()),
       GoRoute(path: '/entertainment', builder: (_, __) => const EntertainmentPage()),
+      GoRoute(path: '/trending', builder: (_, __) => const DiscoveryPage(title: 'Trending', icon: Icons.local_fire_department_rounded)),
+      GoRoute(path: '/learn', builder: (_, __) => const DiscoveryPage(title: 'Learn', icon: Icons.school_rounded)),
+      GoRoute(path: '/sports', builder: (_, __) => const DiscoveryPage(title: 'Sports', icon: Icons.sports_soccer_rounded)),
+      GoRoute(path: '/women-safety', builder: (_, __) => const WomenSafetyPage()),
       GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
       GoRoute(path: '/profile/:userId', builder: (context, state) => PublicProfilePage(userId: state.pathParameters['userId']!)),
       GoRoute(path: '/creator', builder: (_, __) => const CreatorPage()),
@@ -73,33 +74,9 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/messages', builder: (_, __) => const MessagesPage()),
       GoRoute(path: '/notifications', builder: (_, __) => const NotificationsPage()),
       GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
-      GoRoute(path: '/editor', builder: (context, state) {
-        final raw = state.extra;
-        final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
-        return ProfessionalMediaEditorPage(
-          isVideo: extra['isVideo'] == true,
-          mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null,
-        );
-      }),
-      GoRoute(path: '/editor-safe', builder: (context, state) {
-        final raw = state.extra;
-        final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
-        return SafeMediaEditorPage(
-          isVideo: extra['isVideo'] == true,
-          mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null,
-        );
-      }),
+      GoRoute(path: '/editor', builder: (context, state) { final raw = state.extra; final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{}; return ProfessionalMediaEditorPage(isVideo: extra['isVideo'] == true, mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null); }),
+      GoRoute(path: '/editor-safe', builder: (context, state) { final raw = state.extra; final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{}; return SafeMediaEditorPage(isVideo: extra['isVideo'] == true, mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null); }),
     ],
   );
-
-  @override
-  Widget build(BuildContext context) => MaterialApp.router(
-        title: 'MANOX',
-        debugShowCheckedModeBanner: false,
-        theme: manoxTheme(),
-        routerConfig: _router,
-        builder: (context, child) => SafetyAlertOverlay(
-          child: child ?? const SizedBox.shrink(),
-        ),
-      );
+  @override Widget build(BuildContext context) => MaterialApp.router(title: 'MANOX', debugShowCheckedModeBanner: false, theme: manoxTheme(), routerConfig: _router, builder: (context, child) => SafetyAlertOverlay(child: child ?? const SizedBox.shrink()));
 }
