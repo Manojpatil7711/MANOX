@@ -94,13 +94,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
     );
   }
 
-  Future<void> _editMedia() async {
-    final media = _media;
-    if (media == null) return;
-    final result = await context.push<bool>('/editor', extra: <String, dynamic>{'isVideo': _isVideo, 'mediaPath': media.path});
-    if (result == true && mounted) setState(() {});
-  }
-
   void _openTools() => context.push('/tools');
 
   Future<void> _publish() async {
