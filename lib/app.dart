@@ -21,6 +21,7 @@ import 'features/communication/presentation/communication_pages.dart';
 import 'features/editor/presentation/safe_media_editor_page.dart';
 import 'features/editor/presentation/professional_media_editor_page.dart';
 import 'features/compliance/presentation/community_safety_page.dart';
+import 'features/safety/presentation/safety_alert_button.dart';
 import 'services/supabase_service.dart';
 
 class _AuthRefreshNotifier extends ChangeNotifier {
@@ -90,5 +91,15 @@ class ManoxApp extends StatelessWidget {
       }),
     ],
   );
-  @override Widget build(BuildContext context) => MaterialApp.router(title: 'MANOX', debugShowCheckedModeBanner: false, theme: manoxTheme(), routerConfig: _router);
+
+  @override
+  Widget build(BuildContext context) => MaterialApp.router(
+        title: 'MANOX',
+        debugShowCheckedModeBanner: false,
+        theme: manoxTheme(),
+        routerConfig: _router,
+        builder: (context, child) => SafetyAlertOverlay(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      );
 }
