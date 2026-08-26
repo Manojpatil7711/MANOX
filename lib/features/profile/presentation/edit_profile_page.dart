@@ -25,6 +25,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _picker = ImagePicker();
   bool _saving = false;
   XFile? _avatar;
+  String _gender = 'prefer_not_to_say';
 
   @override
   void initState() {
@@ -60,7 +61,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final bytes = await _avatar!.readAsBytes();
         avatarPath = await widget.repository.uploadAvatar(bytes, 'jpg', 'image/jpeg');
       }
-      final updated = await widget.repository.updateProfile(displayName: _name.text, username: _username.text, bio: _bio.text, avatarPath: avatarPath);
+      final updated = await widget.repository.updateProfile(
+        displayName: _name.text,
+        username: _username.text,
+        bio: _bio.text,
+        avatarPath: avatarPath,
+        gender: _gender,
+      );
       if (!mounted) return;
       Navigator.of(context).pop(updated);
     } catch (e) {
@@ -100,6 +107,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
             TextField(controller: _username, decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.alternate_email))),
             const SizedBox(height: 16),
             TextField(controller: _bio, maxLines: 4, maxLength: 160, decoration: const InputDecoration(labelText: 'Bio', alignLabelWithHint: true, prefixIcon: Icon(Icons.edit_note_outlined))),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _gender,
+              decoration: const InputDecoration(labelText: 'Gender', prefixIcon: Icon(Icons.person_outline)),
+              items: const [
+                DropdownMenuItem(value: 'female', child: Text('Female')),
+                DropdownMenuItem(value: 'male', child: Text('Male')),
+                DropdownMenuItem(value: 'other', child: Text('Other')),
+                DropdownMenuItem(value: 'prefer_not_to_say', child: Text('Prefer not to say')),
+              ],
+              onChanged: _saving ? null : (value) => setState(() => _gender = value ?? 'prefer_not_to_say'),
+            ),
+            const SizedBox(height: 8),
+            Text('Selecting Female enables MANOX Safety Alert Mode. Your gender is not displayed publicly by this control.', style: theme.textTheme.bodySmall),
             const SizedBox(height: 12),
             Text('Your profile name, username and bio are public. Never add private payout or KYC information here.', style: theme.textTheme.bodySmall),
             if (_saving) ...const [SizedBox(height: 24), Center(child: CircularProgressIndicator())],
