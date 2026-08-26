@@ -9,7 +9,10 @@ abstract class ProfileRepository {
     required String username,
     required String bio,
     String? avatarPath,
+    String? countryCode,
     String? gender,
+    String? profession,
+    DateTime? dateOfBirth,
   });
   Future<String?> uploadAvatar(List<int> bytes, String extension, String? mimeType);
 }
