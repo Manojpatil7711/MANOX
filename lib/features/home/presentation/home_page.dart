@@ -27,7 +27,6 @@ class _HomePageState extends State<HomePage> {
   String? _selectedMediaPath;
   bool _selectedVideo = false;
   bool _loadingFeed = true;
-  bool _posting = false;
 
   @override
   void initState() {
@@ -97,68 +96,21 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        _showMessage('Video could not be selected: ${_cleanError(e)}');
-      }
+      if (mounted) _showMessage('Video could not be selected: ${_cleanError(e)}');
     }
   }
 
-  Future<void> _chooseVideoSource() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.videocam_outlined),
-              title: const Text('Record video'),
-              onTap: () {
-                Navigator.pop(sheet);
-                _pickVideo(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.video_library_outlined),
-              title: const Text('Choose from gallery'),
-              onTap: () {
-                Navigator.pop(sheet);
-                _pickVideo(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _openCreate() async {
+    final posted = await context.push<bool>('/create');
+    if (posted == true && mounted) await _loadFeed();
   }
 
-  Future<void> _openLiveCamera() async {
-    try {
-      final image = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 90,
-        maxWidth: 2000,
-      );
-      if (image == null || !mounted) return;
-      setState(() {
-        _selectedMediaPath = image.path;
-        _selectedVideo = false;
-      });
-      _showMessage('Camera opened.');
-    } catch (e) {
-      if (mounted) {
-        _showMessage('Camera could not open: ${_cleanError(e)}');
-      }
-    }
-  }
-
+  void _openLiveCamera() => _pickVideo(ImageSource.camera);
   void _openBeats() => context.push('/beats');
   void _openNotifications() => context.push('/notifications');
   void _openMessages() => context.push('/messages');
   void _openSearch() => context.push('/search');
   void _showDiscovery(String label) => _showMessage('$label discovery selected.');
-  void _showComingSoon(String feature) => _showMessage('$feature is being prepared for MANOX.');
 
   void _showMessage(String message) {
     if (!mounted) return;
@@ -166,193 +118,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   String _cleanError(Object error) => error.toString().replaceFirst('Exception: ', '');
-
-  Future<void> _submitPost() async {
-    final text = _composerCtrl.text.trim();
-    if (text.isEmpty && _selectedMediaPath == null) {
-      _showMessage('Add text, image or video before posting.');
-      return;
-    }
-
-    setState(() => _posting = true);
-    try {
-      String? mediaPath;
-      var mediaType = 'post';
-
-      if (_selectedMediaPath != null) {
-        final picked = XFile(_selectedMediaPath!);
-        final bytes = await picked.readAsBytes();
-        final extension = picked.path.split('.').last.toLowerCase();
-
-        if (_selectedVideo) {
-          mediaPath = await _repository.uploadVideo(
-            bytes,
-            extension,
-            picked.mimeType,
-          );
-          mediaType = 'video';
-        } else {
-          mediaPath = await _repository.uploadImage(
-            bytes,
-            extension,
-            picked.mimeType,
-          );
-          mediaType = 'image';
-        }
-      }
-
-      final post = await _repository.createPost(
-        text: text,
-        imagePath: mediaPath,
-        mediaType: mediaType,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _posts.insert(
-          0,
-          HomeDemoData(
-            id: post.id,
-            creatorName: post.creatorName,
-            handle: post.handle,
-            text: post.text,
-            imagePath: post.imageUrl,
-            isRemote: true,
-            ownerUserId: post.ownerUserId,
-          ),
-        );
-        _composerCtrl.clear();
-        _selectedMediaPath = null;
-        _selectedVideo = false;
-        _posting = false;
-      });
-      _showMessage('Posted successfully.');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _posting = false);
-      _showMessage('Post failed: ${_cleanError(e)}');
-    }
-  }
-
-  void _openEntertainment() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        const items = <({String name, IconData icon})>[
-          (name: 'Comedy', icon: Icons.emoji_emotions_outlined),
-          (name: 'Movies', icon: Icons.movie_outlined),
-          (name: 'Web Series', icon: Icons.live_tv_outlined),
-          (name: 'Music', icon: Icons.music_note_outlined),
-          (name: 'BEATS', icon: Icons.auto_awesome_rounded),
-        ];
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Entertainment',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: items
-                      .map(
-                        (item) => ActionChip(
-                          avatar: Icon(item.icon, size: 19),
-                          label: Text(item.name),
-                          onPressed: () {
-                            Navigator.pop(sheetContext);
-                            item.name == 'BEATS'
-                                ? _openBeats()
-                                : _showDiscovery(item.name);
-                          },
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _openCreateSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Create on MANOX',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _createAction(sheetContext, Icons.image_outlined, 'Image', _pickImage),
-                  _createAction(sheetContext, Icons.videocam_outlined, 'Video', _chooseVideoSource),
-                  _createAction(sheetContext, Icons.bolt_rounded, 'Shorts', () => _showComingSoon('Shorts')),
-                  _createAction(sheetContext, Icons.school_outlined, 'Lecture', () => _showComingSoon('Lecture')),
-                  _createAction(sheetContext, Icons.radio_outlined, 'Live', _openLiveCamera),
-                  _createAction(sheetContext, Icons.edit_outlined, 'Text', () {
-                    Navigator.pop(sheetContext);
-                    FocusScope.of(context).requestFocus();
-                  }),
-                ],
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _posting ? null : () => Navigator.pop(sheetContext),
-                icon: const Icon(Icons.post_add_rounded),
-                label: const Text('Open post composer'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _createAction(
-    BuildContext sheetContext,
-    IconData icon,
-    String label,
-    VoidCallback action,
-  ) {
-    return ActionChip(
-      avatar: Icon(icon, size: 19),
-      label: Text(label),
-      onPressed: () {
-        Navigator.pop(sheetContext);
-        action();
-      },
-    );
-  }
-
-  Widget _headerIcon(IconData icon, String tooltip, VoidCallback onPressed) {
-    return IconButton(
-      tooltip: tooltip,
-      icon: Icon(icon),
-      onPressed: onPressed,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -385,9 +150,21 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       if (!compact)
-                        _headerIcon(Icons.add_box_outlined, 'Create', _openCreateSheet),
-                      _headerIcon(Icons.chat_bubble_outline_rounded, 'Messages', _openMessages),
-                      _headerIcon(Icons.notifications_none_rounded, 'Notifications', _openNotifications),
+                        IconButton(
+                          tooltip: 'Create post',
+                          icon: const Icon(Icons.add_box_outlined),
+                          onPressed: _openCreate,
+                        ),
+                      IconButton(
+                        tooltip: 'Messages',
+                        icon: const Icon(Icons.chat_bubble_outline_rounded),
+                        onPressed: _openMessages,
+                      ),
+                      IconButton(
+                        tooltip: 'Notifications',
+                        icon: const Icon(Icons.notifications_none_rounded),
+                        onPressed: _openNotifications,
+                      ),
                       IconButton(
                         tooltip: 'Profile',
                         icon: const Icon(Icons.person_outline_rounded),
@@ -420,8 +197,7 @@ class _HomePageState extends State<HomePage> {
                     style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const Spacer(),
-                  if (!_loadingFeed)
-                    Text('${_posts.length}', style: theme.textTheme.bodySmall),
+                  if (!_loadingFeed) Text('${_posts.length}', style: theme.textTheme.bodySmall),
                 ],
               ),
               const SizedBox(height: 10),
@@ -439,7 +215,7 @@ class _HomePageState extends State<HomePage> {
                 ..._posts.map(
                   (post) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: PostCard(data: post, repository: _repository),
+                    child: PostCard(data: post, repository: _repository, onChanged: _loadFeed),
                   ),
                 ),
             ],
@@ -475,7 +251,7 @@ class _HomePageState extends State<HomePage> {
               } else if (item.label == 'Live') {
                 _openLiveCamera();
               } else if (item.label == 'Entertainment') {
-                _openEntertainment();
+                _showDiscovery(item.label);
               } else {
                 _showDiscovery(item.label);
               }
@@ -509,81 +285,32 @@ class _HomePageState extends State<HomePage> {
 
   Widget _composerCard(ThemeData theme) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                const ManoxMark(size: 34),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    key: const Key('post-composer-field'),
-                    controller: _composerCtrl,
-                    maxLines: 2,
-                    minLines: 1,
-                    decoration: const InputDecoration(
-                      hintText: 'Share a Beat…',
-                      border: InputBorder.none,
-                    ),
-                  ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _openCreate,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              const ManoxMark(size: 40),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Create a post…',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
-                IconButton(
-                  tooltip: 'Add image',
-                  onPressed: _posting ? null : _pickImage,
-                  icon: const Icon(Icons.image_outlined),
-                ),
-              ],
-            ),
-            if (_selectedMediaPath != null) ...[
-              const SizedBox(height: 8),
-              if (_selectedVideo)
-                ManoxLocalVideoPreview(path: _selectedMediaPath!, height: 150)
-              else
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    File(_selectedMediaPath!),
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              if (_selectedVideo)
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 6),
-                    child: Text(
-                      'VIDEO • ready to post',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
+              ),
+              IconButton(
+                tooltip: 'Add photo or video',
+                onPressed: _openCreate,
+                icon: const Icon(Icons.image_outlined),
+              ),
+              FilledButton(
+                onPressed: _openCreate,
+                child: const Text('Create'),
+              ),
             ],
-            const Divider(height: 16),
-            Row(
-              children: [
-                TextButton.icon(
-                  onPressed: _posting ? null : _openCreateSheet,
-                  icon: const Icon(Icons.add_circle_outline_rounded),
-                  label: const Text('Create'),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _posting ? null : _submitPost,
-                  child: _posting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Post'),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
