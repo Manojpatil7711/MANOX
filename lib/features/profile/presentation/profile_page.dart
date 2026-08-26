@@ -71,6 +71,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _openProfileSection(String label) {
     if (!mounted) return;
+    if (label == 'Monetization') {
+      context.push('/monetization');
+      return;
+    }
+    if (label == 'Wallet') {
+      context.push('/payout');
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label will appear here as you add content.')));
   }
 
