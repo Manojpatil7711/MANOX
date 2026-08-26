@@ -1,0 +1,53 @@
+name: Fix Settings Dropdown Crash
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: contains(github.event.head_commit.message, 'Fix Settings Dropdown Crash') == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch settings dropdown
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('lib/features/settings/presentation/settings_page.dart')
+          s = p.read_text()
+          old = """  Future<void> _loadPrivacy() async {"""
+          helper = '''  String _normalizeWhoCanMessage(dynamic value) {
+            switch (value?.toString().trim().toLowerCase()) {
+              case 'followers':
+                return 'followers';
+              case 'no_one':
+              case 'no one':
+              case 'nobody':
+                return 'no_one';
+              case 'everyone':
+              default:
+                return 'everyone';
+            }
+          }
+
+'''
+          if helper.strip() not in s:
+              s = s.replace(old, helper + old, 1)
+          s = s.replace("_whoCanMessage = row['who_can_message'] as String? ?? 'everyone';", "_whoCanMessage = _normalizeWhoCanMessage(row['who_can_message']);")
+          p.write_text(s)
+      - name: Verify and commit
+        shell: bash
+        run: |
+          grep -n "normalizeWhoCanMessage\|who_can_message" lib/features/settings/presentation/settings_page.dart
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/settings/presentation/settings_page.dart .github/workflows/fix-settings-dropdown.yml
+          git commit -m "Fix Settings Dropdown Crash" --allow-empty
+          git rm .github/workflows/fix-settings-dropdown.yml
+          git commit -m "Remove temporary settings fix workflow"
+          git push
