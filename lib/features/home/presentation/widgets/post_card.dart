@@ -132,17 +132,12 @@ class _PostCardState extends State<PostCard> {
               height: height,
               child: Column(
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Comments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
+                  const Padding(padding: EdgeInsets.all(16), child: Text('Comments', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
                   Expanded(
                     child: FutureBuilder<List<ManoxComment>>(
                       future: r.fetchComments(widget.data.id),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
+                        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
                         if (snapshot.hasError) return const Center(child: Text('Unable to load comments.'));
                         final comments = snapshot.data ?? const <ManoxComment>[];
                         if (comments.isEmpty) return const Center(child: Text('No comments yet. Be the first!'));
@@ -152,10 +147,7 @@ class _PostCardState extends State<PostCard> {
                           separatorBuilder: (_, __) => const Divider(),
                           itemBuilder: (_, index) {
                             final comment = comments[index];
-                            return ListTile(
-                              title: Text(comment.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(comment.body),
-                            );
+                            return ListTile(title: Text(comment.userName, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(comment.body));
                           },
                         );
                       },
@@ -165,14 +157,7 @@ class _PostCardState extends State<PostCard> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: controller,
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) => _sendComment(controller, r),
-                            decoration: const InputDecoration(hintText: 'Write a comment...'),
-                          ),
-                        ),
+                        Expanded(child: TextField(controller: controller, textInputAction: TextInputAction.send, onSubmitted: (_) => _sendComment(controller, r), decoration: const InputDecoration(hintText: 'Write a comment...'))),
                         IconButton(onPressed: () => _sendComment(controller, r), icon: const Icon(Icons.send)),
                       ],
                     ),
@@ -209,10 +194,7 @@ class _PostCardState extends State<PostCard> {
         await r.recordShare(widget.data.id);
       } catch (_) {}
     }
-    await SharePlus.instance.share(ShareParams(
-      text: 'Open this MANOX content directly:\n$url\n\n${widget.data.text}',
-      title: 'MANOX • ${widget.data.creatorName}',
-    ));
+    await SharePlus.instance.share(ShareParams(text: 'Open this MANOX content directly:\n$url\n\n${widget.data.text}', title: 'MANOX • ${widget.data.creatorName}'));
   }
 
   Future<String?> _mediaUrl() async {
@@ -234,24 +216,8 @@ class _PostCardState extends State<PostCard> {
           body: SafeArea(
             child: Stack(
               children: [
-                Center(
-                  child: ManoxMediaPreview(
-                    url: url,
-                    height: MediaQuery.sizeOf(context).height,
-                    fit: BoxFit.contain,
-                    autoPlay: true,
-                    fullScreenStyle: true,
-                  ),
-                ),
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    color: Colors.white,
-                    icon: const Icon(Icons.close, size: 30),
-                  ),
-                ),
+                Center(child: ManoxMediaPreview(url: url, height: MediaQuery.sizeOf(context).height, fit: BoxFit.contain, autoPlay: true, fullScreenStyle: true)),
+                Positioned(top: 8, left: 8, child: IconButton(onPressed: () => Navigator.pop(context), color: Colors.white, icon: const Icon(Icons.close, size: 30))),
               ],
             ),
           ),
@@ -270,17 +236,8 @@ class _PostCardState extends State<PostCard> {
         if (!snapshot.hasData) return SizedBox(height: height, child: const Center(child: CircularProgressIndicator()));
         final url = snapshot.data;
         if (url == null || url.isEmpty) return SizedBox(height: height, child: const Center(child: Icon(Icons.broken_image_outlined)));
-        if (isManoxVideo(path)) {
-          return ManoxMediaPreview(url: url, height: height, fit: BoxFit.cover, onVideoTap: _openVideoFullScreen);
-        }
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            width: double.infinity,
-            height: height,
-            child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined))),
-          ),
-        );
+        if (isManoxVideo(path)) return ManoxMediaPreview(url: url, height: height, fit: BoxFit.cover, onVideoTap: _openVideoFullScreen);
+        return ClipRRect(borderRadius: BorderRadius.circular(12), child: SizedBox(width: double.infinity, height: height, child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined)))));
       },
     );
   }
@@ -346,11 +303,7 @@ class _PostCardState extends State<PostCard> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
-              title: Text(_saved ? 'Remove from Saved' : 'Save'),
-              onTap: () => Navigator.pop(sheetContext, 'save'),
-            ),
+            ListTile(leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border), title: Text(_saved ? 'Remove from Saved' : 'Save'), onTap: () => Navigator.pop(sheetContext, 'save')),
             if (_isOwner) ...[
               ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit post'), onTap: () => Navigator.pop(sheetContext, 'edit')),
               ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Delete post'), onTap: () => Navigator.pop(sheetContext, 'delete')),
@@ -364,9 +317,7 @@ class _PostCardState extends State<PostCard> {
     if (action == 'delete') await _deletePost();
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.replaceFirst('Exception: ', ''))));
-  }
+  void _showError(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.replaceFirst('Exception: ', ''))));
 
   Widget _creatorHeader() {
     return InkWell(
@@ -406,13 +357,13 @@ class _PostCardState extends State<PostCard> {
   Widget _engagementRow() {
     return Row(
       children: [
-        IconButton(onPressed: _busy ? null : _toggleLike, icon: Icon(_liked ? Icons.favorite : Icons.favorite_border), tooltip: 'Like'),
+        IconButton(key: Key('post-like-${widget.data.id}'), onPressed: _busy ? null : _toggleLike, icon: Icon(_liked ? Icons.favorite : Icons.favorite_border), tooltip: 'Like'),
         Text('$_likes'),
         const SizedBox(width: 4),
-        IconButton(onPressed: _showComments, icon: const Icon(Icons.comment_outlined), tooltip: 'Comment'),
+        IconButton(key: Key('post-comment-${widget.data.id}'), onPressed: _showComments, icon: const Icon(Icons.comment_outlined), tooltip: 'Comment'),
         Text('$_comments'),
         const SizedBox(width: 4),
-        IconButton(onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'),
+        IconButton(key: Key('post-share-${widget.data.id}'), onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'),
         const Spacer(),
       ],
     );
