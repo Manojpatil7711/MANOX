@@ -23,21 +23,13 @@ class SupabaseProfileRepository implements ProfileRepository {
     final id = (row['id'] ?? row['user_id']) as String;
     List<String> postIds = <String>[];
     try {
-      final rows = await _client
-          .from('contents')
-          .select('id')
-          .eq('owner_user_id', id)
-          .eq('status', 'published')
-          .order('created_at', ascending: false);
+      final rows = await _client.from('contents').select('id').eq('owner_user_id', id).eq('status', 'published').order('created_at', ascending: false);
       postIds = (rows as List).map((e) => e['id'] as String).toList();
     } catch (_) {}
-
     final username = (row['username'] as String?)?.trim() ?? 'user';
     return ProfileData(
       id: id,
-      displayName: (row['display_name'] as String?)?.trim().isNotEmpty == true
-          ? row['display_name'] as String
-          : 'MANOX User',
+      displayName: (row['display_name'] as String?)?.trim().isNotEmpty == true ? row['display_name'] as String : 'MANOX User',
       handle: '@${username.replaceFirst(RegExp(r'^@+'), '')}',
       bio: (row['bio'] as String?) ?? '',
       isCreator: row['is_creator'] as bool? ?? false,
@@ -52,23 +44,11 @@ class SupabaseProfileRepository implements ProfileRepository {
   Future<ProfileData> fetchProfile() async {
     final userId = _userId;
     Map<String, dynamic>? row;
-
     try {
-      final result = await _client
-          .from('profiles')
-          .select('id, user_id, username, display_name, avatar_url, bio, is_creator')
-          .eq('user_id', userId)
-          .maybeSingle();
-      row = result;
+      row = await _client.from('profiles').select('id, user_id, username, display_name, avatar_url, bio, is_creator').eq('user_id', userId).maybeSingle();
     } catch (_) {
-      final result = await _client
-          .from('profiles')
-          .select('id, username, display_name, avatar_url, bio')
-          .eq('id', userId)
-          .maybeSingle();
-      row = result;
+      row = await _client.from('profiles').select('id, username, display_name, avatar_url, bio').eq('id', userId).maybeSingle();
     }
-
     if (row == null) {
       final emailName = _client.auth.currentUser?.email?.split('@').first ?? 'user';
       try {
@@ -88,17 +68,9 @@ class SupabaseProfileRepository implements ProfileRepository {
     if (cleanId.isEmpty) throw StateError('Invalid profile id.');
     Map<String, dynamic>? row;
     try {
-      row = await _client
-          .from('profiles')
-          .select('id, user_id, username, display_name, avatar_url, bio, is_creator')
-          .eq('user_id', cleanId)
-          .maybeSingle();
+      row = await _client.from('profiles').select('id, user_id, username, display_name, avatar_url, bio, is_creator').eq('user_id', cleanId).maybeSingle();
     } catch (_) {
-      row = await _client
-          .from('profiles')
-          .select('id, username, display_name, avatar_url, bio')
-          .eq('id', cleanId)
-          .maybeSingle();
+      row = await _client.from('profiles').select('id, username, display_name, avatar_url, bio').eq('id', cleanId).maybeSingle();
     }
     if (row == null) throw StateError('Profile not found.');
     return _profileFromRow(row);
@@ -125,13 +97,20 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   @override
-  Future<ProfileData> updateProfile({required String displayName, required String username, required String bio, String? avatarPath}) async {
+  Future<ProfileData> updateProfile({required String displayName, required String username, required String bio, String? avatarPath, String? gender}) async {
     final cleanUsername = username.replaceFirst(RegExp(r'^@+'), '').trim();
     if (cleanUsername.isEmpty) throw StateError('Username cannot be empty.');
+    final values = <String, dynamic>{
+      'display_name': displayName.trim(),
+      'username': cleanUsername,
+      'bio': bio.trim(),
+      if (avatarPath != null) 'avatar_url': avatarPath,
+      if (gender != null) 'gender': gender,
+    };
     try {
-      await _client.from('profiles').update({'display_name': displayName.trim(), 'username': cleanUsername, 'bio': bio.trim(), if (avatarPath != null) 'avatar_url': avatarPath}).eq('user_id', _userId);
+      await _client.from('profiles').update(values).eq('user_id', _userId);
     } catch (_) {
-      await _client.from('profiles').update({'display_name': displayName.trim(), 'username': cleanUsername, 'bio': bio.trim(), if (avatarPath != null) 'avatar_url': avatarPath}).eq('id', _userId);
+      await _client.from('profiles').update(values).eq('id', _userId);
     }
     return fetchProfile();
   }
