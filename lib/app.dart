@@ -5,6 +5,8 @@ import 'core/theme/theme.dart';
 import 'features/auth/auth.dart';
 import 'features/auth/presentation/splash_page.dart';
 import 'features/home/presentation/home_page.dart';
+import 'features/home/presentation/kids_mode_gate_page.dart';
+import 'features/home/presentation/kids_home_page.dart';
 import 'features/home/presentation/beats_page.dart';
 import 'features/home/presentation/create_post_page.dart';
 import 'features/home/presentation/tools_page.dart';
@@ -15,8 +17,10 @@ import 'features/profile/presentation/public_profile_page.dart';
 import 'features/onboarding/onboarding.dart';
 import 'features/creator/creator.dart';
 import 'features/settings/settings.dart';
+import 'features/settings/presentation/kids_protection_page.dart';
 import 'features/communication/presentation/communication_pages.dart';
 import 'features/editor/presentation/safe_media_editor_page.dart';
+import 'features/editor/presentation/professional_media_editor_page.dart';
 import 'features/compliance/presentation/community_safety_page.dart';
 import 'services/supabase_service.dart';
 
@@ -41,12 +45,14 @@ class ManoxApp extends StatelessWidget {
     },
     routes: <GoRoute>[
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
-      GoRoute(path: '/', builder: (context, state) => const HomePage()),
+      GoRoute(path: '/', builder: (context, state) => const KidsModeGatePage()),
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingPage()),
       GoRoute(path: '/auth', builder: (context, state) => const LoginPage()),
       GoRoute(path: '/auth/signup', builder: (context, state) => const SignupPage()),
       GoRoute(path: '/auth/forgot', builder: (context, state) => const ForgotPasswordPage()),
-      GoRoute(path: '/home', builder: (context, state) => const HomePage()),
+      GoRoute(path: '/home', builder: (context, state) => const KidsModeGatePage()),
+      GoRoute(path: '/kids-home', builder: (context, state) => const KidsHomePage()),
+      GoRoute(path: '/kids-protection', builder: (context, state) => const KidsProtectionPage()),
       GoRoute(path: '/create', builder: (context, state) => const CreatePostPage()),
       GoRoute(path: '/tools', builder: (context, state) => const ToolsPage()),
       GoRoute(path: '/beats', builder: (context, state) => const BeatsPage()),
@@ -63,6 +69,10 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/notifications', builder: (context, state) => const NotificationsPage()),
       GoRoute(path: '/search', builder: (context, state) => const SearchPage()),
       GoRoute(path: '/editor', builder: (context, state) {
+        final raw = state.extra; final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
+        return ProfessionalMediaEditorPage(isVideo: extra['isVideo'] == true, mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null);
+      }),
+      GoRoute(path: '/editor-safe', builder: (context, state) {
         final raw = state.extra; final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
         return SafeMediaEditorPage(isVideo: extra['isVideo'] == true, mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null);
       }),
