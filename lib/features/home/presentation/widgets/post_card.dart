@@ -45,8 +45,8 @@ class _PostCardState extends State<PostCard> {
     final r = widget.repository;
     if (r == null || !widget.data.isRemote) return;
     try {
-      final v = await r.isOwner(widget.data.id);
-      if (mounted) setState(() => _isOwner = v);
+      final value = await r.isOwner(widget.data.id);
+      if (mounted) setState(() => _isOwner = value);
     } catch (_) {}
   }
 
@@ -54,8 +54,8 @@ class _PostCardState extends State<PostCard> {
     final r = widget.repository;
     if (r == null || !widget.data.isRemote) return;
     try {
-      final v = await r.isSaved(widget.data.id);
-      if (mounted) setState(() => _saved = v);
+      final value = await r.isSaved(widget.data.id);
+      if (mounted) setState(() => _saved = value);
     } catch (_) {}
   }
 
@@ -68,9 +68,6 @@ class _PostCardState extends State<PostCard> {
   void _toggleVibe() {
     if (_isOwner) return;
     setState(() => _vibed = !_vibed);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_vibed ? 'VIBE added.' : 'VIBE removed.')),
-    );
   }
 
   Future<void> _toggleSave() async {
@@ -101,17 +98,19 @@ class _PostCardState extends State<PostCard> {
     if (r == null || !widget.data.isRemote) {
       setState(() {
         _liked = !_liked;
-        _likes += _liked ? 1 : -1;
+        _likes = (_likes + (_liked ? 1 : -1)).clamp(0, 1 << 30);
       });
       return;
     }
     setState(() => _busy = true);
     try {
-      final v = await r.toggleLike(widget.data.id, _liked);
+      final value = await r.toggleLike(widget.data.id, _liked);
       if (mounted) {
         setState(() {
-          _liked = v;
-          _likes += v ? 1 : -1;
+          if (value != _liked) {
+            _likes += value ? 1 : -1;
+          }
+          _liked = value;
         });
       }
     } catch (e) {
@@ -128,92 +127,114 @@ class _PostCardState extends State<PostCard> {
       return;
     }
 
-    final c = TextEditingController();
+    final controller = TextEditingController();
     try {
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
-        builder: (s) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(s).viewInsets.bottom),
-          child: SizedBox(
-            height: MediaQuery.of(s).size.height * .65,
-            child: Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Comments',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Expanded(
-                  child: FutureBuilder<List<ManoxComment>>(
-                    future: r.fetchComments(widget.data.id),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return const Center(child: Text('Unable to load comments.'));
-                      }
-                      final cs = snapshot.data ?? const <ManoxComment>[];
-                      if (cs.isEmpty) {
-                        return const Center(
-                          child: Text('No comments yet. Be the first!'),
-                        );
-                      }
-                      return ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: cs.length,
-                        separatorBuilder: (_, __) => const Divider(),
-                        itemBuilder: (_, i) => ListTile(
-                          title: Text(
-                            cs[i].userName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(cs[i].body),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: c,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => _sendComment(c, r),
-                          decoration: const InputDecoration(
-                            hintText: 'Write a comment...',
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => _sendComment(c, r),
-                        icon: const Icon(Icons.send),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+        builder: (sheetContext) {
+          final height = MediaQuery.of(sheetContext).size.height * 0.65;
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
             ),
-          ),
-        ),
+            child: SizedBox(
+              height: height,
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'Comments',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: FutureBuilder<List<ManoxComment>>(
+                      future: r.fetchComments(widget.data.id),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return const Center(
+                            child: Text('Unable to load comments.'),
+                          );
+                        }
+                        final comments =
+                            snapshot.data ?? const <ManoxComment>[];
+                        if (comments.isEmpty) {
+                          return const Center(
+                            child: Text('No comments yet. Be the first!'),
+                          );
+                        }
+                        return ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: comments.length,
+                          separatorBuilder: (_, __) => const Divider(),
+                          itemBuilder: (_, index) {
+                            final comment = comments[index];
+                            return ListTile(
+                              title: Text(
+                                comment.userName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(comment.body),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) =>
+                                _sendComment(controller, r),
+                            decoration: const InputDecoration(
+                              hintText: 'Write a comment...',
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _sendComment(controller, r),
+                          icon: const Icon(Icons.send),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
     } finally {
-      c.dispose();
+      controller.dispose();
     }
   }
 
-  Future<void> _sendComment(TextEditingController c, SupabasePostRepository r) async {
-    final t = c.text.trim();
-    if (t.isEmpty) return;
+  Future<void> _sendComment(
+    TextEditingController controller,
+    SupabasePostRepository repository,
+  ) async {
+    final text = controller.text.trim();
+    if (text.isEmpty) return;
     try {
-      await r.addComment(widget.data.id, t);
-      c.clear();
+      await repository.addComment(widget.data.id, text);
+      controller.clear();
       if (mounted) setState(() => _comments++);
     } catch (e) {
       if (mounted) _showError(e.toString());
@@ -222,11 +243,10 @@ class _PostCardState extends State<PostCard> {
 
   Future<void> _share() async {
     final r = widget.repository;
-    final url = r == null || !widget.data.isRemote
-        ? 'https://manox.app'
-        : await r.createShareUrl(widget.data.id);
+    var url = 'https://manox.app';
     if (r != null && widget.data.isRemote) {
       try {
+        url = await r.createShareUrl(widget.data.id);
         await r.recordShare(widget.data.id);
       } catch (_) {}
     }
@@ -286,10 +306,9 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  Widget _media(double height, {bool contain = true}) {
+  Widget _media(double height) {
     final path = widget.data.imagePath;
     if (path == null) return const SizedBox.shrink();
-
     return FutureBuilder<String?>(
       future: _mediaUrl(),
       builder: (context, snapshot) {
@@ -299,26 +318,29 @@ class _PostCardState extends State<PostCard> {
             child: const Center(child: CircularProgressIndicator()),
           );
         }
-        final url = snapshot.data!;
+        final url = snapshot.data;
+        if (url == null || url.isEmpty) {
+          return SizedBox(
+            height: height,
+            child: const Center(child: Icon(Icons.broken_image_outlined)),
+          );
+        }
         if (isManoxVideo(path)) {
           return ManoxMediaPreview(
             url: url,
             height: height,
-            fit: contain ? BoxFit.contain : BoxFit.cover,
+            fit: BoxFit.contain,
             onVideoTap: _openVideoFullScreen,
           );
         }
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Container(
+          child: SizedBox(
             width: double.infinity,
             height: height,
-            color: Colors.black12,
             child: Image.network(
               url,
-              width: double.infinity,
-              height: height,
-              fit: contain ? BoxFit.contain : BoxFit.cover,
+              fit: BoxFit.contain,
               errorBuilder: (_, __, ___) =>
                   const Center(child: Icon(Icons.broken_image_outlined)),
             ),
@@ -328,41 +350,115 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  Widget _moneyRate(String value) {
-    return Text(
-      value,
-      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+  Future<void> _editPost() async {
+    final r = widget.repository;
+    if (r == null) return;
+    final controller = TextEditingController(text: widget.data.text);
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit post'),
+        content: TextField(
+          controller: controller,
+          maxLines: 6,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
+    final text = controller.text.trim();
+    if (save != true || text.isEmpty) {
+      controller.dispose();
+      return;
+    }
+    try {
+      await r.updatePost(widget.data.id, text);
+      if (mounted) await widget.onChanged?.call();
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    } finally {
+      controller.dispose();
+    }
   }
 
-  Widget _engagementRow() {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: _busy ? null : _toggleLike,
-          icon: Icon(_liked ? Icons.favorite : Icons.favorite_border),
-          tooltip: 'Like',
+  Future<void> _deletePost() async {
+    final r = widget.repository;
+    if (r == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This post will be permanently removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await r.deletePost(widget.data.id);
+      if (mounted) await widget.onChanged?.call();
+    } catch (e) {
+      if (mounted) _showError(e.toString());
+    }
+  }
+
+  Future<void> _showPostMenu() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                _saved ? Icons.bookmark : Icons.bookmark_border,
+              ),
+              title: Text(_saved ? 'Remove from Saved' : 'Save'),
+              onTap: () => Navigator.pop(sheetContext, 'save'),
+            ),
+            if (_isOwner) ...[
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit post'),
+                onTap: () => Navigator.pop(sheetContext, 'edit'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Delete post'),
+                onTap: () => Navigator.pop(sheetContext, 'delete'),
+              ),
+            ],
+          ],
         ),
-        Text('$_likes'),
-        const SizedBox(width: 4),
-        IconButton(
-          onPressed: _showComments,
-          icon: const Icon(Icons.comment_outlined),
-          tooltip: 'Comment',
-        ),
-        Text('$_comments'),
-        const SizedBox(width: 4),
-        IconButton(
-          onPressed: _share,
-          icon: const Icon(Icons.share_outlined),
-          tooltip: 'Share',
-        ),
-        const Spacer(),
-        const Icon(Icons.currency_rupee, size: 17),
-        _moneyRate('0.5'),
-        const SizedBox(width: 8),
-        const Icon(Icons.lock_outline, size: 18),
-      ],
+      ),
+    );
+
+    if (action == 'save') await _toggleSave();
+    if (action == 'edit') await _editPost();
+    if (action == 'delete') await _deletePost();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message.replaceFirst('Exception: ', ''))),
     );
   }
 
@@ -374,7 +470,10 @@ class _PostCardState extends State<PostCard> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            const CircleAvatar(radius: 22, child: Icon(Icons.person)),
+            const CircleAvatar(
+              radius: 22,
+              child: Icon(Icons.person),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -384,7 +483,10 @@ class _PostCardState extends State<PostCard> {
                     widget.data.creatorName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
                   ),
                   Text(
                     widget.data.handle.replaceFirst(RegExp(r'^@+'), '@'),
@@ -408,112 +510,66 @@ class _PostCardState extends State<PostCard> {
                   ),
                   child: Text(
                     _vibed ? 'UNVIBE' : 'VIBE',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _editPost() async {
-    final r = widget.repository;
-    if (r == null) return;
-    final c = TextEditingController(text: widget.data.text);
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (x) => AlertDialog(
-        title: const Text('Edit post'),
-        content: TextField(controller: c, maxLines: 6, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(x, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(x, true), child: const Text('Save')),
-        ],
-      ),
-    );
-    if (save != true || c.text.trim().isEmpty) {
-      c.dispose();
-      return;
-    }
-    try {
-      await r.updatePost(widget.data.id, c.text);
-      if (mounted) await widget.onChanged?.call();
-    } catch (e) {
-      if (mounted) _showError(e.toString());
-    }
-    c.dispose();
-  }
-
-  Future<void> _deletePost() async {
-    final r = widget.repository;
-    if (r == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (x) => AlertDialog(
-        title: const Text('Delete post?'),
-        content: const Text('This post will be permanently removed.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(x, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(x, true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await r.deletePost(widget.data.id);
-      if (mounted) await widget.onChanged?.call();
-    } catch (e) {
-      if (mounted) _showError(e.toString());
-    }
-  }
-
-  Future<void> _showPostMenu() async {
-    final c = await showModalBottomSheet<String>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border),
-              title: Text(_saved ? 'Remove from Saved' : 'Save'),
-              onTap: () => Navigator.pop(context, 'save'),
+            IconButton(
+              onPressed: _showPostMenu,
+              tooltip: 'More',
+              icon: const Icon(Icons.more_vert),
             ),
-            if (_isOwner) ...[
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit post'),
-                onTap: () => Navigator.pop(context, 'edit'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Delete post'),
-                onTap: () => Navigator.pop(context, 'delete'),
-              ),
-            ],
           ],
         ),
       ),
     );
-
-    if (c == 'save') await _toggleSave();
-    if (c == 'edit') await _editPost();
-    if (c == 'delete') await _deletePost();
   }
 
-  void _showError(String m) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(m.replaceFirst('Exception: ', ''))),
+  Widget _engagementRow() {
+    return Row(
+      children: [
+        IconButton(
+          onPressed: _busy ? null : _toggleLike,
+          icon: Icon(
+            _liked ? Icons.favorite : Icons.favorite_border,
+          ),
+          tooltip: 'Like',
+        ),
+        Text('$_likes'),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: _showComments,
+          icon: const Icon(Icons.comment_outlined),
+          tooltip: 'Comment',
+        ),
+        Text('$_comments'),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: _share,
+          icon: const Icon(Icons.share_outlined),
+          tooltip: 'Share',
+        ),
+        const Spacer(),
+        const Icon(Icons.currency_rupee, size: 17),
+        const SizedBox(width: 3),
+        const Text(
+          '0.5',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(width: 8),
+        const Icon(Icons.lock_outline, size: 18),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.data;
+    final data = widget.data;
     return Card(
-      key: Key('post-card-${d.id}'),
+      key: Key('post-card-${data.id}'),
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -523,21 +579,10 @@ class _PostCardState extends State<PostCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _creatorHeader()),
-                  IconButton(
-                    onPressed: _showPostMenu,
-                    icon: const Icon(Icons.more_vert),
-                    tooltip: 'Post options',
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
+              _creatorHeader(),
               const SizedBox(height: 8),
-              Text(d.text),
-              if (d.imagePath != null) ...[
+              Text(data.text),
+              if (data.imagePath != null) ...[
                 const SizedBox(height: 12),
                 _media(320),
               ],
@@ -555,19 +600,22 @@ class _PostCardState extends State<PostCard> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (s) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: DraggableScrollableSheet(
           expand: false,
-          initialChildSize: .88,
-          minChildSize: .55,
-          maxChildSize: .96,
+          initialChildSize: 0.88,
+          minChildSize: 0.55,
+          maxChildSize: 0.96,
           builder: (_, controller) => ListView(
             controller: controller,
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
             children: [
               _creatorHeader(),
               const SizedBox(height: 16),
-              Text(widget.data.text, style: Theme.of(context).textTheme.bodyLarge),
+              Text(
+                widget.data.text,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
               if (widget.data.imagePath != null) ...[
                 const SizedBox(height: 16),
                 _media(420),
