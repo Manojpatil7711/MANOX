@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import '../data/supabase_post_repository.dart';
 import 'widgets/media_preview.dart';
 
-/// Full-screen creator flow: choose media, edit it, add a caption, then publish.
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
 
@@ -19,7 +18,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
   final _picker = ImagePicker();
   final _repository = SupabasePostRepository();
   final _captionController = TextEditingController();
-
   XFile? _media;
   bool _isVideo = false;
   bool _posting = false;
@@ -227,7 +225,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
           borderRadius: BorderRadius.circular(20),
           child: _isVideo
               ? ManoxLocalVideoPreview(path: media.path, height: 430)
-              : Image.file(media: media.path, height: 430, fit: BoxFit.contain),
+              : Image.file(File(media.path), height: 430, fit: BoxFit.contain),
         ),
         const SizedBox(height: 10),
         Row(
