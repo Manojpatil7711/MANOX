@@ -8,7 +8,6 @@ import '../data/supabase_post_repository.dart';
 import 'widgets/media_preview.dart';
 
 /// Full-screen creator flow: choose media, edit it, add a caption, then publish.
-/// Only controls backed by the current MANOX backend are exposed as active.
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
 
@@ -33,15 +32,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
   Future<void> _pick({required bool video, required ImageSource source}) async {
     final picked = video
-        ? await _picker.pickVideo(
-            source: source,
-            maxDuration: const Duration(minutes: 10),
-          )
-        : await _picker.pickImage(
-            source: source,
-            imageQuality: 90,
-            maxWidth: 2400,
-          );
+        ? await _picker.pickVideo(source: source, maxDuration: const Duration(minutes: 10))
+        : await _picker.pickImage(source: source, imageQuality: 90, maxWidth: 2400);
     if (picked == null || !mounted) return;
     setState(() {
       _media = picked;
@@ -59,13 +51,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Add to your post',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                ),
-              ),
+              const Align(alignment: Alignment.centerLeft, child: Text('Add to your post', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -95,12 +81,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     );
   }
 
-  Widget _sourceTile(
-    BuildContext sheet,
-    IconData icon,
-    String label,
-    VoidCallback action,
-  ) {
+  Widget _sourceTile(BuildContext sheet, IconData icon, String label, VoidCallback action) {
     return InkWell(
       onTap: () {
         Navigator.pop(sheet);
@@ -109,17 +90,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).dividerColor),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 28),
-            const SizedBox(height: 8),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-          ],
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).dividerColor)),
+        child: Column(children: [Icon(icon, size: 28), const SizedBox(height: 8), Text(label, style: const TextStyle(fontWeight: FontWeight.w700))]),
       ),
     );
   }
@@ -127,15 +99,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
   Future<void> _editMedia() async {
     final media = _media;
     if (media == null) return;
-    final result = await context.push<bool>(
-      '/editor',
-      extra: <String, dynamic>{
-        'isVideo': _isVideo,
-        'mediaPath': media.path,
-      },
-    );
+    final result = await context.push<bool>('/editor', extra: <String, dynamic>{'isVideo': _isVideo, 'mediaPath': media.path});
     if (result == true && mounted) setState(() {});
   }
+
+  void _openTools() => context.push('/tools');
 
   Future<void> _publish() async {
     final media = _media;
@@ -144,7 +112,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
       _show('Add a photo, video or caption first.');
       return;
     }
-
     setState(() => _posting = true);
     try {
       String? mediaPath;
@@ -160,12 +127,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
           mediaType = 'image';
         }
       }
-
-      await _repository.createPost(
-        text: caption,
-        imagePath: mediaPath,
-        mediaType: mediaType,
-      );
+      await _repository.createPost(text: caption, imagePath: mediaPath, mediaType: mediaType);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
@@ -174,28 +136,21 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
   }
 
-  void _show(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
+  void _show(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Close',
-          onPressed: _posting ? null : () => Navigator.of(context).pop(false),
-          icon: const Icon(Icons.close_rounded),
-        ),
+        leading: IconButton(tooltip: 'Close', onPressed: _posting ? null : () => Navigator.of(context).pop(false), icon: const Icon(Icons.close_rounded)),
         title: const Text('Create post', style: TextStyle(fontWeight: FontWeight.w800)),
         actions: [
+          IconButton(onPressed: _posting ? null : _openTools, tooltip: 'Tools', icon: const Icon(Icons.build_circle_outlined)),
           Padding(
             padding: const EdgeInsets.only(right: 10),
             child: FilledButton(
               onPressed: _posting ? null : _publish,
-              child: _posting
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Post'),
+              child: _posting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Post'),
             ),
           ),
         ],
@@ -212,11 +167,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
               maxLines: 6,
               minLines: 3,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Write a caption…',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(hintText: 'Write a caption…', alignLabelWithHint: true, border: OutlineInputBorder()),
             ),
             const SizedBox(height: 6),
             Card(
@@ -231,22 +182,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: const Icon(Icons.auto_awesome_rounded),
-                    title: const Text('Edit media'),
-                    subtitle: const Text('Crop, filters, adjustments, text and video tools'),
+                    leading: const Icon(Icons.build_circle_outlined),
+                    title: const Text('Tools'),
+                    subtitle: const Text('Photo design + video editing studio'),
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    enabled: _media != null,
-                    onTap: _editMedia,
+                    onTap: _openTools,
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                'MANOX publishes current posts as public. Audience, tagging, location, music and scheduling are intentionally not shown until their backend support is implemented.',
-                style: TextStyle(fontSize: 12),
               ),
             ),
           ],
@@ -261,10 +203,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         height: 320,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Theme.of(context).dividerColor),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: Theme.of(context).dividerColor)),
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -288,32 +227,14 @@ class _CreatePostPageState extends State<CreatePostPage> {
           borderRadius: BorderRadius.circular(20),
           child: _isVideo
               ? ManoxLocalVideoPreview(path: media.path, height: 430)
-              : Image.file(
-                  File(media.path),
-                  height: 430,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox(
-                    height: 430,
-                    child: Center(child: Icon(Icons.broken_image_outlined)),
-                  ),
-                ),
+              : Image.file(media: media.path, height: 430, fit: BoxFit.contain),
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _editMedia,
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('Edit media'),
-              ),
-            ),
+            Expanded(child: OutlinedButton.icon(onPressed: _openTools, icon: const Icon(Icons.build_circle_outlined), label: const Text('Tools'))),
             const SizedBox(width: 10),
-            IconButton.filledTonal(
-              tooltip: 'Replace media',
-              onPressed: _openMediaPicker,
-              icon: const Icon(Icons.swap_horiz_rounded),
-            ),
+            IconButton.filledTonal(tooltip: 'Replace media', onPressed: _openMediaPicker, icon: const Icon(Icons.swap_horiz_rounded)),
           ],
         ),
       ],
