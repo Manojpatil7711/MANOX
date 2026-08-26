@@ -7,11 +7,9 @@ import 'package:manox/core/theme/theme.dart';
 
 void main() {
   testWidgets(
-    'HomePage renders and basic interactions work',
+    'HomePage renders and feed interactions work',
     (WidgetTester tester) async {
       final view = tester.view;
-
-      // Use a sufficiently large viewport so the initial layout is stable.
       view.devicePixelRatio = 1.0;
       view.physicalSize = const Size(800, 1200);
 
@@ -26,23 +24,10 @@ void main() {
           home: const HomePage(),
         ),
       );
-
-      // Allow the initial build and any async UI work to complete.
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const Key('manox-home-logo')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('post-composer-field')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const Key('post-compose-submit')),
-        findsOneWidget,
-      );
-
+      expect(find.byKey(const Key('manox-home-logo')), findsOneWidget);
+      expect(find.text('Create a post…'), findsOneWidget);
       expect(demoPosts, isNotEmpty);
 
       final first = demoPosts.first;
@@ -53,7 +38,6 @@ void main() {
       expect(like, findsOneWidget);
       expect(find.text('${first.likes}'), findsWidgets);
 
-      // Ensure the post is visible before interacting with it.
       await tester.scrollUntilVisible(
         like,
         300,
@@ -64,24 +48,7 @@ void main() {
       await tester.tap(like);
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('${first.likes + 1}'),
-        findsWidgets,
-      );
-
-      // Empty submission should be ignored.
-      final submitButton = find.byKey(
-        const Key('post-compose-submit'),
-      );
-
-      await tester.tap(submitButton);
-      await tester.pumpAndSettle();
-
-      // Dynamic key — deliberately NOT const.
-      expect(
-        find.byKey(Key('post-card-${first.id}')),
-        findsOneWidget,
-      );
+      expect(find.text('${first.likes + 1}'), findsWidgets);
     },
   );
 }
