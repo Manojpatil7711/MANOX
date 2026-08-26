@@ -16,7 +16,7 @@ class FakeProfileRepository implements ProfileRepository {
   Future<List<String>> fetchPostIds() async => demoProfile.postIds;
 
   @override
-  Future<ProfileData> updateProfile({required String displayName, required String username, required String bio, String? avatarPath}) async {
+  Future<ProfileData> updateProfile({required String displayName, required String username, required String bio, String? avatarPath, String? gender}) async {
     return demoProfile.copyWith(
       displayName: displayName,
       handle: username.startsWith('@') ? username : '@$username',
