@@ -7,6 +7,7 @@ import 'features/auth/presentation/splash_page.dart';
 import 'features/home/presentation/home_page.dart';
 import 'features/home/presentation/beats_page.dart';
 import 'features/home/presentation/create_post_page.dart';
+import 'features/home/presentation/tools_page.dart';
 import 'features/profile/profile.dart';
 import 'features/profile/presentation/public_profile_page.dart';
 import 'features/onboarding/onboarding.dart';
@@ -51,6 +52,7 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/auth/forgot', builder: (context, state) => const ForgotPasswordPage()),
       GoRoute(path: '/home', builder: (context, state) => const HomePage()),
       GoRoute(path: '/create', builder: (context, state) => const CreatePostPage()),
+      GoRoute(path: '/tools', builder: (context, state) => const ToolsPage()),
       GoRoute(path: '/beats', builder: (context, state) => const BeatsPage()),
       GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
       GoRoute(path: '/profile/:userId', builder: (context, state) => PublicProfilePage(userId: state.pathParameters['userId']!)),
