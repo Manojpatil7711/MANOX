@@ -141,18 +141,25 @@ class _ProfilePageState extends State<ProfilePage> {
     };
     final profession = profile.profession?.trim() ?? '';
     if (country.isNotEmpty) details.add(country.toUpperCase());
-    if (gender.isNotEmpty) details.add(gender);
     if (profession.isNotEmpty) details.add(profession);
+    if (gender.isNotEmpty) details.add(gender);
     if (details.isEmpty) return const SizedBox.shrink();
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: details.map((text) => Chip(label: Text(text))).toList(),
-        ),
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: details
+            .map(
+              (text) => Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(
+                  text,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -213,9 +220,8 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 14),
         if (profile.bio.trim().isNotEmpty) Text(profile.bio, key: const Key('profile-bio'), maxLines: 4, overflow: TextOverflow.ellipsis),
-        const SizedBox(height: 12),
         _profileDetails(profile),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Row(children: <Widget>[
           Expanded(child: OutlinedButton.icon(key: const Key('profile-edit-button'), onPressed: _editProfile, icon: const Icon(Icons.edit_outlined), label: const Text('EDIT PROFILE'))),
           const SizedBox(width: 10),
