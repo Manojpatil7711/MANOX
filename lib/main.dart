@@ -29,9 +29,17 @@ Future<void> main() async {
   };
 
   try {
-    // MANOX uses an edge-to-edge layout so the app makes full use of modern
-    // phone displays while keeping system gesture/navigation areas safe.
-    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // MANOX is designed as a full-screen mobile experience (similar to
+    // modern social/video apps). System bars stay hidden during normal use;
+    // Android/iOS can reveal them temporarily with the system gesture.
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    await SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarDividerColor: Colors.transparent,
+    ));
     await SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
