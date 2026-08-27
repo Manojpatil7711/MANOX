@@ -18,6 +18,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _showLastSeen = false;
   bool _readReceipts = true;
   bool _notifications = true;
+  bool _signingOut = false;
   String _whoCanMessage = 'everyone';
 
   SupabaseClient? get _client => SupabaseService.client;
@@ -70,6 +71,39 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _signOut() async {
+    if (_signingOut) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You can sign back in anytime with your MANOX account.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('CANCEL')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('SIGN OUT')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final client = _client;
+    if (client == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Authentication is unavailable.')));
+      return;
+    }
+    setState(() => _signingOut = true);
+    try {
+      await client.auth.signOut();
+      if (!mounted) return;
+      context.go('/login');
+    } catch (_) {
+      if (mounted) {
+        setState(() => _signingOut = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not sign out. Please try again.')));
+      }
+    }
+  }
+
   void _openKidsSafety() {
     context.push('/kids-protection');
   }
@@ -111,6 +145,16 @@ class _SettingsPageState extends State<SettingsPage> {
           _item(icon: Icons.bookmark_border_rounded, title: 'Saved content', subtitle: 'Open your saved posts and videos'),
           _item(icon: Icons.history_rounded, title: 'Activity history', subtitle: 'View your recent MANOX activity'),
         ]),
+        const SizedBox(height: 20),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.logout_rounded),
+            title: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const Text('Sign out securely from this device'),
+            trailing: _signingOut ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right_rounded),
+            onTap: _signingOut ? null : _signOut,
+          ),
+        ),
         const SizedBox(height: 16),
         const Center(child: Text('MANOX', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 2))),
       ]),
