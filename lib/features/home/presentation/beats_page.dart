@@ -58,6 +58,15 @@ class _BeatsPageState extends State<BeatsPage> {
     }
   }
 
+  Future<void> _openBeatUpload() async {
+    final published = await context.push<bool>('/create?beat=true');
+    if (published == true && mounted) {
+      setState(() => _loading = true);
+      await _load();
+      if (_controller.hasClients) _controller.jumpToPage(0);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,6 +104,22 @@ class _BeatsPageState extends State<BeatsPage> {
               fontWeight: FontWeight.w800, letterSpacing: 2),
           )),
         ),
+        if (!widget.kidsMode)
+          Positioned(
+            right: 14,
+            top: 8,
+            child: SafeArea(
+              child: FilledButton.icon(
+                onPressed: _openBeatUpload,
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text('Upload Beat'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                ),
+              ),
+            ),
+          ),
       ]),
     );
   }
@@ -236,7 +261,7 @@ class _BeatItemState extends State<_BeatItem> {
       else if (_url != null && isManoxVideo(widget.post.imagePath ?? ''))
         ManoxMediaPreview(
           url: _url!, height: double.infinity, fit: BoxFit.cover,
-          autoPlay: true, loop: false, fullScreenStyle: true,
+          autoPlay: true, loop: true, fullScreenStyle: true,
         )
       else
         const _BeatFallback(),
