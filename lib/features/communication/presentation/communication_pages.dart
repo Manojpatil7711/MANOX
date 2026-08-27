@@ -32,8 +32,26 @@ class _SearchPageState extends State<SearchPage> {
     catch (e) { if (mounted) setState(() { _results = []; _error = e.toString().replaceFirst('Exception: ', ''); }); }
     finally { if (mounted) setState(() => _loading = false); }
   }
+  void _clearSearch() {
+    _controller.clear();
+    setState(() { _results = []; _error = ''; });
+  }
   @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: TextField(controller: _controller, autofocus: true, onChanged: _search, textInputAction: TextInputAction.search, decoration: const InputDecoration(hintText: 'Search people and content', border: InputBorder.none))),
-    body: _loading ? const Center(child: CircularProgressIndicator()) : _error.isNotEmpty ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error, textAlign: TextAlign.center))) : _controller.text.trim().length < 2 ? const Center(child: Text('Type at least 2 characters to search MANOX.')) : _results.isEmpty ? const Center(child: Text('No matching people or content found.')) : ListView.separated(padding: const EdgeInsets.symmetric(vertical: 8), itemCount: _results.length, separatorBuilder: (_, __) => const Divider(height: 1), itemBuilder: (_, i) { final result = _results[i]; return ListTile(leading: CircleAvatar(child: Icon(result.profile ? Icons.person_outline : Icons.article_outlined)), title: Text(result.title, maxLines: 2, overflow: TextOverflow.ellipsis), subtitle: Text(result.subtitle), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { if (result.profile) context.push('/profile/${Uri.encodeComponent(result.id)}'); else Navigator.pop(context, result.id); }); }),
+    appBar: AppBar(
+      titleSpacing: 0,
+      title: TextField(
+        controller: _controller,
+        autofocus: true,
+        onChanged: _search,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Search people and content',
+          border: InputBorder.none,
+          prefixIcon: const Icon(Icons.search_rounded),
+          suffixIcon: _controller.text.isEmpty ? null : IconButton(tooltip: 'Clear search', icon: const Icon(Icons.clear_rounded), onPressed: _clearSearch),
+        ),
+      ),
+    ),
+    body: _loading ? const Center(child: CircularProgressIndicator()) : _error.isNotEmpty ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error, textAlign: TextAlign.center))) : _controller.text.trim().length < 2 ? const Center(child: Text('Search MANOX for people, creators and content.')) : _results.isEmpty ? const Center(child: Text('No matching people or content found.')) : ListView.separated(padding: const EdgeInsets.symmetric(vertical: 8), itemCount: _results.length, separatorBuilder: (_, __) => const Divider(height: 1), itemBuilder: (_, i) { final result = _results[i]; return ListTile(leading: CircleAvatar(child: Icon(result.profile ? Icons.person_outline : Icons.article_outlined)), title: Text(result.title, maxLines: 2, overflow: TextOverflow.ellipsis), subtitle: Text(result.subtitle), trailing: const Icon(Icons.chevron_right_rounded), onTap: () { if (result.profile) context.push('/profile/${Uri.encodeComponent(result.id)}'); else Navigator.pop(context, result.id); }); }),
   );
 }
