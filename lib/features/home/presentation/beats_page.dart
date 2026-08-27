@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -22,12 +23,22 @@ class _BeatsPageState extends State<BeatsPage> {
   @override
   void initState() {
     super.initState();
+    _enterMediaFullscreen();
     _load();
+  }
+
+  Future<void> _enterMediaFullscreen() async {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  Future<void> _restoreSystemUi() async {
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _restoreSystemUi();
     super.dispose();
   }
 
@@ -64,55 +75,53 @@ class _BeatsPageState extends State<BeatsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            if (_loading)
-              const Center(child: CircularProgressIndicator())
-            else if (_posts.isEmpty)
-              const Center(
-                child: Text(
-                  'No BEATS yet.\nCreate a video to be the first.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              )
-            else
-              PageView.builder(
-                controller: _controller,
-                scrollDirection: Axis.vertical,
-                itemCount: _posts.length,
-                itemBuilder: (context, index) => _BeatItem(
-                  post: _posts[index],
-                  repository: _repository,
-                ),
+      body: Stack(
+        children: [
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else if (_posts.isEmpty)
+            const Center(
+              child: Text(
+                'No BEATS yet.\nCreate a video to be the first.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 16),
               ),
-            Positioned(
-              top: 8,
-              left: 8,
-              child: IconButton(
-                onPressed: () => context.pop(),
-                icon: const Icon(Icons.close_rounded, color: Colors.white),
+            )
+          else
+            PageView.builder(
+              controller: _controller,
+              scrollDirection: Axis.vertical,
+              itemCount: _posts.length,
+              itemBuilder: (context, index) => _BeatItem(
+                post: _posts[index],
+                repository: _repository,
               ),
             ),
-            const Positioned(
-              top: 18,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Text(
-                  'BEATS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 2,
-                  ),
+          Positioned(
+            top: 8,
+            left: 8,
+            child: IconButton(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
+            ),
+          ),
+          const Positioned(
+            top: 18,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                'BEATS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
