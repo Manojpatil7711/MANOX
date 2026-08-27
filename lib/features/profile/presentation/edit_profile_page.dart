@@ -17,6 +17,7 @@ class EditProfilePage extends StatefulWidget {
   final DateTime? initialDateOfBirth;
   final List<String> initialSkills;
   final String? initialCreatorCategory;
+  final String? initialOtherLink;
 
   const EditProfilePage({
     super.key,
@@ -31,6 +32,7 @@ class EditProfilePage extends StatefulWidget {
     this.initialDateOfBirth,
     this.initialSkills = const [],
     this.initialCreatorCategory,
+    this.initialOtherLink,
   });
 
   @override
@@ -43,6 +45,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController _bio;
   late final TextEditingController _country;
   late final TextEditingController _profession;
+  late final TextEditingController _otherLink;
   late final TextEditingController _skill;
   final _picker = ImagePicker();
   bool _saving = false;
@@ -65,6 +68,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _bio = TextEditingController(text: widget.initialBio);
     _country = TextEditingController(text: widget.initialCountryCode ?? 'IN');
     _profession = TextEditingController(text: widget.initialProfession ?? '');
+    _otherLink = TextEditingController(text: widget.initialOtherLink ?? '');
     _skill = TextEditingController();
     _gender = widget.initialGender ?? 'prefer_not_to_say';
     _creatorCategory = widget.initialCreatorCategory ?? 'Other';
@@ -79,16 +83,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _bio.dispose();
     _country.dispose();
     _profession.dispose();
+    _otherLink.dispose();
     _skill.dispose();
     super.dispose();
   }
 
   Future<void> _pickAvatar() async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 88,
-      maxWidth: 1024,
-    );
+    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 88, maxWidth: 1024);
     if (picked != null && mounted) setState(() => _avatar = picked);
   }
 
@@ -104,17 +105,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (selected != null && mounted) setState(() => _dateOfBirth = selected);
   }
 
-  String _formatDate(DateTime? date) => date == null
-      ? 'Not set'
-      : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  String _formatDate(DateTime? date) => date == null ? 'Not set' : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
   void _addSkill() {
     final skill = _skill.text.trim();
     if (skill.isEmpty || _skills.contains(skill) || _skills.length >= 12) return;
-    setState(() {
-      _skills.add(skill);
-      _skill.clear();
-    });
+    setState(() { _skills.add(skill); _skill.clear(); });
+  }
+
+  String? _cleanOtherLink() {
+    final value = _otherLink.text.trim();
+    if (value.isEmpty) return null;
+    final uri = Uri.tryParse(value);
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
+      _show('Enter a valid link starting with https://');
+      return null;
+    }
+    return uri.toString();
   }
 
   Future<void> _save() async {
@@ -128,6 +135,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _show('Country must be a 2-letter code, for example IN.');
       return;
     }
+    final otherLink = _cleanOtherLink();
+    if (_otherLink.text.trim().isNotEmpty && otherLink == null) return;
 
     setState(() => _saving = true);
     try {
@@ -140,28 +149,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
       late ProfileData updated;
       if (widget.repository is SupabaseProfileRepository) {
         updated = await (widget.repository as SupabaseProfileRepository).updateProfileExtended(
-          displayName: _name.text.trim(),
-          username: _username.text.trim(),
-          bio: _bio.text.trim(),
-          avatarPath: avatarPath,
-          countryCode: country,
-          gender: _gender,
-          profession: _profession.text.trim(),
-          dateOfBirth: _dateOfBirth,
-          skills: _skills,
-          creatorCategory: _creatorCategory,
+          displayName: _name.text.trim(), username: _username.text.trim(), bio: _bio.text.trim(), avatarPath: avatarPath,
+          countryCode: country, gender: _gender, profession: _profession.text.trim(), dateOfBirth: _dateOfBirth,
+          skills: _skills, creatorCategory: _creatorCategory, otherLink: otherLink,
         );
       } else {
         updated = await widget.repository.updateProfile(
-          displayName: _name.text.trim(),
-          username: _username.text.trim(),
-          bio: _bio.text.trim(),
-          avatarPath: avatarPath,
-          countryCode: country,
-          gender: _gender,
-          profession: _profession.text.trim(),
-          dateOfBirth: _dateOfBirth,
+          displayName: _name.text.trim(), username: _username.text.trim(), bio: _bio.text.trim(), avatarPath: avatarPath,
+          countryCode: country, gender: _gender, profession: _profession.text.trim(), dateOfBirth: _dateOfBirth,
         );
+        updated = updated.copyWith(otherLink: otherLink);
       }
 
       if (mounted) Navigator.of(context).pop(updated);
@@ -172,145 +169,54 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  void _show(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
+  void _show(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 
   @override
   Widget build(BuildContext context) {
     ImageProvider<Object>? image;
-    if (_avatar != null) {
-      image = FileImage(File(_avatar!.path));
-    } else if (widget.initialAvatarUrl != null) {
-      image = NetworkImage(widget.initialAvatarUrl!);
-    }
+    if (_avatar != null) image = FileImage(File(_avatar!.path));
+    else if (widget.initialAvatarUrl != null) image = NetworkImage(widget.initialAvatarUrl!);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        actions: [
-          TextButton(onPressed: _saving ? null : _save, child: const Text('SAVE')),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Edit Profile'), actions: [TextButton(onPressed: _saving ? null : _save, child: const Text('SAVE'))]),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
           children: [
-            Center(
-              child: GestureDetector(
-                onTap: _saving ? null : _pickAvatar,
-                child: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 52,
-                      backgroundImage: image,
-                      child: image == null ? const Icon(Icons.person_outline, size: 52) : null,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 18),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            Center(child: GestureDetector(
+              onTap: _saving ? null : _pickAvatar,
+              child: Stack(alignment: Alignment.bottomRight, children: [
+                CircleAvatar(radius: 52, backgroundImage: image, child: image == null ? const Icon(Icons.person_outline, size: 52) : null),
+                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary, shape: BoxShape.circle), child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 18)),
+              ]),
+            )),
             const SizedBox(height: 28),
-            TextField(
-              controller: _name,
-              decoration: const InputDecoration(labelText: 'Display name', prefixIcon: Icon(Icons.badge_outlined)),
-            ),
+            TextField(controller: _name, decoration: const InputDecoration(labelText: 'Display name', prefixIcon: Icon(Icons.badge_outlined))),
             const SizedBox(height: 16),
-            TextField(
-              controller: _username,
-              decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.alternate_email)),
-            ),
+            TextField(controller: _username, decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.alternate_email))),
             const SizedBox(height: 16),
-            TextField(
-              controller: _bio,
-              maxLines: 4,
-              maxLength: 160,
-              decoration: const InputDecoration(labelText: 'Bio', alignLabelWithHint: true, prefixIcon: Icon(Icons.edit_note_outlined)),
-            ),
+            TextField(controller: _bio, maxLines: 4, maxLength: 160, decoration: const InputDecoration(labelText: 'Bio', alignLabelWithHint: true, prefixIcon: Icon(Icons.edit_note_outlined))),
+            const SizedBox(height: 16),
+            TextField(controller: _otherLink, keyboardType: TextInputType.url, textInputAction: TextInputAction.done, decoration: const InputDecoration(labelText: 'Your other links', hintText: 'https://example.com', prefixIcon: Icon(Icons.link_outlined), helperText: 'Shown on your profile only when added.')),
             const SizedBox(height: 16),
             Text('Creator skills', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _skills.map((skill) => InputChip(
-                label: Text(skill),
-                onDeleted: _saving ? null : () => setState(() => _skills.remove(skill)),
-              )).toList(),
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: _skills.map((skill) => InputChip(label: Text(skill), onDeleted: _saving ? null : () => setState(() => _skills.remove(skill)))).toList()),
             const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _skill,
-                  onSubmitted: (_) => _addSkill(),
-                  decoration: const InputDecoration(hintText: 'e.g. Dance, Kathak, Football'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(onPressed: _saving ? null : _addSkill, icon: const Icon(Icons.add)),
-            ]),
+            Row(children: [Expanded(child: TextField(controller: _skill, onSubmitted: (_) => _addSkill(), decoration: const InputDecoration(hintText: 'e.g. Dance, Kathak, Football'))), const SizedBox(width: 8), IconButton.filledTonal(onPressed: _saving ? null : _addSkill, icon: const Icon(Icons.add))]),
             const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              initialValue: _creatorCategory,
-              decoration: const InputDecoration(labelText: 'Primary creator skill/category', prefixIcon: Icon(Icons.auto_awesome_outlined)),
-              items: _categories.map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
-              onChanged: _saving ? null : (value) => setState(() => _creatorCategory = value ?? 'Other'),
-            ),
+            DropdownButtonFormField<String>(initialValue: _creatorCategory, decoration: const InputDecoration(labelText: 'Primary creator skill/category', prefixIcon: Icon(Icons.auto_awesome_outlined)), items: _categories.map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(), onChanged: _saving ? null : (value) => setState(() => _creatorCategory = value ?? 'Other')),
             const SizedBox(height: 16),
-            TextField(
-              controller: _country,
-              maxLength: 2,
-              decoration: const InputDecoration(labelText: 'Country code', counterText: '', prefixIcon: Icon(Icons.public_outlined)),
-            ),
+            TextField(controller: _country, maxLength: 2, decoration: const InputDecoration(labelText: 'Country code', counterText: '', prefixIcon: Icon(Icons.public_outlined))),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _gender,
-              decoration: const InputDecoration(labelText: 'Gender', prefixIcon: Icon(Icons.person_outline)),
-              items: const [
-                DropdownMenuItem(value: 'female', child: Text('Female')),
-                DropdownMenuItem(value: 'male', child: Text('Male')),
-                DropdownMenuItem(value: 'other', child: Text('Other')),
-                DropdownMenuItem(value: 'prefer_not_to_say', child: Text('Prefer not to say')),
-              ],
-              onChanged: _saving ? null : (value) => setState(() => _gender = value ?? 'prefer_not_to_say'),
-            ),
+            DropdownButtonFormField<String>(initialValue: _gender, decoration: const InputDecoration(labelText: 'Gender', prefixIcon: Icon(Icons.person_outline)), items: const [DropdownMenuItem(value: 'female', child: Text('Female')), DropdownMenuItem(value: 'male', child: Text('Male')), DropdownMenuItem(value: 'other', child: Text('Other')), DropdownMenuItem(value: 'prefer_not_to_say', child: Text('Prefer not to say'))], onChanged: _saving ? null : (value) => setState(() => _gender = value ?? 'prefer_not_to_say')),
             const SizedBox(height: 16),
-            TextField(
-              controller: _profession,
-              decoration: const InputDecoration(labelText: 'Profession', prefixIcon: Icon(Icons.work_outline)),
-            ),
+            TextField(controller: _profession, decoration: const InputDecoration(labelText: 'Profession', prefixIcon: Icon(Icons.work_outline))),
             const SizedBox(height: 8),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.cake_outlined),
-                title: const Text('Date of birth'),
-                subtitle: Text(_formatDate(_dateOfBirth)),
-                trailing: const Icon(Icons.calendar_month_outlined),
-                onTap: _saving ? null : _pickDateOfBirth,
-              ),
-            ),
+            Card(child: ListTile(leading: const Icon(Icons.cake_outlined), title: const Text('Date of birth'), subtitle: Text(_formatDate(_dateOfBirth)), trailing: const Icon(Icons.calendar_month_outlined), onTap: _saving ? null : _pickDateOfBirth)),
             const SizedBox(height: 10),
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(14),
-                child: Text('Creator skills and category help people discover your profile and BEATS. Private KYC, payout and full date-of-birth information are never shown publicly.'),
-              ),
-            ),
-            if (_saving)
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Center(child: CircularProgressIndicator()),
-              ),
+            const Card(child: Padding(padding: EdgeInsets.all(14), child: Text('Creator skills and category help people discover your profile and BEATS. Private KYC, payout and full date-of-birth information are never shown publicly.'))),
+            if (_saving) const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator())),
           ],
         ),
       ),
