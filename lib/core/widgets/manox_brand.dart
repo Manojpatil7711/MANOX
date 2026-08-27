@@ -21,14 +21,23 @@ class ManoxBrand extends StatelessWidget {
       children: [
         ManoxMark(size: compact ? 34 : 42),
         const SizedBox(width: 10),
-        Text(
-          'MANOX',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontSize: compact ? 18 : 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: compact ? 2.4 : 3.2,
-            height: 1,
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) => const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0xFFFF9933), Color(0xFFFFFFFF), Color(0xFF138808)],
+            stops: [0.0, 0.5, 1.0],
+          ).createShader(bounds),
+          child: Text(
+            'MANOX',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: compact ? 18 : 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: compact ? 2.4 : 3.2,
+              height: 1,
+            ),
           ),
         ),
       ],
