@@ -48,12 +48,23 @@ class _ProfilePageState extends State<ProfilePage> {
       _show('Profile is still loading. Please try again.');
       return;
     }
-    final updated = await Navigator.of(context).push<ProfileData>(MaterialPageRoute(builder: (_) => EditProfilePage(
-      repository: _repo, initialName: profile!.displayName, initialUsername: profile!.handle, initialBio: profile!.bio,
-      initialAvatarUrl: profile!.avatarUrl, initialCountryCode: profile!.countryCode, initialGender: profile!.gender,
-      initialProfession: profile!.profession, initialDateOfBirth: profile!.dateOfBirth, initialSkills: profile!.skills,
-      initialCreatorCategory: profile!.creatorCategory, initialOtherLink: profile!.otherLink,
-    )));
+    final current = profile;
+    final updated = await Navigator.of(context).push<ProfileData>(
+      MaterialPageRoute(builder: (_) => EditProfilePage(
+        repository: _repo,
+        initialName: current.displayName,
+        initialUsername: current.handle,
+        initialBio: current.bio,
+        initialAvatarUrl: current.avatarUrl,
+        initialCountryCode: current.countryCode,
+        initialGender: current.gender,
+        initialProfession: current.profession,
+        initialDateOfBirth: current.dateOfBirth,
+        initialSkills: current.skills,
+        initialCreatorCategory: current.creatorCategory,
+        initialOtherLink: current.otherLink,
+      )),
+    );
     if (updated != null && mounted) setState(() => _profile = updated);
   }
 
@@ -82,9 +93,10 @@ class _ProfilePageState extends State<ProfilePage> {
     final children = <Widget>[];
     if (profession.isNotEmpty) children.add(Text(profession, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)));
     if (flag.isNotEmpty) children.add(Text(flag, style: const TextStyle(fontSize: 20)));
-    if (profile.otherLink?.trim().isNotEmpty == true) children.add(Padding(
+    final otherLink = profile.otherLink?.trim();
+    if (otherLink != null && otherLink.isNotEmpty) children.add(Padding(
       padding: const EdgeInsets.only(top: 4),
-      child: InkWell(onTap: () => _openOtherLink(profile.otherLink!.trim()), child: Row(mainAxisSize: MainAxisSize.min, children: const [Icon(Icons.link_outlined, size: 18), SizedBox(width: 5), Text('Link', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))])),
+      child: InkWell(onTap: () => _openOtherLink(otherLink), child: Row(mainAxisSize: MainAxisSize.min, children: const [Icon(Icons.link_outlined, size: 18), SizedBox(width: 5), Text('Link', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))])),
     ));
     if (children.isEmpty) return const SizedBox.shrink();
     return Padding(padding: const EdgeInsets.only(top: 6), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children.map((w) => Padding(padding: const EdgeInsets.only(bottom: 3), child: w)).toList()));
@@ -118,7 +130,7 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 14),
         Row(children: [Expanded(child: _ProfileAction(icon: Icons.monetization_on_outlined, title: 'Monetization', subtitle: profile.isCreator ? 'Creator earnings' : 'Creator tools', onTap: () => _openProfileSection('Monetization'))), const SizedBox(width: 10), Expanded(child: _ProfileAction(icon: Icons.account_balance_wallet_outlined, title: 'Wallet', subtitle: 'Balance & payouts', onTap: () => _openProfileSection('Wallet')))]),
         const SizedBox(height: 22),
-        Row(children: [_ProfileTab(icon: Icons.grid_on_rounded, label: 'POSTS', selected: _selectedTab == 0, onTap: () => setState(() => _selectedTab = 0)), _ProfileTab(icon: Icons.play_circle_outline_rounded, label: 'BEATS', selected: _selectedTab == 1, onTap: () => setState(() => _selectedTab = 1)), _ProfileTab(icon: Icons.video_library_outlined, label: 'MEDIA', selected: _selectedTab == 2, onTap: () => setState(() => _selectedTab = 2))]),
+        Row(children: [_ProfileTab(icon: Icons.grid_on_rounded, label: 'POSTS', selected: _selectedTab == 0, onTap: () => setState(() => _selectedTab = 0)), _ProfileTab(icon: Icons.play_circle_outline_rounded, label: 'BEATS', selected: _selectedTab == 1, onTap: () => setState(() => _selectedTab = 1)), _ProfileTab(icon: Icons.video_library_outlined, label: 'MEDIA', selected: _selectedTab == 2, onTap: () => setState(() => _selectedTab = 2)]),
         Divider(height: 1, color: theme.dividerColor), const SizedBox(height: 12),
       ];
       if (_selectedTab == 0) { if (_posts.isEmpty) children.add(const _EmptySection(message: 'Your posts will appear here.')); else children.addAll(_posts.map((post) => Padding(padding: const EdgeInsets.only(bottom: 8), child: PostCard(data: _toHomePost(post), repository: _postRepo, onChanged: _load)))); }
