@@ -23,7 +23,7 @@ import 'features/settings/settings.dart';
 import 'features/settings/presentation/kids_protection_page.dart';
 import 'features/communication/presentation/communication_pages.dart';
 import 'features/editor/presentation/safe_media_editor_page.dart';
-import 'features/editor/presentation/professional_media_editor_page.dart';
+import 'features/editor/presentation/professional_media_editor_v2_page.dart';
 import 'features/compliance/presentation/community_safety_page.dart';
 import 'features/safety/presentation/safety_alert_button.dart';
 import 'features/safety/presentation/women_safety_page.dart';
@@ -36,10 +36,7 @@ class _AuthRefreshNotifier extends ChangeNotifier {
   }
   StreamSubscription? _subscription;
   @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
+  void dispose() { _subscription?.cancel(); super.dispose(); }
 }
 
 class ManoxApp extends StatelessWidget {
@@ -91,7 +88,7 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/editor', builder: (context, state) {
         final raw = state.extra;
         final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
-        return ProfessionalMediaEditorPage(isVideo: extra['isVideo'] == true, mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null);
+        return ProfessionalMediaEditorV2Page(isVideo: extra['isVideo'] == true, mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null);
       }),
       GoRoute(path: '/editor-safe', builder: (context, state) {
         final raw = state.extra;
@@ -107,10 +104,6 @@ class ManoxApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: manoxTheme(),
         routerConfig: _router,
-        builder: (context, child) => SizedBox.expand(
-          child: SafetyAlertOverlay(
-            child: child ?? const SizedBox.shrink(),
-          ),
-        ),
+        builder: (context, child) => SizedBox.expand(child: SafetyAlertOverlay(child: child ?? const SizedBox.shrink())),
       );
 }
