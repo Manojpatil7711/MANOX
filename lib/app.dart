@@ -15,6 +15,7 @@ import 'features/home/presentation/discovery_page.dart';
 import 'features/home/presentation/learn_page.dart';
 import 'features/profile/profile.dart';
 import 'features/profile/presentation/public_profile_page.dart';
+import 'features/profile/presentation/manox_gallery_page.dart';
 import 'features/onboarding/onboarding.dart';
 import 'features/creator/creator.dart';
 import 'features/settings/settings.dart';
@@ -66,6 +67,7 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/sports', builder: (_, __) => const DiscoveryPage(title: 'Sports', icon: Icons.sports_soccer_rounded)),
       GoRoute(path: '/women-safety', builder: (_, __) => const WomenSafetyPage()),
       GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
+      GoRoute(path: '/profile-gallery', builder: (_, __) => const ManoxGalleryPage()),
       GoRoute(path: '/profile/:userId', builder: (context, state) => PublicProfilePage(userId: state.pathParameters['userId']!)),
       GoRoute(path: '/creator', builder: (_, __) => const CreatorPage()),
       GoRoute(path: '/monetization', builder: (_, __) => const MonetizationPage()),
