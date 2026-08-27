@@ -6,7 +6,8 @@ import '../data/supabase_post_repository.dart';
 import 'widgets/media_preview.dart';
 
 class CreatePostPage extends StatefulWidget {
-  const CreatePostPage({super.key});
+  final bool initialBeat;
+  const CreatePostPage({super.key, this.initialBeat = false});
   @override
   State<CreatePostPage> createState() => _CreatePostPageState();
 }
@@ -16,8 +17,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
   final _repository = SupabasePostRepository();
   final _captionController = TextEditingController();
   XFile? _media;
-  bool _isVideo = false;
-  bool _isBeat = false;
+  late bool _isVideo;
+  late bool _isBeat;
   bool _posting = false;
   bool _kidsContent = false;
   String _kidsCategory = 'Science Experiments';
@@ -26,6 +27,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
     'Science Experiments', 'Maths', 'English', 'History', 'Geography',
     'GK', 'Art & Drawing', 'Music & Dance', 'Sports', 'Coding',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _isVideo = widget.initialBeat;
+    _isBeat = widget.initialBeat;
+  }
 
   @override
   void dispose() {
@@ -53,17 +61,19 @@ class _CreatePostPageState extends State<CreatePostPage> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
-              child: Text('Add to your post', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+              child: Text(widget.initialBeat ? 'Upload a BEAT' : 'Add to your post', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
             ),
             const SizedBox(height: 16),
             Row(children: [
-              Expanded(child: _sourceTile(sheet, Icons.photo_library_outlined, 'Photo', () => _pick(video: false, source: ImageSource.gallery))),
-              const SizedBox(width: 10),
+              if (!widget.initialBeat) ...[
+                Expanded(child: _sourceTile(sheet, Icons.photo_library_outlined, 'Photo', () => _pick(video: false, source: ImageSource.gallery))),
+                const SizedBox(width: 10),
+              ],
               Expanded(child: _sourceTile(sheet, Icons.video_library_outlined, 'Video', () => _pick(video: true, source: ImageSource.gallery))),
-              const SizedBox(width: 10),
-              Expanded(child: _sourceTile(sheet, Icons.camera_alt_outlined, 'Camera', () => _pick(video: false, source: ImageSource.camera))),
+              if (!widget.initialBeat) const SizedBox(width: 10),
+              if (!widget.initialBeat) Expanded(child: _sourceTile(sheet, Icons.camera_alt_outlined, 'Camera', () => _pick(video: false, source: ImageSource.camera))),
             ]),
             const SizedBox(height: 10),
             SizedBox(
@@ -71,7 +81,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
               child: OutlinedButton.icon(
                 onPressed: () { Navigator.pop(sheet); _pick(video: true, source: ImageSource.camera); },
                 icon: const Icon(Icons.videocam_outlined),
-                label: const Text('Record video'),
+                label: Text(widget.initialBeat ? 'Record BEAT' : 'Record video'),
               ),
             ),
           ]),
@@ -86,15 +96,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).dividerColor),
-        ),
-        child: Column(children: [
-          Icon(icon, size: 28),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-        ]),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).dividerColor)),
+        child: Column(children: [Icon(icon, size: 28), const SizedBox(height: 8), Text(label, style: const TextStyle(fontWeight: FontWeight.w700))]),
       ),
     );
   }
@@ -105,7 +108,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
     final media = _media;
     final caption = _captionController.text.trim();
     if (media == null && caption.isEmpty) {
-      _show('Add a photo, video or caption first.');
+      _show(widget.initialBeat ? 'Select a video to upload your BEAT.' : 'Add a photo, video or caption first.');
       return;
     }
     if (_isBeat && !_isVideo) {
@@ -114,6 +117,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
     if (_kidsContent && !_isVideo) {
       _show('Kids content must be a video.');
+      return;
+    }
+    if (widget.initialBeat && !_isVideo) {
+      _show('Select a video for your BEAT.');
       return;
     }
 
@@ -153,23 +160,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Close',
-          onPressed: _posting ? null : () => Navigator.of(context).pop(false),
-          icon: const Icon(Icons.close_rounded),
-        ),
-        title: const Text('Create post', style: TextStyle(fontWeight: FontWeight.w800)),
+        leading: IconButton(tooltip: 'Close', onPressed: _posting ? null : () => Navigator.of(context).pop(false), icon: const Icon(Icons.close_rounded)),
+        title: Text(widget.initialBeat ? 'Upload BEAT' : 'Create post', style: const TextStyle(fontWeight: FontWeight.w800)),
         actions: [
           IconButton(onPressed: _posting ? null : _openTools, tooltip: 'Tools', icon: const Icon(Icons.build_circle_outlined)),
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: FilledButton(
-              onPressed: _posting ? null : _publish,
-              child: _posting
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Post'),
-            ),
-          ),
+          Padding(padding: const EdgeInsets.only(right: 10), child: FilledButton(onPressed: _posting ? null : _publish, child: _posting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Post'))),
         ],
       ),
       body: SafeArea(
@@ -178,72 +173,19 @@ class _CreatePostPageState extends State<CreatePostPage> {
           children: [
             if (_media == null) _emptyMedia() else _mediaPreview(),
             const SizedBox(height: 16),
-            TextField(
-              controller: _captionController,
-              maxLength: 2200,
-              maxLines: 6,
-              minLines: 3,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Write a caption…',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-              ),
-            ),
+            TextField(controller: _captionController, maxLength: 2200, maxLines: 6, minLines: 3, textCapitalization: TextCapitalization.sentences, decoration: InputDecoration(hintText: widget.initialBeat ? 'Write a BEAT caption…' : 'Write a caption…', alignLabelWithHint: true, border: const OutlineInputBorder())),
             const SizedBox(height: 6),
-            if (_isVideo)
-              Card(
-                child: SwitchListTile.adaptive(
-                  secondary: const Icon(Icons.music_note_rounded),
-                  title: const Text('Add to BEATS', style: TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: const Text('Public BEATS are separate from Kids content'),
-                  value: _isBeat,
-                  onChanged: _posting ? null : (v) => setState(() => _isBeat = v),
-                ),
-              ),
-            Card(
-              child: SwitchListTile.adaptive(
-                secondary: const Icon(Icons.child_care_rounded),
-                title: const Text('Kids content', style: TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: const Text('Routes this content only to MANOX Kids'),
-                value: _kidsContent,
-                onChanged: _posting ? null : (v) => setState(() {
-                  _kidsContent = v;
-                  if (v) _isBeat = false;
-                }),
-              ),
-            ),
-            if (_kidsContent)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _kidsCategory,
-                    decoration: const InputDecoration(labelText: 'Kids category'),
-                    items: _kidsCategories.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                    onChanged: _posting ? null : (v) => setState(() => _kidsCategory = v ?? _kidsCategory),
-                  ),
-                ),
-              ),
-            Card(
-              child: Column(children: [
-                ListTile(
-                  leading: const Icon(Icons.photo_library_outlined),
-                  title: const Text('Add media'),
-                  subtitle: const Text('Photo, video or camera'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: _posting ? null : _openMediaPicker,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.build_circle_outlined),
-                  title: const Text('Tools'),
-                  subtitle: const Text('Photo design + video editing studio'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: _posting ? null : _openTools,
-                ),
-              ]),
-            ),
+            if (_isVideo && !widget.initialBeat)
+              Card(child: SwitchListTile.adaptive(secondary: const Icon(Icons.music_note_rounded), title: const Text('Add to BEATS', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Public BEATS are separate from Kids content'), value: _isBeat, onChanged: _posting ? null : (v) => setState(() => _isBeat = v))),
+            if (widget.initialBeat)
+              const Card(child: ListTile(leading: Icon(Icons.music_note_rounded), title: Text('BEAT video', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('Your video will appear in the full-screen BEATS feed.'))),
+            Card(child: SwitchListTile.adaptive(secondary: const Icon(Icons.child_care_rounded), title: const Text('Kids content', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Routes this content only to MANOX Kids'), value: _kidsContent, onChanged: widget.initialBeat || _posting ? null : (v) => setState(() { _kidsContent = v; if (v) _isBeat = false; }))),
+            if (_kidsContent) Card(child: Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 12), child: DropdownButtonFormField<String>(initialValue: _kidsCategory, decoration: const InputDecoration(labelText: 'Kids category'), items: _kidsCategories.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(), onChanged: _posting ? null : (v) => setState(() => _kidsCategory = v ?? _kidsCategory)))),
+            Card(child: Column(children: [
+              ListTile(leading: const Icon(Icons.photo_library_outlined), title: Text(widget.initialBeat ? 'Choose BEAT video' : 'Add media'), subtitle: Text(widget.initialBeat ? 'Gallery video or camera recording' : 'Photo, video or camera'), trailing: const Icon(Icons.chevron_right_rounded), onTap: _posting ? null : _openMediaPicker),
+              const Divider(height: 1),
+              ListTile(leading: const Icon(Icons.build_circle_outlined), title: const Text('Tools'), subtitle: const Text('Photo design + video editing studio'), trailing: const Icon(Icons.chevron_right_rounded), onTap: _posting ? null : _openTools),
+            ])),
           ],
         ),
       ),
@@ -255,41 +197,27 @@ class _CreatePostPageState extends State<CreatePostPage> {
     borderRadius: BorderRadius.circular(20),
     child: Container(
       height: 320,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add_photo_alternate_outlined, size: 58),
-          SizedBox(height: 14),
-          Text('Add photo or video', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          SizedBox(height: 6),
-          Text('Gallery • Camera • Video', style: TextStyle(fontSize: 13)),
-        ],
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: Theme.of(context).dividerColor)),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(widget.initialBeat ? Icons.video_library_rounded : Icons.add_photo_alternate_outlined, size: 58),
+        const SizedBox(height: 14),
+        Text(widget.initialBeat ? 'Upload your BEAT video' : 'Add photo or video', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        Text(widget.initialBeat ? 'Gallery • Camera • Vertical video' : 'Gallery • Camera • Video', style: const TextStyle(fontSize: 13)),
+      ]),
     ),
   );
 
   Widget _mediaPreview() {
     final media = _media!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: _isVideo
-              ? ManoxLocalVideoPreview(path: media.path, height: 430)
-              : Image.file(File(media.path), height: 430, fit: BoxFit.contain),
-        ),
-        const SizedBox(height: 10),
-        Row(children: [
-          Expanded(child: OutlinedButton.icon(onPressed: _posting ? null : _openTools, icon: const Icon(Icons.build_circle_outlined), label: const Text('Tools'))),
-          const SizedBox(width: 10),
-          IconButton.filledTonal(tooltip: 'Replace media', onPressed: _posting ? null : _openMediaPicker, icon: const Icon(Icons.swap_horiz_rounded)),
-        ]),
-      ],
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      ClipRRect(borderRadius: BorderRadius.circular(20), child: _isVideo ? ManoxLocalVideoPreview(path: media.path, height: 430) : Image.file(File(media.path), height: 430, fit: BoxFit.contain)),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(child: OutlinedButton.icon(onPressed: _posting ? null : _openTools, icon: const Icon(Icons.build_circle_outlined), label: const Text('Tools'))),
+        const SizedBox(width: 10),
+        IconButton.filledTonal(tooltip: 'Replace media', onPressed: _posting ? null : _openMediaPicker, icon: const Icon(Icons.swap_horiz_rounded)),
+      ]),
+    ]);
   }
 }
