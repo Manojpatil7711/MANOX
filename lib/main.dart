@@ -7,8 +7,6 @@ import 'core/config/app_config.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Keep startup resilient: platform configuration or an optional backend
-  // must never prevent the Flutter shell from starting.
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('MANOX Flutter error: ${details.exception}');
@@ -29,11 +27,10 @@ Future<void> main() async {
   };
 
   try {
-    // MANOX is designed as a full-screen mobile experience (similar to
-    // modern social/video apps). System bars stay hidden during normal use;
-    // Android/iOS can reveal them temporarily with the system gesture.
-    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    await SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    // MANOX uses an immersive full-screen mobile experience.
+    // These two APIs are synchronous in the Flutter SDK used by CI.
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       systemNavigationBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
@@ -49,9 +46,6 @@ Future<void> main() async {
     debugPrintStack(stackTrace: stackTrace);
   }
 
-  // Initialize Supabase only when SUPABASE_URL and SUPABASE_ANON_KEY are
-  // provided via --dart-define. SupabaseService handles its own failures so
-  // the app can still open when the backend is temporarily unavailable.
   if (AppConfig.hasSupabase) {
     try {
       await SupabaseService.initialize();
