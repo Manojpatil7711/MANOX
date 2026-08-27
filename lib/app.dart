@@ -65,8 +65,6 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/auth', builder: (_, __) => const LoginPage()),
       GoRoute(path: '/auth/signup', builder: (_, __) => const SignupPage()),
       GoRoute(path: '/auth/forgot', builder: (_, __) => const ForgotPasswordPage()),
-      // /home is the actual main feed. The Kids gate is only used at '/'.
-      // This prevents OFF -> /home -> gate -> /home redirect loops.
       GoRoute(path: '/home', builder: (_, __) => const HomePage()),
       GoRoute(path: '/kids-home', builder: (_, __) => const KidsHomePage()),
       GoRoute(path: '/kids-protection', builder: (_, __) => const KidsProtectionPage()),
@@ -109,6 +107,10 @@ class ManoxApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: manoxTheme(),
         routerConfig: _router,
-        builder: (context, child) => SafetyAlertOverlay(child: child ?? const SizedBox.shrink()),
+        builder: (context, child) => SizedBox.expand(
+          child: SafetyAlertOverlay(
+            child: child ?? const SizedBox.shrink(),
+          ),
+        ),
       );
 }
