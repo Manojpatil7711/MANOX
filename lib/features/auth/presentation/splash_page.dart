@@ -62,7 +62,26 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             ),
             FadeTransition(
               opacity: brandOpacity,
-              child: ScaleTransition(scale: brandScale, child: const ManoxBrand(compact: false)),
+              child: ScaleTransition(
+                scale: brandScale,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const ManoxBrand(compact: false),
+                    const SizedBox(height: 12),
+                    Text(
+                      'BEATS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 5.0,
+                        shadows: [Shadow(color: Colors.white.withValues(alpha: .28), blurRadius: 8)],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
