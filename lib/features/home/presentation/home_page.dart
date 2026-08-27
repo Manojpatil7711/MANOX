@@ -36,6 +36,10 @@ class _HomePageState extends State<HomePage> {
   void _openNotifications() => context.push('/notifications');
   void _openMessages() => context.push('/messages');
   void _openSearch() => context.push('/search');
+  void _openProfile() {
+    if (!mounted) return;
+    context.push('/profile');
+  }
   void _showMessage(String message) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message))); }
   String _cleanError(Object error) => error.toString().replaceFirst('Exception: ', '');
 
@@ -51,7 +55,7 @@ class _HomePageState extends State<HomePage> {
           IconButton(tooltip: 'Create', icon: const Icon(Icons.add_circle_outline_rounded), onPressed: _openCreate),
           IconButton(tooltip: 'Messages', icon: const Icon(Icons.chat_bubble_outline_rounded), onPressed: _openMessages),
           IconButton(tooltip: 'Notifications', icon: const Icon(Icons.notifications_none_rounded), onPressed: _openNotifications),
-          IconButton(tooltip: 'Profile', icon: const Icon(Icons.person_outline_rounded), onPressed: () => context.push('/profile')),
+          IconButton(key: const Key('home-profile-button'), tooltip: 'Profile', icon: const Icon(Icons.person_outline_rounded), onPressed: _openProfile),
         ],
       ),
       body: SafeArea(child: RefreshIndicator(onRefresh: _loadFeed, child: ListView(
@@ -101,5 +105,5 @@ class _HomePageState extends State<HomePage> {
 
   Widget _composerCard() => Card(child: InkWell(borderRadius: BorderRadius.circular(18), onTap: _openCreate, child: const Padding(padding: EdgeInsets.all(14), child: Row(children: [ManoxMark(size: 42), SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Create something', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)), SizedBox(height: 3), Text('Post a thought, photo, video or Beat', style: TextStyle(fontSize: 12))])), Icon(Icons.add_circle_rounded, size: 28)]))));
 
-  Widget _bottomNav(ThemeData theme) => NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) context.push('/trending'); else if (index == 2) _openCreate(); else if (index == 3) _openBeats(); else if (index == 4) context.push('/profile'); }, destinations: const [NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'), NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore_rounded), label: 'Discover'), NavigationDestination(icon: Icon(Icons.add_rounded), selectedIcon: Icon(Icons.add_circle_rounded), label: 'Create'), NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome_rounded), label: 'Beats'), NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile')]);
+  Widget _bottomNav(ThemeData theme) => NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) context.push('/trending'); else if (index == 2) _openCreate(); else if (index == 3) _openBeats(); else if (index == 4) _openProfile(); }, destinations: const [NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'), NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore_rounded), label: 'Discover'), NavigationDestination(icon: Icon(Icons.add_rounded), selectedIcon: Icon(Icons.add_circle_rounded), label: 'Create'), NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome_rounded), label: 'Beats'), NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile')]);
 }
