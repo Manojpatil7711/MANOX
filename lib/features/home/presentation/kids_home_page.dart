@@ -28,64 +28,69 @@ class KidsHomePage extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 18, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Safe learning & fun',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-                ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Only parent-approved Kids content is available here.'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _items.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.05,
-                ),
-                itemBuilder: (_, i) {
-                  final item = _items[i];
-                  return Card(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: item['title'] == 'Beats'
-                          ? () => context.push('/beats?mode=kids')
-                          : null,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(item['icon'] as IconData, size: 42),
-                          const SizedBox(height: 12),
-                          Text(
-                            item['title'] as String,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text('Kids safe', style: TextStyle(fontSize: 12)),
-                        ],
-                      ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox.expand(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 18, 20, 8),
+                    child: Text(
+                      'Safe learning & fun',
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
                     ),
-                  );
-                },
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text('Only parent-approved Kids content is available here.'),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      itemCount: _items.length,
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 420,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.15,
+                      ),
+                      itemBuilder: (_, i) {
+                        final item = _items[i];
+                        return Card(
+                          margin: EdgeInsets.zero,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: item['title'] == 'Beats'
+                                ? () => context.push('/beats?mode=kids')
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(item['icon'] as IconData, size: 42),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    item['title'] as String,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontWeight: FontWeight.w800),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  const Text('Kids safe', style: TextStyle(fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
