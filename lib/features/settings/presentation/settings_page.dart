@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/supabase_service.dart';
-import 'kids_protection_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -71,7 +71,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _openKidsSafety() {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const KidsProtectionPage()));
+    context.push('/kids-protection');
   }
 
   void _openEditProfile() {
