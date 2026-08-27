@@ -41,7 +41,14 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
 
     try {
       final profile = await _profiles.fetchProfileByUserId(widget.userId);
-      final posts = await _postsRepo.fetchPostsByOwner(widget.userId);
+      List<ManoxPost> posts = const [];
+
+      // A post/content query must never prevent a valid profile from rendering.
+      try {
+        posts = await _postsRepo.fetchPostsByOwner(widget.userId);
+      } catch (_) {
+        posts = const [];
+      }
 
       if (!mounted) return;
       setState(() {
@@ -49,11 +56,11 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
         _posts = posts;
         _loading = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Profile unavailable';
+        _error = error is StateError ? error.message : 'Unable to load profile.';
       });
     }
   }
