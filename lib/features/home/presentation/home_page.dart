@@ -23,10 +23,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final remote = await _repository.fetchFeed();
       if (!mounted) return;
-      setState(() {
-        _posts = remote.map((post) => HomeDemoData(id: post.id, creatorName: post.creatorName, handle: post.handle, text: post.text, likes: post.likes, comments: post.comments, imagePath: post.imageUrl, likedByMe: post.likedByMe, isRemote: true, ownerUserId: post.ownerUserId)).toList();
-        _loadingFeed = false;
-      });
+      setState(() { _posts = remote.map((post) => HomeDemoData(id: post.id, creatorName: post.creatorName, handle: post.handle, text: post.text, likes: post.likes, comments: post.comments, imagePath: post.imageUrl, likedByMe: post.likedByMe, isRemote: true, ownerUserId: post.ownerUserId)).toList(); _loadingFeed = false; });
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingFeed = false);
@@ -50,69 +47,63 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: SafeArea(child: LayoutBuilder(builder: (context, constraints) {
-          final compact = constraints.maxWidth < 390;
-          return Material(
-            color: theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(children: [
-                IconButton(tooltip: 'Search MANOX', icon: const Icon(Icons.search_rounded), onPressed: _openSearch),
-                Expanded(child: Align(alignment: compact ? Alignment.center : Alignment.centerLeft, child: const FittedBox(fit: BoxFit.scaleDown, child: ManoxBrand(compact: true)))),
-                if (!compact) IconButton(tooltip: 'Create post', icon: const Icon(Icons.add_box_outlined), onPressed: _openCreate),
-                IconButton(tooltip: 'Women Safety', icon: const Icon(Icons.shield_outlined), onPressed: _openWomenSafety),
-                IconButton(tooltip: 'Messages', icon: const Icon(Icons.chat_bubble_outline_rounded), onPressed: _openMessages),
-                IconButton(tooltip: 'Notifications', icon: const Icon(Icons.notifications_none_rounded), onPressed: _openNotifications),
-                IconButton(tooltip: 'Profile', icon: const Icon(Icons.person_outline_rounded), onPressed: () => context.push('/profile')),
-              ]),
-            ),
-          );
-        })),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        titleSpacing: 8,
+        title: Row(children: [const Expanded(child: ManoxBrand(compact: true)), IconButton(tooltip: 'Search MANOX', icon: const Icon(Icons.search_rounded), onPressed: _openSearch)]),
+        actions: [
+          IconButton(tooltip: 'Create', icon: const Icon(Icons.add_circle_outline_rounded), onPressed: _openCreate),
+          IconButton(tooltip: 'Messages', icon: const Icon(Icons.chat_bubble_outline_rounded), onPressed: _openMessages),
+          IconButton(tooltip: 'Notifications', icon: const Icon(Icons.notifications_none_rounded), onPressed: _openNotifications),
+          IconButton(tooltip: 'Profile', icon: const Icon(Icons.person_outline_rounded), onPressed: () => context.push('/profile')),
+        ],
       ),
       body: SafeArea(child: RefreshIndicator(onRefresh: _loadFeed, child: ListView(
         controller: _feedScrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 28),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 92),
         children: [
           _discoveryRow(theme),
+          const SizedBox(height: 14),
+          _feedFilter(theme),
           const SizedBox(height: 12),
           _composerCard(),
-          const SizedBox(height: 16),
-          Row(children: [Text('For You', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)), const Spacer(), if (!_loadingFeed) Text('${_posts.length}', style: theme.textTheme.bodySmall)]),
+          const SizedBox(height: 18),
+          Row(children: [Text('For You', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)), const Spacer(), if (!_loadingFeed) Text('${_posts.length} posts', style: theme.textTheme.bodySmall)]),
           const SizedBox(height: 10),
           if (_loadingFeed) const Padding(padding: EdgeInsets.all(36), child: Center(child: CircularProgressIndicator()))
           else if (_posts.isEmpty) const Padding(padding: EdgeInsets.all(36), child: Center(child: Text('No content yet. Be the first to create.')))
           else ..._posts.map((post) => Padding(padding: const EdgeInsets.only(bottom: 10), child: PostCard(data: post, repository: _repository, onChanged: _loadFeed))),
         ],
       ))),
+      bottomNavigationBar: _bottomNav(theme),
     );
   }
 
+  Widget _feedFilter(ThemeData theme) => SizedBox(height: 38, child: Row(children: [
+    Expanded(child: _filterChip('For You', true, theme)),
+    const SizedBox(width: 8), Expanded(child: _filterChip('Following', false, theme)),
+    const SizedBox(width: 8), Expanded(child: _filterChip('Latest', false, theme)),
+  ]));
+
+  Widget _filterChip(String label, bool active, ThemeData theme) => Container(alignment: Alignment.center, decoration: BoxDecoration(color: active ? theme.colorScheme.onSurface : theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)), child: Text(label, style: TextStyle(color: active ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface, fontWeight: FontWeight.w700, fontSize: 12)));
+
   Widget _discoveryRow(ThemeData theme) {
-    const items = <({String label, IconData icon})>[
-      (label: 'BEATS', icon: Icons.auto_awesome_rounded),
-      (label: 'Live', icon: Icons.radio_rounded),
-      (label: 'Trending', icon: Icons.local_fire_department_rounded),
-      (label: 'Learn', icon: Icons.school_rounded),
-      (label: 'Entertainment', icon: Icons.movie_rounded),
-      (label: 'Sports', icon: Icons.sports_soccer_rounded),
+    const items = <({String label, IconData icon, String? route})>[
+      (label: 'BEATS', icon: Icons.auto_awesome_rounded, route: '/beats'),
+      (label: 'LIVE', icon: Icons.radio_rounded, route: '/live'),
+      (label: 'TRENDING', icon: Icons.local_fire_department_rounded, route: '/trending'),
+      (label: 'LEARN', icon: Icons.school_rounded, route: '/learn'),
+      (label: 'ENTERTAIN', icon: Icons.movie_rounded, route: '/entertainment'),
+      (label: 'SPORTS', icon: Icons.sports_soccer_rounded, route: '/sports'),
     ];
-    return SizedBox(height: 78, child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 8),
-      itemBuilder: (_, index) {
-        final item = items[index];
-        return InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () { if (item.label == 'BEATS') _openBeats(); else if (item.label == 'Live') _openLive(); else if (item.label == 'Entertainment') _openEntertainment(); else _openDiscovery(item.label); },
-          child: Container(width: 76, decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: theme.dividerColor)), padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(item.icon, size: 23), const SizedBox(height: 4), Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700))])),
-        );
-      },
-    ));
+    return SizedBox(height: 92, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: items.length, separatorBuilder: (_, __) => const SizedBox(width: 10), itemBuilder: (_, index) {
+      final item = items[index];
+      return InkWell(borderRadius: BorderRadius.circular(22), onTap: () => context.push(item.route!), child: Container(width: 82, decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [theme.colorScheme.surfaceContainerHighest, theme.colorScheme.surface])), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 44, height: 44, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: theme.colorScheme.outline)), child: Icon(item.icon, size: 22)), const SizedBox(height: 6), Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800))])));
+    }));
   }
 
-  Widget _composerCard() => Card(child: InkWell(borderRadius: BorderRadius.circular(16), onTap: _openCreate, child: const Padding(padding: EdgeInsets.all(14), child: Row(children: [ManoxMark(size: 40), SizedBox(width: 12), Expanded(child: Text('Create a post…', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600))), Icon(Icons.add_circle_outline_rounded), SizedBox(width: 8), Text('Create', style: TextStyle(fontWeight: FontWeight.w800))]))));
+  Widget _composerCard() => Card(child: InkWell(borderRadius: BorderRadius.circular(18), onTap: _openCreate, child: const Padding(padding: EdgeInsets.all(14), child: Row(children: [ManoxMark(size: 42), SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Create something', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)), SizedBox(height: 3), Text('Post a thought, photo, video or Beat', style: TextStyle(fontSize: 12))])), Icon(Icons.add_circle_rounded, size: 28)]))));
+
+  Widget _bottomNav(ThemeData theme) => NavigationBar(selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) context.push('/trending'); else if (index == 2) _openCreate(); else if (index == 3) _openBeats(); else if (index == 4) context.push('/profile'); }, destinations: const [NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'), NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore_rounded), label: 'Discover'), NavigationDestination(icon: Icon(Icons.add_rounded), selectedIcon: Icon(Icons.add_circle_rounded), label: 'Create'), NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome_rounded), label: 'Beats'), NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile')]);
 }
