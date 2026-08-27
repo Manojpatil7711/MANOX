@@ -28,29 +28,36 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _load() async {
     if (mounted) setState(() => _loading = true);
-    try {
-      final profile = await _repo.fetchProfile();
-      final posts = await _postRepo.fetchMyPosts();
-      if (!mounted) return;
-      setState(() { _profile = profile; _posts = posts; _loading = false; });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() { _profile = null; _posts = <ManoxPost>[]; _loading = false; });
+    ProfileData? profile;
+    List<ManoxPost> posts = <ManoxPost>[];
+    try { profile = await _repo.fetchProfile(); } catch (_) {}
+    if (profile != null) {
+      try { posts = await _postRepo.fetchMyPosts(); } catch (_) {}
     }
+    if (!mounted) return;
+    setState(() { _profile = profile; _posts = posts; _loading = false; });
   }
 
   Future<void> _editProfile() async {
-    final profile = _profile;
-    if (profile == null) return;
+    var profile = _profile;
+    if (profile == null) {
+      await _load();
+      profile = _profile;
+    }
+    if (profile == null || !mounted) {
+      _show('Profile is still loading. Please try again.');
+      return;
+    }
     final updated = await Navigator.of(context).push<ProfileData>(MaterialPageRoute(builder: (_) => EditProfilePage(
-      repository: _repo, initialName: profile.displayName, initialUsername: profile.handle, initialBio: profile.bio,
-      initialAvatarUrl: profile.avatarUrl, initialCountryCode: profile.countryCode, initialGender: profile.gender,
-      initialProfession: profile.profession, initialDateOfBirth: profile.dateOfBirth, initialSkills: profile.skills,
-      initialCreatorCategory: profile.creatorCategory, initialOtherLink: profile.otherLink,
+      repository: _repo, initialName: profile!.displayName, initialUsername: profile!.handle, initialBio: profile!.bio,
+      initialAvatarUrl: profile!.avatarUrl, initialCountryCode: profile!.countryCode, initialGender: profile!.gender,
+      initialProfession: profile!.profession, initialDateOfBirth: profile!.dateOfBirth, initialSkills: profile!.skills,
+      initialCreatorCategory: profile!.creatorCategory, initialOtherLink: profile!.otherLink,
     )));
     if (updated != null && mounted) setState(() => _profile = updated);
   }
 
+  void _show(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   void _goBack() { if (context.canPop()) context.pop(); else context.go('/home'); }
 
   Future<void> _shareProfile() async {
@@ -64,20 +71,9 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _openProfileSection(String label) { if (label == 'Monetization') context.push('/monetization'); else if (label == 'Wallet') context.push('/payout'); }
-
   HomeDemoData _toHomePost(ManoxPost post) => HomeDemoData(id: post.id, creatorName: post.creatorName, handle: post.handle, text: post.text, likes: post.likes, comments: post.comments, imagePath: post.imageUrl, likedByMe: post.likedByMe, isRemote: true, ownerUserId: post.ownerUserId);
-
-  String _flagForCountry(String? code) {
-    final value = code?.trim().toUpperCase() ?? '';
-    if (!RegExp(r'^[A-Z]{2}$').hasMatch(value)) return '';
-    return value.runes.map((r) => String.fromCharCode(0x1F1E6 + r - 65)).join();
-  }
-
-  Future<void> _openOtherLink(String value) async {
-    final uri = Uri.tryParse(value);
-    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  String _flagForCountry(String? code) { final value = code?.trim().toUpperCase() ?? ''; if (!RegExp(r'^[A-Z]{2}$').hasMatch(value)) return ''; return value.runes.map((r) => String.fromCharCode(0x1F1E6 + r - 65)).join(); }
+  Future<void> _openOtherLink(String value) async { final uri = Uri.tryParse(value); if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return; await launchUrl(uri, mode: LaunchMode.externalApplication); }
 
   Widget _profileDetails(ProfileData profile) {
     final country = profile.countryCode?.trim() ?? '';
@@ -116,7 +112,7 @@ class _ProfilePageState extends State<ProfilePage> {
         if (profile.bio.trim().isNotEmpty) Text(profile.bio, key: const Key('profile-bio'), maxLines: 4, overflow: TextOverflow.ellipsis),
         _profileDetails(profile),
         const SizedBox(height: 12),
-        Row(children: <Widget>[Expanded(child: OutlinedButton.icon(key: const Key('profile-edit-button'), onPressed: _editProfile, icon: const Icon(Icons.edit_outlined), label: const Text('EDIT PROFILE'))), const SizedBox(width: 10), Expanded(child: OutlinedButton.icon(key: const Key('profile-share-button'), onPressed: _shareProfile, icon: const Icon(Icons.ios_share_outlined), label: const Text('SHARE')))]),
+        Row(children: <Widget>[Expanded(child: OutlinedButton.icon(key: const Key('profile-edit-button'), onPressed: _loading ? null : _editProfile, icon: const Icon(Icons.edit_outlined), label: const Text('EDIT PROFILE'))), const SizedBox(width: 10), Expanded(child: OutlinedButton.icon(key: const Key('profile-share-button'), onPressed: _shareProfile, icon: const Icon(Icons.ios_share_outlined), label: const Text('SHARE')))]),
         const SizedBox(height: 18),
         Card(child: Padding(padding: const EdgeInsets.symmetric(vertical: 15), child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [_Stat(value: '${profile.postIds.length}', label: 'Posts'), _Stat(value: '${profile.followers}', label: 'Followers'), _Stat(value: '${profile.following}', label: 'Following')]))),
         const SizedBox(height: 14),
