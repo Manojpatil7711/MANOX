@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/supabase_service.dart';
 
 class KidsHomePage extends StatefulWidget {
@@ -42,10 +41,7 @@ class _KidsHomePageState extends State<KidsHomePage> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog),
-            child: const Text('CANCEL'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('CANCEL')),
           FilledButton.icon(
             onPressed: () => Navigator.pop(dialog, controller.text),
             icon: const Icon(Icons.lock_open_rounded),
@@ -88,7 +84,6 @@ class _KidsHomePageState extends State<KidsHomePage> {
         onConflict: 'user_id',
       );
       if (!mounted) return;
-      // Parent unlock returns to the regular Home flow, not Settings.
       context.go('/home');
     } catch (_) {
       if (mounted) {
@@ -136,11 +131,7 @@ class _KidsHomePageState extends State<KidsHomePage> {
                   children: [
                     Icon(x['icon'] as IconData, size: 42),
                     const SizedBox(height: 12),
-                    Text(
-                      x['title'] as String,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
+                    Text(x['title'] as String, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
                     const Icon(Icons.lock_outline_rounded, size: 16),
                   ],
