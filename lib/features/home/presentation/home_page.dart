@@ -33,13 +33,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _openCreate() async { final posted = await context.push<bool>('/create'); if (posted == true && mounted) await _loadFeed(); }
   void _openBeats() => context.push('/beats');
-  void _openLive() => context.push('/live');
-  void _openEntertainment() => context.push('/entertainment');
   void _openNotifications() => context.push('/notifications');
   void _openMessages() => context.push('/messages');
   void _openSearch() => context.push('/search');
-  void _openWomenSafety() => context.push('/women-safety');
-  void _openDiscovery(String label) { if (label == 'Trending') context.push('/trending'); else if (label == 'Learn') context.push('/learn'); else if (label == 'Sports') context.push('/sports'); }
   void _showMessage(String message) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message))); }
   String _cleanError(Object error) => error.toString().replaceFirst('Exception: ', '');
 
@@ -89,7 +85,7 @@ class _HomePageState extends State<HomePage> {
   Widget _filterChip(String label, bool active, ThemeData theme) => Container(alignment: Alignment.center, decoration: BoxDecoration(color: active ? theme.colorScheme.onSurface : theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)), child: Text(label, style: TextStyle(color: active ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface, fontWeight: FontWeight.w700, fontSize: 12)));
 
   Widget _discoveryRow(ThemeData theme) {
-    const items = <({String label, IconData icon, String? route})>[
+    const items = <({String label, IconData icon, String route})>[
       (label: 'BEATS', icon: Icons.auto_awesome_rounded, route: '/beats'),
       (label: 'LIVE', icon: Icons.radio_rounded, route: '/live'),
       (label: 'TRENDING', icon: Icons.local_fire_department_rounded, route: '/trending'),
@@ -99,7 +95,7 @@ class _HomePageState extends State<HomePage> {
     ];
     return SizedBox(height: 92, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: items.length, separatorBuilder: (_, __) => const SizedBox(width: 10), itemBuilder: (_, index) {
       final item = items[index];
-      return InkWell(borderRadius: BorderRadius.circular(22), onTap: () => context.push(item.route!), child: Container(width: 82, decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [theme.colorScheme.surfaceContainerHighest, theme.colorScheme.surface])), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 44, height: 44, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: theme.colorScheme.outline)), child: Icon(item.icon, size: 22)), const SizedBox(height: 6), Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800))])));
+      return InkWell(borderRadius: BorderRadius.circular(22), onTap: () => context.push(item.route), child: Container(width: 82, decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [theme.colorScheme.surfaceContainerHighest, theme.colorScheme.surface])), padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Container(width: 44, height: 44, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: theme.colorScheme.outline)), child: Icon(item.icon, size: 22)), const SizedBox(height: 6), Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800))])));
     }));
   }
 
