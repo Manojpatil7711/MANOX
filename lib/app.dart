@@ -68,7 +68,7 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/home', builder: (_, __) => const HomePage()),
       GoRoute(path: '/kids-home', builder: (_, __) => const KidsHomePage()),
       GoRoute(path: '/kids-protection', builder: (_, __) => const KidsProtectionPage()),
-      GoRoute(path: '/create', builder: (_, __) => const CreatePostPage()),
+      GoRoute(path: '/create', builder: (context, state) => CreatePostPage(initialBeat: state.uri.queryParameters['beat'] == 'true')),
       GoRoute(path: '/tools', builder: (_, __) => const ToolsPage()),
       GoRoute(path: '/beats', builder: (context, state) => BeatsPage(kidsMode: state.uri.queryParameters['mode'] == 'kids')),
       GoRoute(path: '/live', builder: (_, __) => const LivePage()),
