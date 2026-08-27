@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/supabase_service.dart';
 
 /// Resolves the initial home destination without nesting Navigator routes
-/// inside GoRouter. This avoids framework dependency assertions during
+/// inside GoRouter. This prevents framework dependency assertions during
 /// Kids Protection ON/OFF transitions.
 class KidsModeGatePage extends StatefulWidget {
   const KidsModeGatePage({super.key});
@@ -38,10 +38,10 @@ class _KidsModeGatePageState extends State<KidsModeGatePage> {
           .eq('user_id', u.id)
           .maybeSingle();
       if (!mounted) return;
-      _go(row?['enabled'] == true ? '/kids-home' : '/main-home');
+      _go(row?['enabled'] == true ? '/kids-home' : '/home');
     } catch (_) {
       if (!mounted) return;
-      _go('/main-home');
+      _go('/home');
     }
   }
 
