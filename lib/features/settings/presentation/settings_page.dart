@@ -109,7 +109,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _openEditProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edit Profile is available from your profile page.')));
+    // Edit Profile is an existing screen; navigate to the canonical profile
+    // entry point instead of displaying a non-functional informational message.
+    context.push('/profile');
   }
 
   Widget _section(String title, IconData icon, List<Widget> children) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
