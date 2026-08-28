@@ -37,11 +37,7 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
     try {
-      final row = await client
-          .from('profile_privacy')
-          .select('private_account, who_can_message, allow_contact_sharing, show_online_status, show_last_seen, read_receipts')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      final row = await client.from('profile_privacy').select('private_account, who_can_message, allow_contact_sharing, show_online_status, show_last_seen, read_receipts').eq('user_id', user.id).maybeSingle();
       if (!mounted) return;
       if (row != null) {
         setState(() {
@@ -53,11 +49,8 @@ class _SettingsPageState extends State<SettingsPage> {
           _readReceipts = row['read_receipts'] as bool? ?? true;
         });
       }
-    } catch (_) {
-      // Safe defaults keep Settings usable when privacy data is unavailable.
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    } catch (_) {}
+    finally { if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _savePrivacy() async {
@@ -66,52 +59,84 @@ class _SettingsPageState extends State<SettingsPage> {
     if (client == null || user == null || _saving) return;
     setState(() => _saving = true);
     try {
-      await client.from('profile_privacy').upsert({
-        'id': user.id,
-        'user_id': user.id,
-        'private_account': _privateAccount,
-        'who_can_message': _whoCanMessage,
-        'allow_contact_sharing': _allowContactSharing,
-        'show_online_status': _showOnline,
-        'show_last_seen': _showLastSeen,
-        'read_receipts': _readReceipts,
-      }, onConflict: 'id');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Privacy settings saved.')),
-        );
-      }
+      await client.from('profile_privacy').upsert({'id': user.id, 'user_id': user.id, 'private_account': _privateAccount, 'who_can_message': _whoCanMessage, 'allow_contact_sharing': _allowContactSharing, 'show_online_status': _showOnline, 'show_last_seen': _showLastSeen, 'read_receipts': _readReceipts}, onConflict: 'id');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Privacy settings saved.')));
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save privacy settings.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save privacy settings.')));
+    } finally { if (mounted) setState(() => _saving = false); }
+  }
+
+  Future<void> _openEmailAccount() async {
+    final client = _client;
+    final user = client?.auth.currentUser;
+    if (client == null || user == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account session unavailable. Please sign in again.')));
+      return;
+    }
+    final controller = TextEditingController(text: user.email ?? '');
+    final formKey = GlobalKey<FormState>();
+    final newEmail = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Email & account'),
+        content: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Current email: ${user.email ?? 'Not available'}'),
+            const SizedBox(height: 8),
+            Text(user.emailConfirmedAt == null ? 'Email status: Not verified' : 'Email status: Verified'),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: controller,
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              decoration: const InputDecoration(labelText: 'New email', hintText: 'name@example.com'),
+              validator: (value) {
+                final email = value?.trim() ?? '';
+                if (email.isEmpty) return 'Enter an email address';
+                if (!email.contains('@') || !email.contains('.')) return 'Enter a valid email address';
+                if (email == user.email) return 'Enter a different email address';
+                return null;
+              },
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CANCEL')),
+          FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(dialogContext, controller.text.trim()); }, child: const Text('CHANGE EMAIL')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (newEmail == null || newEmail.isEmpty) return;
+    try {
+      await client.auth.updateUser(UserAttributes(email: newEmail));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Confirmation email sent. Confirm the new email to complete the change.')));
+    } on AuthException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not change email. Please try again.')));
+    }
+  }
+
+  Future<void> _resendVerification() async {
+    final client = _client;
+    final email = client?.auth.currentUser?.email;
+    if (client == null || email == null || email.isEmpty) return;
+    try {
+      await client.auth.resend(type: OtpType.signup, email: email);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification email sent.')));
+    } on AuthException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not send verification email.')));
     }
   }
 
   Future<void> _showActionSheet(String title, String message, {String? route, String action = 'OK'}) async {
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CLOSE')),
-          if (route != null)
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                context.push(route);
-              },
-              child: Text(action),
-            ),
-        ],
-      ),
-    );
+    await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(title: Text(title), content: Text(message), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CLOSE')), if (route != null) FilledButton(onPressed: () { Navigator.pop(dialogContext); context.push(route); }, child: Text(action))]));
   }
 
   void _openKidsSafety() => context.push('/kids-protection');
@@ -120,177 +145,58 @@ class _SettingsPageState extends State<SettingsPage> {
   void _openNotifications() => context.push('/notifications');
   void _openMonetization() => context.push('/monetization');
   void _openSafety() => context.push('/community-safety');
-
-  Future<void> _openSecurity() => _showActionSheet(
-        'Password & security',
-        'MANOX Authentication protects your password. Use the account recovery flow to reset your password and keep your sign-in secure.',
-        route: '/auth/forgot',
-        action: 'RESET PASSWORD',
-      );
-
-  Future<void> _openAccount() => _showActionSheet(
-        'Email & account',
-        'Your sign-in email is managed by MANOX Authentication. Account identity, recovery and verification should remain private.',
-      );
-
-  Future<void> _openSaved() => _showActionSheet(
-        'Saved content',
-        'Your saved posts and videos will appear here as the MANOX saved-content module is connected.',
-      );
-
-  Future<void> _openActivity() => _showActionSheet(
-        'Activity history',
-        'Review likes, comments, follows, searches and other account activity. This keeps the feature visible and ready for the activity module.',
-      );
-
-  Future<void> _openBlocked() => _showActionSheet(
-        'Blocked accounts',
-        'Manage accounts you have blocked. Blocking should prevent their interaction with your profile and content.',
-      );
-
-  Future<void> _openDataControls() => _showActionSheet(
-        'Your data & privacy',
-        'MANOX should give you control over your data: access, correction, export and account deletion. These controls are kept separate from public profile settings.',
-      );
-
-  Future<void> _openContentPreferences() => _showActionSheet(
-        'Content preferences',
-        'Manage topics, sensitive-content limits, recommendations and languages so your feed remains useful and safe.',
-      );
+  Future<void> _openSecurity() => _showActionSheet('Password & security', 'Use the account recovery flow to reset your password and keep sign-in secure.', route: '/auth/forgot', action: 'RESET PASSWORD');
+  Future<void> _openSaved() => _showActionSheet('Saved content', 'Your saved posts and videos will appear here as the saved-content module is connected.');
+  Future<void> _openActivity() => _showActionSheet('Activity history', 'Review likes, comments, follows, searches and other account activity.');
+  Future<void> _openBlocked() => _showActionSheet('Blocked accounts', 'Manage accounts you have blocked.');
+  Future<void> _openDataControls() => _showActionSheet('Your data & privacy', 'MANOX should give you control over access, correction, export and account deletion.');
+  Future<void> _openContentPreferences() => _showActionSheet('Content preferences', 'Manage topics, sensitive-content limits, recommendations and languages.');
 
   Future<void> _signOut() async {
     if (_signingOut) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('You can sign back in anytime with your MANOX account.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('CANCEL')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('SIGN OUT')),
-        ],
-      ),
-    );
+    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Sign out?'), content: const Text('You can sign back in anytime with your MANOX account.'), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('SIGN OUT'))]));
     if (confirmed != true || !mounted) return;
     final client = _client;
-    if (client == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Authentication is unavailable.')));
-      return;
-    }
+    if (client == null) return;
     setState(() => _signingOut = true);
-    try {
-      await client.auth.signOut();
-      if (!mounted) return;
-      context.go('/auth');
-    } catch (_) {
-      if (mounted) {
-        setState(() => _signingOut = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not sign out. Please try again.')));
-      }
-    }
+    try { await client.auth.signOut(); if (mounted) context.go('/auth'); }
+    catch (_) { if (mounted) { setState(() => _signingOut = false); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not sign out. Please try again.'))); } }
   }
 
-  Widget _section(String title, IconData icon, List<Widget> children) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-            child: Row(children: [
-              Icon(icon, size: 19),
-              const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-            ]),
-          ),
-          Card(child: Column(children: children)),
-        ],
-      );
-
-  ListTile _item({required IconData icon, required String title, String? subtitle, VoidCallback? onTap}) => ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: subtitle == null ? null : Text(subtitle),
-        trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
-        onTap: onTap,
-      );
+  Widget _section(String title, IconData icon, List<Widget> children) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Padding(padding: const EdgeInsets.fromLTRB(4, 20, 4, 8), child: Row(children: [Icon(icon, size: 19), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.w700))])), Card(child: Column(children: children))]);
+  ListTile _item({required IconData icon, required String title, String? subtitle, VoidCallback? onTap}) => ListTile(leading: Icon(icon), title: Text(title), subtitle: subtitle == null ? null : Text(subtitle), trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded), onTap: onTap);
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Settings & Privacy'),
-          actions: [
-            TextButton(
-              onPressed: _saving ? null : _savePrivacy,
-              child: _saving
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('SAVE'),
-            ),
-          ],
-        ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 32),
-                children: [
-                  _section('Account', Icons.person_outline_rounded, [
-                    _item(icon: Icons.edit_outlined, title: 'Edit profile', subtitle: 'Name, username, bio and profile photo', onTap: _openEditProfile),
-                    _item(icon: Icons.mail_outline_rounded, title: 'Email & account', subtitle: 'Private authentication information', onTap: _openAccount),
-                    _item(icon: Icons.lock_outline_rounded, title: 'Password & security', subtitle: 'Password recovery and sign-in security', onTap: _openSecurity),
-                    _item(icon: Icons.verified_user_outlined, title: 'Account status & verification', subtitle: 'Identity, KYC and account eligibility', onTap: () => _showActionSheet('Account status & verification', 'Verification and KYC controls protect monetization and account ownership.')),
-                  ]),
-                  _section('Privacy', Icons.shield_outlined, [
-                    SwitchListTile(secondary: const Icon(Icons.lock_person_outlined), title: const Text('Private account'), value: _privateAccount, onChanged: (v) => setState(() => _privateAccount = v)),
-                    SwitchListTile(secondary: const Icon(Icons.visibility_outlined), title: const Text('Show online status'), value: _showOnline, onChanged: (v) => setState(() => _showOnline = v)),
-                    SwitchListTile(secondary: const Icon(Icons.access_time_rounded), title: const Text('Show last seen'), value: _showLastSeen, onChanged: (v) => setState(() => _showLastSeen = v)),
-                    SwitchListTile(secondary: const Icon(Icons.done_all_rounded), title: const Text('Read receipts'), value: _readReceipts, onChanged: (v) => setState(() => _readReceipts = v)),
-                    _item(icon: Icons.block_outlined, title: 'Blocked accounts', subtitle: 'Manage accounts you have blocked', onTap: _openBlocked),
-                    _item(icon: Icons.data_usage_outlined, title: 'Your data & privacy controls', subtitle: 'Access, export, correction and deletion', onTap: _openDataControls),
-                  ]),
-                  _section('Messages & Contacts', Icons.chat_bubble_outline_rounded, [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _whoCanMessage,
-                        decoration: const InputDecoration(labelText: 'Who can message me', prefixIcon: Icon(Icons.chat_outlined)),
-                        items: const [
-                          DropdownMenuItem(value: 'everyone', child: Text('Everyone')),
-                          DropdownMenuItem(value: 'followers', child: Text('Followers')),
-                          DropdownMenuItem(value: 'no_one', child: Text('No one')),
-                        ],
-                        onChanged: (v) { if (v != null) setState(() => _whoCanMessage = v); },
-                      ),
-                    ),
-                    SwitchListTile(secondary: const Icon(Icons.contact_page_outlined), title: const Text('Allow contact sharing'), value: _allowContactSharing, onChanged: (v) => setState(() => _allowContactSharing = v)),
-                    _item(icon: Icons.chat_outlined, title: 'Chat', subtitle: 'Open MANOX messages', onTap: _openMessages),
-                  ]),
-                  _section('Kids & Safety', Icons.child_care_rounded, [
-                    _item(icon: Icons.verified_user_outlined, title: 'Kids safety', subtitle: 'Age-appropriate protections', onTap: _openKidsSafety),
-                    _item(icon: Icons.health_and_safety_outlined, title: 'Community safety', subtitle: 'Safety rules, reporting and protection', onTap: _openSafety),
-                  ]),
-                  _section('Notifications', Icons.notifications_none_rounded, [
-                    SwitchListTile(secondary: const Icon(Icons.notifications_active_outlined), title: const Text('Notifications'), subtitle: const Text('Push notification preference'), value: _notifications, onChanged: (v) => setState(() => _notifications = v)),
-                    _item(icon: Icons.tune_rounded, title: 'Notification settings', subtitle: 'Messages, follows, comments and creator alerts', onTap: _openNotifications),
-                  ]),
-                  _section('Content & Activity', Icons.tune_rounded, [
-                    _item(icon: Icons.bookmark_border_rounded, title: 'Saved content', subtitle: 'Open your saved posts and videos', onTap: _openSaved),
-                    _item(icon: Icons.history_rounded, title: 'Activity history', subtitle: 'View your recent MANOX activity', onTap: _openActivity),
-                    _item(icon: Icons.explore_outlined, title: 'Content preferences', subtitle: 'Topics, recommendations and sensitive content', onTap: _openContentPreferences),
-                  ]),
-                  _section('Creator & Monetization', Icons.monetization_on_outlined, [
-                    _item(icon: Icons.account_balance_wallet_outlined, title: 'Monetization Wallet', subtitle: 'Earnings, KYC and payout status', onTap: _openMonetization),
-                  ]),
-                  const SizedBox(height: 20),
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.logout_rounded),
-                      title: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: const Text('Sign out securely from this device'),
-                      trailing: _signingOut ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right_rounded),
-                      onTap: _signingOut ? null : _signOut,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Center(child: Text('MANOX', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 2))),
-                ],
-              ),
-      );
+    appBar: AppBar(title: const Text('Settings & Privacy'), actions: [TextButton(onPressed: _saving ? null : _savePrivacy, child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SAVE'))]),
+    body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 32), children: [
+      _section('Account', Icons.person_outline_rounded, [
+        _item(icon: Icons.edit_outlined, title: 'Edit profile', subtitle: 'Name, username, bio and profile photo', onTap: _openEditProfile),
+        _item(icon: Icons.mail_outline_rounded, title: 'Email & account', subtitle: 'Email, verification and account identity', onTap: _openEmailAccount),
+        _item(icon: Icons.lock_outline_rounded, title: 'Password & security', subtitle: 'Password recovery and sign-in security', onTap: _openSecurity),
+        _item(icon: Icons.verified_user_outlined, title: 'Account status & verification', subtitle: 'Identity, KYC and account eligibility', onTap: () => _showActionSheet('Account status & verification', 'Verification and KYC controls protect monetization and account ownership.')),
+      ]),
+      _section('Privacy', Icons.shield_outlined, [
+        SwitchListTile(secondary: const Icon(Icons.lock_person_outlined), title: const Text('Private account'), value: _privateAccount, onChanged: (v) => setState(() => _privateAccount = v)),
+        SwitchListTile(secondary: const Icon(Icons.visibility_outlined), title: const Text('Show online status'), value: _showOnline, onChanged: (v) => setState(() => _showOnline = v)),
+        SwitchListTile(secondary: const Icon(Icons.access_time_rounded), title: const Text('Show last seen'), value: _showLastSeen, onChanged: (v) => setState(() => _showLastSeen = v)),
+        SwitchListTile(secondary: const Icon(Icons.done_all_rounded), title: const Text('Read receipts'), value: _readReceipts, onChanged: (v) => setState(() => _readReceipts = v)),
+        _item(icon: Icons.block_outlined, title: 'Blocked accounts', subtitle: 'Manage accounts you have blocked', onTap: _openBlocked),
+        _item(icon: Icons.data_usage_outlined, title: 'Your data & privacy controls', subtitle: 'Access, export, correction and deletion', onTap: _openDataControls),
+      ]),
+      _section('Messages & Contacts', Icons.chat_bubble_outline_rounded, [
+        Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 4), child: DropdownButtonFormField<String>(initialValue: _whoCanMessage, decoration: const InputDecoration(labelText: 'Who can message me', prefixIcon: Icon(Icons.chat_outlined)), items: const [DropdownMenuItem(value: 'everyone', child: Text('Everyone')), DropdownMenuItem(value: 'followers', child: Text('Followers')), DropdownMenuItem(value: 'no_one', child: Text('No one'))], onChanged: (v) { if (v != null) setState(() => _whoCanMessage = v); })),
+        SwitchListTile(secondary: const Icon(Icons.contact_page_outlined), title: const Text('Allow contact sharing'), value: _allowContactSharing, onChanged: (v) => setState(() => _allowContactSharing = v)),
+        _item(icon: Icons.chat_outlined, title: 'Chat', subtitle: 'Open MANOX messages', onTap: _openMessages),
+      ]),
+      _section('Kids & Safety', Icons.child_care_rounded, [_item(icon: Icons.verified_user_outlined, title: 'Kids safety', subtitle: 'Age-appropriate protections', onTap: _openKidsSafety), _item(icon: Icons.health_and_safety_outlined, title: 'Community safety', subtitle: 'Safety rules, reporting and protection', onTap: _openSafety)]),
+      _section('Notifications', Icons.notifications_none_rounded, [SwitchListTile(secondary: const Icon(Icons.notifications_active_outlined), title: const Text('Notifications'), subtitle: const Text('Push notification preference'), value: _notifications, onChanged: (v) => setState(() => _notifications = v)), _item(icon: Icons.tune_rounded, title: 'Notification settings', subtitle: 'Messages, follows, comments and creator alerts', onTap: _openNotifications)]),
+      _section('Content & Activity', Icons.tune_rounded, [_item(icon: Icons.bookmark_border_rounded, title: 'Saved content', subtitle: 'Open your saved posts and videos', onTap: _openSaved), _item(icon: Icons.history_rounded, title: 'Activity history', subtitle: 'View your recent MANOX activity', onTap: _openActivity), _item(icon: Icons.explore_outlined, title: 'Content preferences', subtitle: 'Topics, recommendations and sensitive content', onTap: _openContentPreferences)]),
+      _section('Creator & Monetization', Icons.monetization_on_outlined, [_item(icon: Icons.account_balance_wallet_outlined, title: 'Monetization Wallet', subtitle: 'Earnings, KYC and payout status', onTap: _openMonetization)]),
+      const SizedBox(height: 20),
+      Card(child: ListTile(leading: const Icon(Icons.logout_rounded), title: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('Sign out securely from this device'), trailing: _signingOut ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right_rounded), onTap: _signingOut ? null : _signOut)),
+      const SizedBox(height: 16),
+      const Center(child: Text('MANOX', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 2))),
+    ]),
+  );
 }
