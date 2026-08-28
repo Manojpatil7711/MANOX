@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/supabase_service.dart';
@@ -80,28 +79,30 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Email & account'),
-        content: Form(
-          key: formKey,
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Current email: ${user.email ?? 'Not available'}'),
-            const SizedBox(height: 8),
-            Text(user.emailConfirmedAt == null ? 'Email status: Not verified' : 'Email status: Verified'),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: controller,
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              decoration: const InputDecoration(labelText: 'New email', hintText: 'name@example.com'),
-              validator: (value) {
-                final email = value?.trim() ?? '';
-                if (email.isEmpty) return 'Enter an email address';
-                if (!email.contains('@') || !email.contains('.')) return 'Enter a valid email address';
-                if (email == user.email) return 'Enter a different email address';
-                return null;
-              },
-            ),
-          ]),
-        ),
+        content: Form(key: formKey, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Current email: ${user.email ?? 'Not available'}'),
+          const SizedBox(height: 8),
+          Text(user.emailConfirmedAt == null ? 'Email status: Not verified' : 'Email status: Verified'),
+          if (user.emailConfirmedAt == null) ...[
+            const SizedBox(height: 4),
+            TextButton(onPressed: () async {
+              try {
+                await client.auth.resend(type: OtpType.signup, email: user.email!);
+                if (dialogContext.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification email sent.')));
+              } on AuthException catch (e) {
+                if (dialogContext.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+              }
+            }, child: const Text('RESEND VERIFICATION EMAIL')),
+          ],
+          const SizedBox(height: 8),
+          TextFormField(controller: controller, keyboardType: TextInputType.emailAddress, autocorrect: false, decoration: const InputDecoration(labelText: 'New email', hintText: 'name@example.com'), validator: (value) {
+            final email = value?.trim() ?? '';
+            if (email.isEmpty) return 'Enter an email address';
+            if (!email.contains('@') || !email.contains('.')) return 'Enter a valid email address';
+            if (email == user.email) return 'Enter a different email address';
+            return null;
+          }),
+        ])),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('CANCEL')),
           FilledButton(onPressed: () { if (formKey.currentState!.validate()) Navigator.pop(dialogContext, controller.text.trim()); }, child: const Text('CHANGE EMAIL')),
@@ -118,20 +119,6 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not change email. Please try again.')));
-    }
-  }
-
-  Future<void> _resendVerification() async {
-    final client = _client;
-    final email = client?.auth.currentUser?.email;
-    if (client == null || email == null || email.isEmpty) return;
-    try {
-      await client.auth.resend(type: OtpType.signup, email: email);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification email sent.')));
-    } on AuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not send verification email.')));
     }
   }
 
