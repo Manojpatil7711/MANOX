@@ -18,6 +18,7 @@ class _BeatsPageState extends State<BeatsPage> {
   final _controller = PageController();
   List<HomeDemoData> _posts = [];
   bool _loading = true;
+  int _activeIndex = 0;
 
   @override
   void initState() {
@@ -51,6 +52,7 @@ class _BeatsPageState extends State<BeatsPage> {
           isRemote: true,
           ownerUserId: post.ownerUserId,
         )).toList();
+        _activeIndex = 0;
         _loading = false;
       });
     } catch (_) {
@@ -61,7 +63,10 @@ class _BeatsPageState extends State<BeatsPage> {
   Future<void> _openBeatUpload() async {
     final published = await context.push<bool>('/create?beat=true');
     if (published == true && mounted) {
-      setState(() => _loading = true);
+      setState(() {
+        _loading = true;
+        _activeIndex = 0;
+      });
       await _load();
       if (_controller.hasClients) _controller.jumpToPage(0);
     }
@@ -84,9 +89,15 @@ class _BeatsPageState extends State<BeatsPage> {
           PageView.builder(
             controller: _controller,
             scrollDirection: Axis.vertical,
+            physics: const PageScrollPhysics(),
             itemCount: _posts.length,
+            onPageChanged: (index) {
+              if (mounted) setState(() => _activeIndex = index);
+            },
             itemBuilder: (context, index) => _BeatItem(
-              post: _posts[index], repository: _repository,
+              post: _posts[index],
+              repository: _repository,
+              isActive: index == _activeIndex,
             ),
           ),
         Positioned(
@@ -128,7 +139,8 @@ class _BeatsPageState extends State<BeatsPage> {
 class _BeatItem extends StatefulWidget {
   final HomeDemoData post;
   final SupabasePostRepository repository;
-  const _BeatItem({required this.post, required this.repository});
+  final bool isActive;
+  const _BeatItem({required this.post, required this.repository, required this.isActive});
   @override
   State<_BeatItem> createState() => _BeatItemState();
 }
@@ -260,8 +272,9 @@ class _BeatItemState extends State<_BeatItem> {
         const Center(child: CircularProgressIndicator(color: Colors.white))
       else if (_url != null && isManoxVideo(widget.post.imagePath ?? ''))
         ManoxMediaPreview(
+          key: ValueKey('${widget.post.id}-${widget.isActive}'),
           url: _url!, height: double.infinity, fit: BoxFit.cover,
-          autoPlay: true, loop: true, fullScreenStyle: true,
+          autoPlay: widget.isActive, loop: true, fullScreenStyle: true,
         )
       else
         const _BeatFallback(),
