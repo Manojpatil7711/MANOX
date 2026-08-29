@@ -314,7 +314,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   child: DropdownButtonFormField<String>(
-                    value: _kidsCategory,
+                    initialValue: _kidsCategory,
                     decoration: const InputDecoration(labelText: 'Kids category'),
                     items: _kidsCategories
                         .map((value) => DropdownMenuItem<String>(value: value, child: Text(value)))
