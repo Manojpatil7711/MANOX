@@ -37,12 +37,12 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
     try {
-      final row = await client.from('profile_privacy').select('private_account, allow_messages, allow_contact_sharing, show_online_status, show_last_seen, read_receipts').eq('user_id', user.id).maybeSingle();
+      final row = await client.from('profile_privacy').select('private_account, who_can_message, allow_contact_sharing, show_online_status, show_last_seen, read_receipts').eq('user_id', user.id).maybeSingle();
       if (!mounted) return;
       if (row != null) {
         setState(() {
           _privateAccount = row['private_account'] as bool? ?? false;
-          _whoCanMessage = row['allow_messages'] as String? ?? 'everyone';
+          _whoCanMessage = row['who_can_message'] as String? ?? 'everyone';
           _allowContactSharing = row['allow_contact_sharing'] as bool? ?? false;
           _showOnline = row['show_online_status'] as bool? ?? false;
           _showLastSeen = row['show_last_seen'] as bool? ?? false;
@@ -59,7 +59,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (client == null || user == null || _saving) return;
     setState(() => _saving = true);
     try {
-      await client.from('profile_privacy').upsert({'id': user.id, 'user_id': user.id, 'private_account': _privateAccount, 'allow_messages': _whoCanMessage, 'allow_contact_sharing': _allowContactSharing, 'show_online_status': _showOnline, 'show_last_seen': _showLastSeen, 'read_receipts': _readReceipts}, onConflict: 'id');
+      await client.from('profile_privacy').upsert({'id': user.id, 'user_id': user.id, 'private_account': _privateAccount, 'who_can_message': _whoCanMessage, 'allow_contact_sharing': _allowContactSharing, 'show_online_status': _showOnline, 'show_last_seen': _showLastSeen, 'read_receipts': _readReceipts}, onConflict: 'id');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Privacy settings saved.')));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save privacy settings.')));
