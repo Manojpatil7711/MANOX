@@ -8,6 +8,7 @@ class HomeDemoData {
   final String? imagePath;
   final String mediaType;
   final bool likedByMe;
+  final bool savedByMe;
   final bool isRemote;
   final String? ownerUserId;
 
@@ -21,6 +22,7 @@ class HomeDemoData {
     this.imagePath,
     this.mediaType = 'post',
     this.likedByMe = false,
+    this.savedByMe = false,
     this.isRemote = false,
     this.ownerUserId,
   });
