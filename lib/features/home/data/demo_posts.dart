@@ -11,6 +11,8 @@ class HomeDemoData {
   final bool savedByMe;
   final bool isRemote;
   final String? ownerUserId;
+  final bool allowComments;
+  final bool allowDownloads;
 
   const HomeDemoData({
     required this.id,
@@ -25,6 +27,8 @@ class HomeDemoData {
     this.savedByMe = false,
     this.isRemote = false,
     this.ownerUserId,
+    this.allowComments = true,
+    this.allowDownloads = true,
   });
 }
 
