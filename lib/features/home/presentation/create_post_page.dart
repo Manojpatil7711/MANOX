@@ -72,7 +72,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
         if (_isVideo) { mediaPath = await _repository.uploadVideo(bytes, extension, media.mimeType); mediaType = _isBeat ? 'beat' : 'video'; }
         else { mediaPath = await _repository.uploadImage(bytes, extension, media.mimeType); mediaType = 'image'; }
       }
-      await _repository.createPost(text: caption, imagePath: mediaPath, mediaType: mediaType, audienceCategory: _kidsContent ? 'kids_15_plus' : 'general', kidsCategory: _kidsContent ? _kidsCategory : null);
+      final visibility = switch (_audience) { 'Followers' => 'followers', 'Only me' => 'private', _ => 'public' };
+      await _repository.createPost(text: caption, imagePath: mediaPath, mediaType: mediaType, visibility: visibility, audienceCategory: _kidsContent ? 'kids_15_plus' : 'general', kidsCategory: _kidsContent ? _kidsCategory : null);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) { if (!mounted) return; setState(() => _posting = false); _show(e.toString().replaceFirst('Exception: ', '')); }
   }
