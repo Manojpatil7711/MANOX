@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+/// Creator entry point: only expose actions that lead to real workflows.
 class ToolsPage extends StatefulWidget {
   const ToolsPage({super.key});
 
@@ -17,15 +18,20 @@ class _ToolsPageState extends State<ToolsPage> {
   bool _isVideo = false;
 
   Future<void> _pickMedia({required bool video, required ImageSource source}) async {
-    final picked = video
-        ? await _picker.pickVideo(source: source, maxDuration: const Duration(minutes: 10))
-        : await _picker.pickImage(source: source, imageQuality: 90, maxWidth: 2400);
-    if (picked == null || !mounted) return;
-    setState(() {
-      _media = picked;
-      _isVideo = video;
-    });
-    await _openEditor();
+    try {
+      final picked = video
+          ? await _picker.pickVideo(source: source, maxDuration: const Duration(minutes: 10))
+          : await _picker.pickImage(source: source, imageQuality: 90, maxWidth: 2400);
+      if (picked == null || !mounted) return;
+      setState(() {
+        _media = picked;
+        _isVideo = video;
+      });
+      await _openEditor();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open media: $error')));
+    }
   }
 
   Future<void> _chooseMedia() async {
@@ -38,10 +44,7 @@ class _ToolsPageState extends State<ToolsPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Choose media', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-              ),
+              const Align(alignment: Alignment.centerLeft, child: Text('Choose media', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -79,27 +82,15 @@ class _ToolsPageState extends State<ToolsPage> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, size: 28),
-              const SizedBox(height: 8),
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-            ],
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).dividerColor)),
+          child: Column(children: [Icon(icon, size: 28), const SizedBox(height: 8), Text(label, style: const TextStyle(fontWeight: FontWeight.w700))]),
         ),
       );
 
   Future<void> _openEditor() async {
     final media = _media;
     if (media == null) return;
-    await context.push<bool>('/editor', extra: <String, dynamic>{
-      'isVideo': _isVideo,
-      'mediaPath': media.path,
-    });
+    await context.push<bool>('/editor', extra: <String, dynamic>{'isVideo': _isVideo, 'mediaPath': media.path});
   }
 
   void _openCreate() => context.push('/create');
@@ -109,78 +100,52 @@ class _ToolsPageState extends State<ToolsPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tools', style: TextStyle(fontWeight: FontWeight.w800)),
-        actions: [
-          IconButton(
-            onPressed: _openCreate,
-            tooltip: 'Create post',
-            icon: const Icon(Icons.add_box_outlined),
-          ),
-        ],
+        title: const Text('Creator Studio', style: TextStyle(fontWeight: FontWeight.w800)),
+        actions: [IconButton(onPressed: _openCreate, tooltip: 'Create post', icon: const Icon(Icons.add_box_outlined))],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          Text('Create like a studio', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+          Text('Make something worth watching.', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
-          const Text('MANOX brings photo-design and video-editing controls into one creator workflow.'),
-          const SizedBox(height: 20),
-          _sectionTitle('PHOTO DESIGN'),
-          _toolCard(
-            icon: Icons.image_outlined,
-            title: 'Photo Editor',
-            subtitle: 'Crop • ratios • filters • colour • brightness • contrast • saturation • text',
-            onTap: () => _pickMedia(video: false, source: ImageSource.gallery),
-          ),
-          _toolCard(
-            icon: Icons.text_fields_rounded,
-            title: 'Text & Captions',
-            subtitle: 'Add text directly over your selected photo or video.',
-            onTap: () => _pickMedia(video: false, source: ImageSource.gallery),
-          ),
+          Text('Choose a real creation workflow. Editing controls appear after you select media.', style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 22),
+          _sectionTitle('START CREATING'),
+          _heroAction(icon: Icons.photo_edit_outlined, title: 'Edit a photo', subtitle: 'Select a photo and open the MANOX editor.', onTap: () => _pickMedia(video: false, source: ImageSource.gallery)),
+          _heroAction(icon: Icons.video_settings_outlined, title: 'Edit a video', subtitle: 'Select a video and open the MANOX editor.', onTap: () => _pickMedia(video: true, source: ImageSource.gallery)),
+          _heroAction(icon: Icons.videocam_outlined, title: 'Record a video', subtitle: 'Capture new video and continue directly to editing.', onTap: () => _pickMedia(video: true, source: ImageSource.camera)),
           const SizedBox(height: 18),
-          _sectionTitle('VIDEO STUDIO'),
-          _toolCard(
-            icon: Icons.video_settings_outlined,
-            title: 'Video Editor',
-            subtitle: 'Crop • ratios • filters • colour • text • playback speed • full-screen preview',
-            onTap: () => _pickMedia(video: true, source: ImageSource.gallery),
-          ),
-          _toolCard(
-            icon: Icons.speed_rounded,
-            title: 'Speed & Playback',
-            subtitle: 'Preview video at 0.5×, 1×, 1.5× or 2× while editing.',
-            onTap: () => _pickMedia(video: true, source: ImageSource.gallery),
-          ),
-          const SizedBox(height: 18),
-          _sectionTitle('CREATOR WORKFLOW'),
-          _toolCard(
-            icon: Icons.auto_awesome_rounded,
-            title: 'Edit selected media',
-            subtitle: 'Open the complete MANOX editor with all currently supported controls.',
-            onTap: _media == null ? _chooseMedia : _openEditor,
+          _sectionTitle('PUBLISH'),
+          Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              leading: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: theme.colorScheme.surfaceContainerHighest),
+                child: const Icon(Icons.add_box_outlined),
+              ),
+              title: const Text('Create a post', style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: const Padding(padding: EdgeInsets.only(top: 4), child: Text('Choose media, set audience and publish.')),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: _openCreate,
+            ),
           ),
           if (_media != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 18),
+            _sectionTitle('CURRENT MEDIA'),
             ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               child: SizedBox(
-                height: 180,
+                height: 190,
                 child: _isVideo
-                    ? Container(
-                        color: Colors.black,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.play_circle_outline, size: 64, color: Colors.white),
-                      )
+                    ? Container(color: Colors.black, alignment: Alignment.center, child: const Icon(Icons.play_circle_outline, size: 64, color: Colors.white))
                     : Image.file(File(_media!.path), fit: BoxFit.cover),
               ),
             ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(onPressed: _openEditor, icon: const Icon(Icons.tune_rounded), label: const Text('Continue editing')),
           ],
-          const SizedBox(height: 20),
-          Text(
-            'The toolbox exposes only implemented MANOX controls. Additional Canva-style design and CapCut-style editing capabilities can be added as their underlying functionality is implemented.',
-            style: theme.textTheme.bodySmall,
-          ),
         ],
       ),
     );
@@ -191,28 +156,40 @@ class _ToolsPageState extends State<ToolsPage> {
         child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
       );
 
-  Widget _toolCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) => Card(
-        margin: const EdgeInsets.only(bottom: 10),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-          leading: Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            ),
-            child: Icon(icon),
+  Widget _heroAction({required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(15), color: theme.colorScheme.surfaceContainerHighest),
+                child: Icon(icon),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 4),
+                    Text(subtitle),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded),
+            ],
           ),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Padding(padding: const EdgeInsets.only(top: 4), child: Text(subtitle)),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: onTap,
         ),
-      );
+      ),
+    );
+  }
 }
