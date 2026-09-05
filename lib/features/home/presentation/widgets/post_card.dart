@@ -90,7 +90,7 @@ class _PostCardState extends State<PostCard> {
     if (r == null || !widget.data.isRemote) {
       setState(() {
         _liked = !_liked;
-        _likes = (_likes + (_liked ? 1 : -1)).clamp(0, 1 << 30);
+        _likes = (_likes + (_liked ? 1 : -1)).clamp(0, 1 << 30).toInt();
       });
       return;
     }
@@ -101,7 +101,7 @@ class _PostCardState extends State<PostCard> {
       if (mounted) {
         setState(() {
           _liked = !wasLiked;
-          _likes = (_likes + (_liked ? 1 : -1)).clamp(0, 1 << 30);
+          _likes = (_likes + (_liked ? 1 : -1)).clamp(0, 1 << 30).toInt();
         });
         await widget.onChanged?.call();
       }

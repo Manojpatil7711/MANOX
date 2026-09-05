@@ -76,6 +76,62 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _reportProfile() async {
+    final profile = _profile;
+    if (profile == null) return;
+    final reasons = <String, String>{
+      'spam': 'Spam or scam',
+      'harassment': 'Harassment or bullying',
+      'impersonation': 'Impersonation',
+      'inappropriate': 'Inappropriate content',
+      'other': 'Something else',
+    };
+    final reason = await showDialog<String>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Report profile'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: reasons.entries.map((entry) => ListTile(dense: true, title: Text(entry.value), onTap: () => Navigator.of(dialogContext).pop(entry.key))).toList()),
+      actions: [TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('CANCEL'))],
+    ));
+    if (reason == null || !mounted) return;
+    try {
+      await _postRepo.reportProfile(profile.id, reasonCode: reason);
+      if (mounted) _show('Thanks. The profile was reported to MANOX Safety.');
+    } catch (e) {
+      if (mounted) _show('Could not submit report: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  Future<void> _blockProfile() async {
+    final profile = _profile;
+    if (profile == null) return;
+    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Block profile?'),
+      content: Text('You will no longer see ${profile.displayName} or their content in your MANOX experience.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('CANCEL')),
+        FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('BLOCK')),
+      ],
+    ));
+    if (confirmed != true || !mounted) return;
+    try {
+      await _postRepo.blockUser(profile.id);
+      if (!mounted) return;
+      _show('${profile.displayName} has been blocked.');
+      _goBack();
+    } catch (e) {
+      if (mounted) _show('Could not block profile: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  Future<void> _openProfileMore() async {
+    if (_profile == null) return;
+    await showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      ListTile(leading: const Icon(Icons.flag_outlined), title: const Text('Report profile'), onTap: () { Navigator.pop(context); _reportProfile(); }),
+      ListTile(leading: const Icon(Icons.block_outlined), title: const Text('Block profile'), onTap: () { Navigator.pop(context); _blockProfile(); }),
+      ListTile(leading: const Icon(Icons.ios_share_outlined), title: const Text('Share profile'), onTap: () { Navigator.pop(context); _shareProfile(); }),
+      const SizedBox(height: 8),
+    ])));
+  }
+
   void _openProfileSection(String label) { if (label == 'Monetization') context.push('/monetization'); else if (label == 'Wallet') context.push('/payout'); }
   HomeDemoData _toHomePost(ManoxPost post) => HomeDemoData(id: post.id, creatorName: post.creatorName, handle: post.handle, text: post.text, likes: post.likes, comments: post.comments, imagePath: post.imageUrl, likedByMe: post.likedByMe, isRemote: true, ownerUserId: post.ownerUserId);
   String _flagForCountry(String? code) { final value = code?.trim().toUpperCase() ?? ''; if (!RegExp(r'^[A-Z]{2}$').hasMatch(value)) return ''; return value.runes.map((r) => String.fromCharCode(0x1F1E6 + r - 65)).join(); }
@@ -120,7 +176,7 @@ class _ProfilePageState extends State<ProfilePage> {
       else children.addAll(visiblePosts.map((post) => Padding(padding: const EdgeInsets.only(bottom: 8), child: PostCard(data: _toHomePost(post), repository: _postRepo, onChanged: _load))));
       body = RefreshIndicator(onRefresh: _load, child: ListView(physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), children: children));
     }
-    return Scaffold(appBar: AppBar(leading: IconButton(key: const Key('profile-back-button'), icon: const Icon(Icons.arrow_back_ios_new_rounded), onPressed: _goBack), title: const Text('Profile'), actions: [IconButton(key: const Key('profile-settings-button'), onPressed: () => context.push('/settings'), icon: const Icon(Icons.settings_outlined))]), body: SafeArea(child: body));
+    return Scaffold(appBar: AppBar(leading: IconButton(key: const Key('profile-back-button'), icon: const Icon(Icons.arrow_back_ios_new_rounded), onPressed: _goBack), title: const Text('Profile'), actions: [IconButton(key: const Key('profile-more-button'), tooltip: 'More profile actions', onPressed: _profile == null ? null : _openProfileMore, icon: const Icon(Icons.more_horiz_rounded)), IconButton(key: const Key('profile-settings-button'), tooltip: 'Settings', onPressed: () => context.push('/settings'), icon: const Icon(Icons.settings_outlined))]), body: SafeArea(child: body));
   }
 }
 
