@@ -33,6 +33,20 @@ class HomeDemoData {
 }
 
 const demoPosts = [
-  HomeDemoData(id: 'p1', creatorName: 'Ava Carter', handle: '@avac', text: 'Exploring creator tools at MANOX — excited to build with makers worldwide!', likes: 12, comments: 3),
-  HomeDemoData(id: 'p2', creatorName: 'Riley Kim', handle: '@rileyk', text: 'Just published my walkthrough on community growth. Feedback welcome!', likes: 8, comments: 1),
+  HomeDemoData(
+    id: 'p1',
+    creatorName: 'Ava Carter',
+    handle: '@avac',
+    text: 'Exploring creator tools at MANOX — excited to build with makers worldwide!',
+    likes: 12,
+    comments: 3,
+  ),
+  HomeDemoData(
+    id: 'p2',
+    creatorName: 'Riley Kim',
+    handle: '@rileyk',
+    text: 'Just published my walkthrough on community growth. Feedback welcome!',
+    likes: 8,
+    comments: 1,
+  ),
 ];
