@@ -99,12 +99,16 @@ class _PostCardState extends State<PostCard> {
     }
     setState(() => _busy = true);
     try {
-      final value = await r.toggleLike(widget.data.id, _liked);
+      // toggleLike performs the database mutation and returns void.
+      // Update the local state only after the mutation succeeds.
+      final wasLiked = _liked;
+      await r.toggleLike(widget.data.id, wasLiked);
       if (mounted) {
         setState(() {
-          if (value != _liked) _likes += value ? 1 : -1;
-          _liked = value;
+          _liked = !wasLiked;
+          _likes = (_likes + (_liked ? 1 : -1)).clamp(0, 1 << 30);
         });
+        await widget.onChanged?.call();
       }
     } catch (e) {
       if (mounted) _showError(e.toString());
@@ -179,7 +183,10 @@ class _PostCardState extends State<PostCard> {
     try {
       await repository.addComment(widget.data.id, text);
       controller.clear();
-      if (mounted) setState(() => _comments++);
+      if (mounted) {
+        setState(() => _comments += 1);
+        await widget.onChanged?.call();
+      }
     } catch (e) {
       if (mounted) _showError(e.toString());
     }
@@ -187,245 +194,81 @@ class _PostCardState extends State<PostCard> {
 
   Future<void> _share() async {
     final r = widget.repository;
-    var url = 'https://manox.app';
-    if (r != null && widget.data.isRemote) {
-      try {
-        url = await r.createShareUrl(widget.data.id);
-        await r.recordShare(widget.data.id);
-      } catch (_) {}
-    }
-    await SharePlus.instance.share(ShareParams(text: 'Open this MANOX content directly:\n$url\n\n${widget.data.text}', title: 'MANOX • ${widget.data.creatorName}'));
-  }
-
-  Future<String?> _mediaUrl() async {
-    final path = widget.data.imagePath;
-    if (path == null) return null;
-    return widget.repository?.signedMediaUrl(path);
-  }
-
-  Future<void> _openVideoFullScreen() async {
-    final path = widget.data.imagePath;
-    if (path == null || !isManoxVideo(path)) return;
-    final url = await _mediaUrl();
-    if (!mounted || url == null || url.isEmpty) return;
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        opaque: true,
-        pageBuilder: (_, __, ___) => Scaffold(
-          backgroundColor: Colors.black,
-          body: SafeArea(
-            child: Stack(
-              children: [
-                Center(child: ManoxMediaPreview(url: url, height: MediaQuery.sizeOf(context).height, fit: BoxFit.contain, autoPlay: true, fullScreenStyle: true)),
-                Positioned(top: 8, left: 8, child: IconButton(onPressed: () => Navigator.pop(context), color: Colors.white, icon: const Icon(Icons.close, size: 30))),
-              ],
-            ),
-          ),
-        ),
-        transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
-      ),
-    );
-  }
-
-  Widget _media(double height) {
-    final path = widget.data.imagePath;
-    if (path == null) return const SizedBox.shrink();
-    return FutureBuilder<String?>(
-      future: _mediaUrl(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return SizedBox(height: height, child: const Center(child: CircularProgressIndicator()));
-        final url = snapshot.data;
-        if (url == null || url.isEmpty) return SizedBox(height: height, child: const Center(child: Icon(Icons.broken_image_outlined)));
-        if (isManoxVideo(path)) return ManoxMediaPreview(url: url, height: height, fit: BoxFit.cover, onVideoTap: _openVideoFullScreen);
-        return ClipRRect(borderRadius: BorderRadius.circular(12), child: SizedBox(width: double.infinity, height: height, child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined)))));
-      },
-    );
-  }
-
-  Future<void> _editPost() async {
-    final r = widget.repository;
-    if (r == null) return;
-    final controller = TextEditingController(text: widget.data.text);
-    final save = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Edit post'),
-        content: TextField(controller: controller, maxLines: 6, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save')),
-        ],
-      ),
-    );
-    final text = controller.text.trim();
-    if (save != true || text.isEmpty) {
-      controller.dispose();
+    if (r == null || !widget.data.isRemote) {
+      await Share.share(widget.data.text.isEmpty ? 'Check out this MANOX post.' : widget.data.text);
       return;
     }
     try {
-      await r.updatePost(widget.data.id, text);
-      if (mounted) await widget.onChanged?.call();
-    } catch (e) {
-      if (mounted) _showError(e.toString());
-    } finally {
-      controller.dispose();
-    }
-  }
-
-  Future<void> _deletePost() async {
-    final r = widget.repository;
-    if (r == null) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete post?'),
-        content: const Text('This post will be permanently removed.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Delete')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await r.deletePost(widget.data.id);
-      if (mounted) await widget.onChanged?.call();
+      final url = await r.createShareUrl(widget.data.id);
+      await Share.share('${widget.data.text}\n$url');
+      await r.recordShare(widget.data.id);
     } catch (e) {
       if (mounted) _showError(e.toString());
     }
   }
 
-  Future<void> _showPostMenu() async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(leading: Icon(_saved ? Icons.bookmark : Icons.bookmark_border), title: Text(_saved ? 'Remove from Saved' : 'Save'), onTap: () => Navigator.pop(sheetContext, 'save')),
-            if (_isOwner) ...[
-              ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Edit post'), onTap: () => Navigator.pop(sheetContext, 'edit')),
-              ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Delete post'), onTap: () => Navigator.pop(sheetContext, 'delete')),
-            ],
-          ],
-        ),
-      ),
-    );
-    if (action == 'save') await _toggleSave();
-    if (action == 'edit') await _editPost();
-    if (action == 'delete') await _deletePost();
-  }
-
-  void _showError(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.replaceFirst('Exception: ', ''))));
-
-  Widget _creatorHeader() {
-    return InkWell(
-      onTap: _openCreator,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            const CircleAvatar(radius: 22, child: Icon(Icons.person)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(widget.data.creatorName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                  Text(widget.data.handle.replaceFirst(RegExp(r'^@+'), '@'), maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-            ),
-            if (!_isOwner)
-              SizedBox(
-                height: 30,
-                child: OutlinedButton(
-                  onPressed: _toggleVibe,
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10), minimumSize: const Size(0, 30), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
-                  child: Text(_vibed ? 'UNVIBE' : 'VIBE', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            IconButton(onPressed: _showPostMenu, tooltip: 'More', icon: const Icon(Icons.more_vert)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _engagementRow() {
-    return Row(
-      children: [
-        IconButton(key: Key('post-like-${widget.data.id}'), onPressed: _busy ? null : _toggleLike, icon: Icon(_liked ? Icons.favorite : Icons.favorite_border), tooltip: 'Like'),
-        Text('$_likes'),
-        const SizedBox(width: 4),
-        IconButton(key: Key('post-comment-${widget.data.id}'), onPressed: _showComments, icon: const Icon(Icons.comment_outlined), tooltip: 'Comment'),
-        Text('$_comments'),
-        const SizedBox(width: 4),
-        IconButton(key: Key('post-share-${widget.data.id}'), onPressed: _share, icon: const Icon(Icons.share_outlined), tooltip: 'Share'),
-        const Spacer(),
-      ],
-    );
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final data = widget.data;
+    final theme = Theme.of(context);
+    final imagePath = widget.data.imageUrl;
     return Card(
-      key: Key('post-card-${data.id}'),
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _openFullPost,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _creatorHeader(),
-              const SizedBox(height: 8),
-              if (data.text.isNotEmpty) Text(data.text),
-              if (data.imagePath != null) ...[
-                const SizedBox(height: 12),
-                _media(300),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            onTap: _openCreator,
+            leading: CircleAvatar(child: Text(widget.data.creatorName.isEmpty ? 'M' : widget.data.creatorName[0].toUpperCase())),
+            title: Text(widget.data.creatorName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(widget.data.handle),
+            trailing: PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value == 'save') await _toggleSave();
+                if (value == 'delete' && _isOwner) {
+                  final r = widget.repository;
+                  if (r == null) return;
+                  try {
+                    await r.deletePost(widget.data.id);
+                    await widget.onChanged?.call();
+                  } catch (e) {
+                    if (mounted) _showError(e.toString());
+                  }
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'save', child: Text(_saved ? 'Unsave' : 'Save')),
+                if (_isOwner) const PopupMenuItem(value: 'delete', child: Text('Delete')),
               ],
-              const SizedBox(height: 8),
-              _engagementRow(),
+            ),
+          ),
+          if (widget.data.text.isNotEmpty)
+            Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12), child: Text(widget.data.text)),
+          if (imagePath != null && imagePath.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: MediaPreview(path: imagePath, repository: widget.repository),
+              ),
+            ),
+          ButtonBar(
+            children: [
+              TextButton.icon(
+                onPressed: _busy ? null : _toggleLike,
+                icon: Icon(_liked ? Icons.favorite : Icons.favorite_border),
+                label: Text('$_likes'),
+              ),
+              TextButton.icon(onPressed: _showComments, icon: const Icon(Icons.comment_outlined), label: Text('$_comments')),
+              TextButton.icon(onPressed: _toggleVibe, icon: Icon(_vibed ? Icons.bolt : Icons.bolt_outlined), label: const Text('Vibe')),
+              TextButton.icon(onPressed: _share, icon: const Icon(Icons.share_outlined), label: const Text('Share')),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openFullPost() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.88,
-          minChildSize: 0.55,
-          maxChildSize: 0.96,
-          builder: (_, controller) => ListView(
-            controller: controller,
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-            children: [
-              _creatorHeader(),
-              const SizedBox(height: 16),
-              if (widget.data.text.isNotEmpty) Text(widget.data.text, style: Theme.of(context).textTheme.bodyLarge),
-              if (widget.data.imagePath != null) ...[
-                const SizedBox(height: 16),
-                _media(420),
-              ],
-              const SizedBox(height: 16),
-              _engagementRow(),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
