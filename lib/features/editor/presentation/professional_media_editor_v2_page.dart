@@ -94,7 +94,9 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     final endMs = requestedEndMs > boundedStartMs ? requestedEndMs : (boundedStartMs + safeMinimumDurationMs).clamp(0, durationMs).round();
     if (endMs <= boundedStartMs) throw StateError('Selected clip is too short to export.');
     final temp = await getTemporaryDirectory(); final output = '${temp.path}/manox_render_${DateTime.now().millisecondsSinceEpoch}.mp4';
-    final filters = <String>[]; if (_ratioFilter() != null) filters.add(_ratioFilter()!); if (_videoFilter() != null) filters.add(_videoFilter()!);
+    final filters = <String>[];
+    final ratioFilter = _ratioFilter(); if (ratioFilter != null) filters.add(ratioFilter);
+    final videoFilter = _videoFilter(); if (videoFilter != null) filters.add(videoFilter);
     if (_text != null && _text!.trim().isNotEmpty) { final safe = _text!.replaceAll('\\', '\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'"); filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2"); }
     if (_speed != 1) filters.add('setpts=${(1 / _speed).toStringAsFixed(4)}*PTS');
     final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}'; final af = _speed == 1 ? 'volume=${_volume.toStringAsFixed(2)}' : 'atempo=${_speed.toStringAsFixed(2)},volume=${_volume.toStringAsFixed(2)}';
@@ -121,17 +123,20 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       final bytes = await renderedFile.readAsBytes();
       await originalFile.writeAsBytes(bytes, flush: true);
       try { await renderedFile.delete(); } catch (_) {}
-      if (backup != null) { try { await File(backup!).delete(); } catch (_) {} }
+      final backupPath = backup;
+      try { await File(backupPath).delete(); } catch (_) {}
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (backup != null && widget.mediaPath != null) {
+      final backupPath = backup;
+      if (backupPath != null && widget.mediaPath != null) {
         try {
-          final backupFile = File(backup!);
+          final backupFile = File(backupPath);
           if (await backupFile.exists()) await backupFile.copy(widget.mediaPath!);
           await backupFile.delete();
         } catch (_) {}
       }
-      if (rendered != null) { try { await File(rendered!).delete(); } catch (_) {} }
+      final renderedPath = rendered;
+      if (renderedPath != null) { try { await File(renderedPath).delete(); } catch (_) {} }
       if (!mounted) return; setState(() => _exporting = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
     }
   }
