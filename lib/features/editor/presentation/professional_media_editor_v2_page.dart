@@ -107,14 +107,31 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   Future<void> _done() async {
     if (!widget.isVideo) { if (mounted) Navigator.of(context).pop(true); return; }
     if (_exporting) return; setState(() => _exporting = true);
+    String? rendered;
+    String? backup;
     try {
-      final rendered = await _render();
+      rendered = await _render();
       final original = widget.mediaPath;
       if (rendered == null || original == null) throw StateError('No video selected.');
-      await File(original).writeAsBytes(await File(rendered).readAsBytes(), flush: true);
-      await File(rendered).delete().catchError((_) => File(rendered));
+      final originalFile = File(original);
+      final renderedFile = File(rendered);
+      final temp = await getTemporaryDirectory();
+      backup = '${temp.path}/manox_backup_${DateTime.now().millisecondsSinceEpoch}.mp4';
+      if (await originalFile.exists()) await originalFile.copy(backup);
+      final bytes = await renderedFile.readAsBytes();
+      await originalFile.writeAsBytes(bytes, flush: true);
+      try { await renderedFile.delete(); } catch (_) {}
+      if (backup != null) { try { await File(backup!).delete(); } catch (_) {} }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
+      if (backup != null && widget.mediaPath != null) {
+        try {
+          final backupFile = File(backup!);
+          if (await backupFile.exists()) await backupFile.copy(widget.mediaPath!);
+          await backupFile.delete();
+        } catch (_) {}
+      }
+      if (rendered != null) { try { await File(rendered!).delete(); } catch (_) {} }
       if (!mounted) return; setState(() => _exporting = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
     }
   }
