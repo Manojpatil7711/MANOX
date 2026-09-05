@@ -99,8 +99,6 @@ class _PostCardState extends State<PostCard> {
     }
     setState(() => _busy = true);
     try {
-      // toggleLike performs the database mutation and returns void.
-      // Update the local state only after the mutation succeeds.
       final wasLiked = _liked;
       await r.toggleLike(widget.data.id, wasLiked);
       if (mounted) {
@@ -195,16 +193,39 @@ class _PostCardState extends State<PostCard> {
   Future<void> _share() async {
     final r = widget.repository;
     if (r == null || !widget.data.isRemote) {
-      await Share.share(widget.data.text.isEmpty ? 'Check out this MANOX post.' : widget.data.text);
+      await SharePlus.instance.share(
+        ShareParams(text: widget.data.text.isEmpty ? 'Check out this MANOX post.' : widget.data.text),
+      );
       return;
     }
     try {
       final url = await r.createShareUrl(widget.data.id);
-      await Share.share('${widget.data.text}\n$url');
+      await SharePlus.instance.share(ShareParams(text: '${widget.data.text}\n$url'));
       await r.recordShare(widget.data.id);
     } catch (e) {
       if (mounted) _showError(e.toString());
     }
+  }
+
+  Widget _buildMedia(String path) {
+    if (isManoxVideo(path)) {
+      return ManoxMediaPreview(url: path, height: 260);
+    }
+    final uri = Uri.tryParse(path);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      return Image.network(
+        path,
+        width: double.infinity,
+        height: 260,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const SizedBox(height: 180, child: Center(child: Icon(Icons.broken_image_outlined))),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const SizedBox(height: 260, child: Center(child: CircularProgressIndicator()));
+        },
+      );
+    }
+    return const SizedBox(height: 180, child: Center(child: Icon(Icons.image_not_supported_outlined)));
   }
 
   void _showError(String message) {
@@ -213,8 +234,7 @@ class _PostCardState extends State<PostCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final imagePath = widget.data.imageUrl;
+    final imagePath = widget.data.imagePath;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       clipBehavior: Clip.antiAlias,
@@ -253,10 +273,10 @@ class _PostCardState extends State<PostCard> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: MediaPreview(path: imagePath, repository: widget.repository),
+                child: _buildMedia(imagePath),
               ),
             ),
-          ButtonBar(
+          OverflowBar(
             children: [
               TextButton.icon(
                 onPressed: _busy ? null : _toggleLike,
