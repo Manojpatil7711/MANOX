@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../home/data/supabase_post_repository.dart';
+
 class ProfessionalMediaEditorV2Page extends StatefulWidget {
   final bool isVideo;
   final String? mediaPath;
@@ -25,9 +27,9 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   String _ratio = '9:16';
   String _filter = 'Original';
   String? _text;
+  ManoxPost? _selectedBeat;
   static const _filters = ['Original','Natural','Cinema','Warm','Cool','Vintage','B&W','Vivid'];
   static const _ratios = ['Original','9:16','4:5','1:1','16:9','4:3'];
-  static const _beats = ['Beat 01 • Energy','Beat 02 • Chill','Beat 03 • Travel','Beat 04 • Creator','Beat 05 • Kids'];
 
   @override void initState() { super.initState(); _init(); }
   Future<void> _init() async {
@@ -58,11 +60,29 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   }
 
   Future<void> _addBeat() async {
-    await showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheet) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const ListTile(leading: Icon(Icons.music_note_rounded), title: Text('Add Beats', style: TextStyle(fontWeight: FontWeight.w900)), subtitle: Text('Choose a MANOX beat')),
-      ..._beats.map((item) => ListTile(title: Text(item), onTap: () => Navigator.pop(sheet))),
-      ListTile(leading: const Icon(Icons.library_music_outlined), title: const Text('Open Beats library'), onTap: () { Navigator.pop(sheet); context.push('/beats'); }),
-    ])));
+    try {
+      final beats = await SupabasePostRepository().fetchBeats();
+      if (!mounted) return;
+      if (beats.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No published MANOX beats are available yet.')));
+        return;
+      }
+      await showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheet) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const ListTile(leading: Icon(Icons.music_note_rounded), title: Text('Add Beats', style: TextStyle(fontWeight: FontWeight.w900)), subtitle: Text('Choose a published MANOX beat')),
+        ...beats.map((beat) => ListTile(
+          leading: const CircleAvatar(child: Icon(Icons.music_note_rounded)),
+          title: Text(beat.text.isNotEmpty ? beat.text : '${beat.creatorName} • Beat'),
+          subtitle: Text(beat.handle),
+          trailing: _selectedBeat?.id == beat.id ? const Icon(Icons.check_circle_rounded) : null,
+          onTap: () { setState(() => _selectedBeat = beat); Navigator.pop(sheet); },
+        )),
+        if (_selectedBeat != null) ListTile(leading: const Icon(Icons.clear_rounded), title: const Text('Remove selected beat'), onTap: () { setState(() => _selectedBeat = null); Navigator.pop(sheet); }),
+        ListTile(leading: const Icon(Icons.library_music_outlined), title: const Text('Open Beats library'), onTap: () { Navigator.pop(sheet); context.push('/beats'); }),
+      ])));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load beats: ${e.toString().replaceFirst('Bad state: ', '')}')));
+    }
   }
 
   void _changeSpeed() { final next = _speed == 0.5 ? 1.0 : _speed == 1.0 ? 1.5 : _speed == 1.5 ? 2.0 : 0.5; setState(() => _speed = next); _video?.setPlaybackSpeed(next); }
@@ -71,7 +91,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     var value = _volume;
     await showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheet) => StatefulBuilder(builder: (context, setSheet) => Padding(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 28), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('Original audio', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+        Text(_selectedBeat == null ? 'Original audio' : 'Beat audio', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
         Slider(value: value, min: 0, max: 1, divisions: 20, label: '${(value * 100).round()}%', onChanged: (v) { value = v; setSheet(() {}); _video?.setVolume(v); }),
         FilledButton(onPressed: () { setState(() => _volume = value); Navigator.pop(sheet); }, child: const Text('DONE')),
       ]))));
@@ -80,6 +100,22 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   String _shell(String value) => "'${value.replaceAll("'", "'\\''")}'";
   String? _videoFilter() { switch (_filter) { case 'B&W': return 'hue=s=0'; case 'Warm': return 'colorbalance=rs=.08:gs=.03:bs=-.03'; case 'Cool': return 'colorbalance=rs=-.03:gs=.02:bs=.08'; case 'Vintage': return 'curves=vintage'; case 'Cinema': return 'eq=contrast=1.08:saturation=1.08:brightness=-.02'; case 'Vivid': return 'eq=contrast=1.12:saturation=1.22'; default: return null; } }
   String? _ratioFilter() { switch (_ratio) { case '9:16': return 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920'; case '4:5': return 'scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350'; case '1:1': return 'scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080'; case '16:9': return 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080'; case '4:3': return 'scale=1440:1080:force_original_aspect_ratio=increase,crop=1440:1080'; default: return null; } }
+
+  Future<File> _downloadBeat(String url) async {
+    final temp = await getTemporaryDirectory();
+    final file = File('${temp.path}/manox_beat_${DateTime.now().millisecondsSinceEpoch}.mp4');
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(Uri.parse(url));
+      final response = await request.close();
+      if (response.statusCode < 200 || response.statusCode >= 300) throw StateError('Beat download failed.');
+      await response.pipe(file.openWrite());
+      if (!await file.exists() || await file.length() == 0) throw StateError('Beat file is empty.');
+      return file;
+    } finally {
+      client.close(force: true);
+    }
+  }
 
   Future<String?> _render() async {
     final input = widget.mediaPath; final video = _video;
@@ -94,16 +130,32 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     final endMs = requestedEndMs > boundedStartMs ? requestedEndMs : (boundedStartMs + safeMinimumDurationMs).clamp(0, durationMs).round();
     if (endMs <= boundedStartMs) throw StateError('Selected clip is too short to export.');
     final temp = await getTemporaryDirectory(); final output = '${temp.path}/manox_render_${DateTime.now().millisecondsSinceEpoch}.mp4';
-    final filters = <String>[];
-    final ratioFilter = _ratioFilter(); if (ratioFilter != null) filters.add(ratioFilter);
-    final videoFilter = _videoFilter(); if (videoFilter != null) filters.add(videoFilter);
-    if (_text != null && _text!.trim().isNotEmpty) { final safe = _text!.replaceAll('\\', '\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'"); filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2"); }
-    if (_speed != 1) filters.add('setpts=${(1 / _speed).toStringAsFixed(4)}*PTS');
-    final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}'; final af = _speed == 1 ? 'volume=${_volume.toStringAsFixed(2)}' : 'atempo=${_speed.toStringAsFixed(2)},volume=${_volume.toStringAsFixed(2)}';
-    final command = '-y -ss ${(boundedStartMs / 1000).toStringAsFixed(3)} -i ${_shell(input)} -t ${((endMs - boundedStartMs) / 1000).toStringAsFixed(3)}$vf -af ${_shell(af)} -c:v mpeg4 -q:v 3 -c:a aac -b:a 128k -movflags +faststart ${_shell(output)}';
-    final session = await FFmpegKit.execute(command); final code = await session.getReturnCode();
-    if (ReturnCode.isSuccess(code) && await File(output).exists()) return output;
-    throw StateError('Video render failed. Please try a shorter clip or another format.');
+    File? beatFile;
+    try {
+      final filters = <String>[];
+      final ratioFilter = _ratioFilter(); if (ratioFilter != null) filters.add(ratioFilter);
+      final videoFilter = _videoFilter(); if (videoFilter != null) filters.add(videoFilter);
+      if (_text != null && _text!.trim().isNotEmpty) { final safe = _text!.replaceAll('\\', '\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'"); filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2"); }
+      if (_speed != 1) filters.add('setpts=${(1 / _speed).toStringAsFixed(4)}*PTS');
+      final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}';
+      final audioFilter = _speed == 1 ? 'volume=${_volume.toStringAsFixed(2)}' : 'atempo=${_speed.toStringAsFixed(2)},volume=${_volume.toStringAsFixed(2)}';
+      String command;
+      if (_selectedBeat != null) {
+        final beatPath = _selectedBeat!.imageUrl;
+        if (beatPath == null || beatPath.isEmpty) throw StateError('Selected beat has no media source.');
+        final beatUrl = await SupabasePostRepository().signedMediaUrl(beatPath);
+        if (beatUrl == null || beatUrl.isEmpty) throw StateError('Could not access the selected beat.');
+        beatFile = await _downloadBeat(beatUrl);
+        command = '-y -ss ${(boundedStartMs / 1000).toStringAsFixed(3)} -i ${_shell(input)} -stream_loop -1 -i ${_shell(beatFile.path)} -t ${((endMs - boundedStartMs) / 1000).toStringAsFixed(3)}$vf -map 0:v:0 -map 1:a:0 -af ${_shell(audioFilter)} -c:v mpeg4 -q:v 3 -c:a aac -b:a 128k -movflags +faststart ${_shell(output)}';
+      } else {
+        command = '-y -ss ${(boundedStartMs / 1000).toStringAsFixed(3)} -i ${_shell(input)} -t ${((endMs - boundedStartMs) / 1000).toStringAsFixed(3)}$vf -af ${_shell(audioFilter)} -c:v mpeg4 -q:v 3 -c:a aac -b:a 128k -movflags +faststart ${_shell(output)}';
+      }
+      final session = await FFmpegKit.execute(command); final code = await session.getReturnCode();
+      if (ReturnCode.isSuccess(code) && await File(output).exists()) return output;
+      throw StateError(_selectedBeat == null ? 'Video render failed. Please try a shorter clip or another format.' : 'Beat export failed. The selected beat may not contain an audio track.');
+    } finally {
+      if (beatFile != null) { try { await beatFile.delete(); } catch (_) {} }
+    }
   }
 
   Future<void> _done() async {
@@ -157,7 +209,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   Widget _tools() {
     final tools = <({String label, IconData icon, VoidCallback action})>[
       if (widget.isVideo) (label: 'Trim', icon: Icons.content_cut_rounded, action: () => _video?.seekTo(Duration(milliseconds: _start.round()))),
-      if (widget.isVideo) (label: 'Beats', icon: Icons.music_note_rounded, action: _addBeat),
+      if (widget.isVideo) (label: _selectedBeat == null ? 'Beats' : 'Beat ✓', icon: Icons.music_note_rounded, action: _addBeat),
       if (widget.isVideo) (label: '${_speed}x', icon: Icons.speed_rounded, action: _changeSpeed),
       if (widget.isVideo) (label: 'Volume', icon: Icons.volume_up_rounded, action: _showVolume),
       (label: 'Crop', icon: Icons.crop_rounded, action: () => _choose('Aspect ratio', _ratios, _ratio, (v) => _ratio = v)),
@@ -171,7 +223,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     if (!_ready) return const Center(child: CircularProgressIndicator()); Widget media;
     if (widget.isVideo && _video?.value.isInitialized == true) { final size = _video!.value.size; media = FittedBox(fit: BoxFit.contain, child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(_video!))); }
     else if (widget.mediaPath?.isNotEmpty == true) media = Image.file(File(widget.mediaPath!), fit: BoxFit.contain); else media = const Icon(Icons.add_photo_alternate_outlined, size: 70, color: Colors.white38);
-    return Stack(fit: StackFit.expand, children: [Center(child: media), if (_text != null) Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_text!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, shadows: [Shadow(blurRadius: 8, color: Colors.black)])))), Positioned(top: 10, left: 10, child: _pill(_ratio)), Positioned(top: 10, right: 10, child: _pill(_filter))]);
+    return Stack(fit: StackFit.expand, children: [Center(child: media), if (_text != null) Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_text!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, shadows: [Shadow(blurRadius: 8, color: Colors.black)])))), Positioned(top: 10, left: 10, child: _pill(_ratio)), Positioned(top: 10, right: 10, child: _pill(_selectedBeat == null ? _filter : 'BEAT • ${_selectedBeat!.creatorName}'))]);
   }
   Widget _pill(String text) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)), child: Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)));
 }
