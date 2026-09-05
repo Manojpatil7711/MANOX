@@ -44,8 +44,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     }
 
     try {
-      final profile =
-          await _profiles.fetchProfileByUserId(widget.userId);
+      final profile = await _profiles.fetchProfileByUserId(widget.userId);
       List<ManoxPost> posts = const [];
       try {
         posts = await _postsRepo.fetchPostsByOwner(widget.userId);
@@ -101,8 +100,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       if (!mounted) return;
       setState(() {
         _isFollowing = next;
-        _followers =
-            (_followers + (next ? 1 : -1)).clamp(0, 1 << 30);
+        _followers = (_followers + (next ? 1 : -1)).clamp(0, 1 << 30);
       });
     } catch (error) {
       if (!mounted) return;
@@ -118,22 +116,20 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     }
   }
 
-  HomeDemoData _data(ManoxPost post) {
-    return HomeDemoData(
-      id: post.id,
-      creatorName: post.creatorName,
-      handle: post.handle,
-      text: post.text,
-      likes: post.likes,
-      comments: post.comments,
-      imagePath: post.imageUrl,
-      likedByMe: post.likedByMe,
-      isRemote: true,
-      ownerUserId: post.ownerUserId,
-      allowComments: post.allowComments,
-      allowDownloads: post.allowDownloads,
-    );
-  }
+  HomeDemoData _data(ManoxPost post) => HomeDemoData(
+        id: post.id,
+        creatorName: post.creatorName,
+        handle: post.handle,
+        text: post.text,
+        likes: post.likes,
+        comments: post.comments,
+        imagePath: post.imageUrl,
+        likedByMe: post.likedByMe,
+        isRemote: true,
+        ownerUserId: post.ownerUserId,
+        allowComments: post.allowComments,
+        allowDownloads: post.allowDownloads,
+      );
 
   String _flagForCountry(String? code) {
     final value = code?.trim().toUpperCase() ?? '';
@@ -145,9 +141,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
 
   Future<void> _openLink(String value) async {
     final uri = Uri.tryParse(value);
-    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
-      return;
-    }
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
@@ -158,20 +152,14 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
 
     if (profession.isNotEmpty) {
       items.add(
-        const Text(
-          '',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        Text(
+          profession,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       );
-      items[items.length - 1] = Text(
-        profession,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-      );
     }
-
     if (flag.isNotEmpty) {
-      items.add(const Text('', style: TextStyle(fontSize: 20)));
-      items[items.length - 1] = Text(flag, style: const TextStyle(fontSize: 20));
+      items.add(Text(flag, style: const TextStyle(fontSize: 20)));
     }
 
     final link = profile.otherLink?.trim() ?? '';
@@ -195,7 +183,6 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     }
 
     if (items.isEmpty) return const SizedBox.shrink();
-
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
@@ -349,10 +336,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   }
 
   Widget _buildBody(ThemeData theme) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
+    if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null || _profile == null) {
       return Center(
         child: Column(
@@ -362,15 +346,11 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
             const SizedBox(height: 10),
             Text(_error ?? 'Profile unavailable'),
             const SizedBox(height: 10),
-            OutlinedButton(
-              onPressed: _load,
-              child: const Text('TRY AGAIN'),
-            ),
+            OutlinedButton(onPressed: _load, child: const Text('TRY AGAIN')),
           ],
         ),
       );
     }
-
     return _buildProfileContent(theme, _profile!);
   }
 
