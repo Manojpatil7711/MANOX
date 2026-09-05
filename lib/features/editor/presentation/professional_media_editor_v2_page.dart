@@ -84,13 +84,21 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   Future<String?> _render() async {
     final input = widget.mediaPath; final video = _video;
     if (input == null || video == null || !video.value.isInitialized) return null;
-    final durationMs = video.value.duration.inMilliseconds; final startMs = _start.clamp(0, durationMs).round(); final endMs = _end.clamp(startMs + 500, durationMs).round();
+    final durationMs = video.value.duration.inMilliseconds;
+    if (durationMs <= 0) throw StateError('Video duration is unavailable. Please select the video again.');
+    final startMs = _start.clamp(0, durationMs).round();
+    final safeMinimumDurationMs = durationMs < 500 ? durationMs : 500;
+    final maxStartMs = (durationMs - safeMinimumDurationMs).clamp(0, durationMs).round();
+    final boundedStartMs = startMs.clamp(0, maxStartMs).round();
+    final requestedEndMs = _end.clamp(boundedStartMs, durationMs).round();
+    final endMs = requestedEndMs > boundedStartMs ? requestedEndMs : (boundedStartMs + safeMinimumDurationMs).clamp(0, durationMs).round();
+    if (endMs <= boundedStartMs) throw StateError('Selected clip is too short to export.');
     final temp = await getTemporaryDirectory(); final output = '${temp.path}/manox_render_${DateTime.now().millisecondsSinceEpoch}.mp4';
     final filters = <String>[]; if (_ratioFilter() != null) filters.add(_ratioFilter()!); if (_videoFilter() != null) filters.add(_videoFilter()!);
     if (_text != null && _text!.trim().isNotEmpty) { final safe = _text!.replaceAll('\\', '\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'"); filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2"); }
     if (_speed != 1) filters.add('setpts=${(1 / _speed).toStringAsFixed(4)}*PTS');
     final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}'; final af = _speed == 1 ? 'volume=${_volume.toStringAsFixed(2)}' : 'atempo=${_speed.toStringAsFixed(2)},volume=${_volume.toStringAsFixed(2)}';
-    final command = '-y -ss ${(startMs / 1000).toStringAsFixed(3)} -i ${_shell(input)} -t ${((endMs - startMs) / 1000).toStringAsFixed(3)}$vf -af ${_shell(af)} -c:v mpeg4 -q:v 3 -c:a aac -b:a 128k -movflags +faststart ${_shell(output)}';
+    final command = '-y -ss ${(boundedStartMs / 1000).toStringAsFixed(3)} -i ${_shell(input)} -t ${((endMs - boundedStartMs) / 1000).toStringAsFixed(3)}$vf -af ${_shell(af)} -c:v mpeg4 -q:v 3 -c:a aac -b:a 128k -movflags +faststart ${_shell(output)}';
     final session = await FFmpegKit.execute(command); final code = await session.getReturnCode();
     if (ReturnCode.isSuccess(code) && await File(output).exists()) return output;
     throw StateError('Video render failed. Please try a shorter clip or another format.');
