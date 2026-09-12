@@ -27,7 +27,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('manox-home-logo')), findsOneWidget);
-      expect(find.text('Create a post…'), findsOneWidget);
+      expect(find.text('Share your world'), findsOneWidget);
       expect(demoPosts, isNotEmpty);
 
       final first = demoPosts.first;
