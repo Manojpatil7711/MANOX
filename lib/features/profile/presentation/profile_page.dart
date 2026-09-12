@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:manox/features/home/data/demo_posts.dart';
 import 'package:manox/features/home/data/supabase_post_repository.dart';
 import 'package:manox/features/home/presentation/widgets/post_card.dart';
 import '../data/demo_profile.dart';
@@ -45,17 +46,10 @@ class _ProfilePageState extends State<ProfilePage> {
     if (profile == null) return;
     final updated = await Navigator.of(context).push<ProfileData>(MaterialPageRoute(builder: (_) => EditProfilePage(
       repository: _repo,
-      initialName: profile.displayName,
-      initialUsername: profile.handle,
-      initialBio: profile.bio,
-      initialAvatarUrl: profile.avatarUrl,
-      initialCountryCode: profile.countryCode,
-      initialGender: profile.gender,
-      initialProfession: profile.profession,
-      initialDateOfBirth: profile.dateOfBirth,
-      initialSkills: profile.skills,
-      initialCreatorCategory: profile.creatorCategory,
-      initialOtherLink: profile.otherLink,
+      initialName: profile.displayName, initialUsername: profile.handle, initialBio: profile.bio,
+      initialAvatarUrl: profile.avatarUrl, initialCountryCode: profile.countryCode, initialGender: profile.gender,
+      initialProfession: profile.profession, initialDateOfBirth: profile.dateOfBirth, initialSkills: profile.skills,
+      initialCreatorCategory: profile.creatorCategory, initialOtherLink: profile.otherLink,
     )));
     if (updated != null && mounted) setState(() => _profile = updated);
   }
@@ -85,29 +79,19 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _openPost(ManoxPost post) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
+    await showModalBottomSheet<void>(context: context, isScrollControlled: true, showDragHandle: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      builder: (_) => SafeArea(child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * .86,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: PostCard(
-            data: HomeDemoData(id: post.id, creatorName: post.creatorName, handle: post.handle, text: post.text, likes: post.likes, comments: post.comments, imagePath: post.imageUrl, likedByMe: post.likedByMe, isRemote: true, ownerUserId: post.ownerUserId, allowComments: post.allowComments, allowDownloads: post.allowDownloads),
-            repository: _postRepo,
-            onChanged: _load,
-          ),
-        ),
-      )),
-    );
+      builder: (_) => SafeArea(child: SizedBox(height: MediaQuery.sizeOf(context).height * .86,
+        child: SingleChildScrollView(padding: const EdgeInsets.only(bottom: 24), child: PostCard(
+          data: HomeDemoData(id: post.id, creatorName: post.creatorName, handle: post.handle, text: post.text,
+            likes: post.likes, comments: post.comments, imagePath: post.imageUrl, likedByMe: post.likedByMe,
+            isRemote: true, ownerUserId: post.ownerUserId, allowComments: post.allowComments, allowDownloads: post.allowDownloads),
+          repository: _postRepo, onChanged: _load,
+        )))));
   }
 
   Widget _profileDetails(ProfileData profile) {
-    final flag = _flagForCountry(profile.countryCode);
-    final profession = profile.profession?.trim() ?? '';
-    final link = profile.otherLink?.trim() ?? '';
+    final flag = _flagForCountry(profile.countryCode); final profession = profile.profession?.trim() ?? ''; final link = profile.otherLink?.trim() ?? '';
     final children = <Widget>[];
     if (profession.isNotEmpty) children.add(Text(profession, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)));
     if (flag.isNotEmpty) children.add(Text(flag, style: const TextStyle(fontSize: 20)));
@@ -118,27 +102,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _gridTile(ManoxPost post) {
     final image = post.imageUrl;
-    return InkWell(
-      onTap: () => _openPost(post),
-      child: Stack(fit: StackFit.expand, children: [
-        if (image != null && image.isNotEmpty) Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _fallbackTile(post)) else _fallbackTile(post),
-        if (post.contentType == 'video' || post.contentType == 'beat') const Positioned(right: 6, top: 6, child: Icon(Icons.play_circle_fill_rounded, size: 23, color: Colors.white)),
-        Positioned(left: 6, bottom: 5, child: DecoratedBox(decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), child: Text('${post.likes}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white))))),
-      ]),
-    );
+    return InkWell(onTap: () => _openPost(post), child: Stack(fit: StackFit.expand, children: [
+      if (image != null && image.isNotEmpty) Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _fallbackTile(post)) else _fallbackTile(post),
+      if (post.contentType == 'video' || post.contentType == 'beat') const Positioned(right: 6, top: 6, child: Icon(Icons.play_circle_fill_rounded, size: 23, color: Colors.white)),
+      Positioned(left: 6, bottom: 5, child: DecoratedBox(decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), child: Text('${post.likes}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white))))),
+    ]));
   }
 
   Widget _fallbackTile(ManoxPost post) => Container(color: Theme.of(context).colorScheme.surfaceContainerHighest, alignment: Alignment.center, padding: const EdgeInsets.all(8), child: Text(post.text.isEmpty ? 'MANOX' : post.text, maxLines: 4, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center));
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    Widget body;
+    final theme = Theme.of(context); Widget body;
     if (_loading) body = const Center(child: CircularProgressIndicator());
     else if (_error != null || _profile == null) body = Center(child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.cloud_off_rounded, size: 48), const SizedBox(height: 12), Text(_error ?? 'Unable to load profile'), const SizedBox(height: 12), OutlinedButton.icon(onPressed: _load, icon: const Icon(Icons.refresh_rounded), label: const Text('TRY AGAIN'))]));
     else {
-      final profile = _profile!;
-      final visiblePosts = _visiblePosts;
+      final profile = _profile!; final visiblePosts = _visiblePosts;
       body = RefreshIndicator(onRefresh: _load, child: CustomScrollView(physics: const AlwaysScrollableScrollPhysics(), slivers: [
         SliverPadding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 0), sliver: SliverToBoxAdapter(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [CircleAvatar(key: const Key('profile-avatar'), radius: 48, backgroundImage: profile.avatarUrl != null ? NetworkImage(profile.avatarUrl!) : null, child: profile.avatarUrl == null ? const Icon(Icons.person_outline_rounded, size: 48) : null), const SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(profile.displayName, key: const Key('profile-name'), maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.headlineSmall?.copyWith(fontSize: 23, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text(profile.handle, key: const Key('profile-handle'), style: const TextStyle(fontWeight: FontWeight.w600)), if (profile.isCreator) Row(children: [Icon(Icons.verified_rounded, size: 16, color: theme.colorScheme.primary), const SizedBox(width: 4), const Text('CREATOR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800))])]))]),
