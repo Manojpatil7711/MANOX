@@ -17,6 +17,7 @@ class ManoxBrand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      key: const Key('manox-home-logo'),
       mainAxisSize: MainAxisSize.min,
       children: [
         ManoxMark(size: compact ? 34 : 42),
