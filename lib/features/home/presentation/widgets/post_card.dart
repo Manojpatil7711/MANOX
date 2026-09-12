@@ -256,7 +256,7 @@ class _PostCardState extends State<PostCard> {
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
           child: Row(children: [
             _ActionButton(icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '$_likes', active: _liked, onTap: _busy ? null : _toggleLike),
-            _ActionButton(icon: Icons.mode_comment_outlined, label: '$_comments', onTap: widget.data.allowComments ? _showComments : null),
+            _ActionButton(icon: widget.data.allowComments ? Icons.comment_outlined : Icons.comments_disabled_outlined, label: '$_comments', onTap: widget.data.allowComments ? _showComments : null),
             _ActionButton(icon: _vibed ? Icons.bolt_rounded : Icons.bolt_outlined, label: 'Vibe', active: _vibed, onTap: _toggleVibe),
             const Spacer(),
             _ActionButton(icon: Icons.ios_share_rounded, label: 'Share', onTap: _share),
