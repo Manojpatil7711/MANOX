@@ -29,15 +29,4 @@ FOR INSERT
 TO authenticated
 WITH CHECK (reporter_id = (SELECT current_profile_id()));
 
--- Defense in depth: a user cannot report their own content.
-DO $$
-BEGIN
-  IF to_regclass('public.content_reports') IS NOT NULL THEN
-    ALTER TABLE public.content_reports
-      ADD CONSTRAINT content_reports_not_owner
-      CHECK (reporter_id IS NULL OR reporter_id <> (SELECT owner_user_id FROM public.contents WHERE id = content_id));
-  END IF;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
-
 COMMIT;
