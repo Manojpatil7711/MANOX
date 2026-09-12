@@ -156,20 +156,35 @@ jobs:
   release:
     name: Build Production AAB
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && secrets.MANOX_KEYSTORE_BASE64 != '' && secrets.MANOX_KEYSTORE_PASSWORD != '' && secrets.MANOX_KEY_ALIAS != '' && secrets.MANOX_KEY_PASSWORD != '' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     env:
       GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4096m"
       JAVA_TOOL_OPTIONS: "-Xmx4096m"
+      MANOX_KEYSTORE_BASE64: ${{ secrets.MANOX_KEYSTORE_BASE64 }}
       MANOX_KEYSTORE_PASSWORD: ${{ secrets.MANOX_KEYSTORE_PASSWORD }}
       MANOX_KEY_ALIAS: ${{ secrets.MANOX_KEY_ALIAS }}
       MANOX_KEY_PASSWORD: ${{ secrets.MANOX_KEY_PASSWORD }}
       MANOX_KEYSTORE_PATH: ${{ github.workspace }}/android/app/manox-release.jks
 
     steps:
+      - name: Check production signing secrets
+        id: signing
+        shell: bash
+        run: |
+          if [ -n "$MANOX_KEYSTORE_BASE64" ] && [ -n "$MANOX_KEYSTORE_PASSWORD" ] && [ -n "$MANOX_KEY_ALIAS" ] && [ -n "$MANOX_KEY_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Production signing secrets are configured."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Production signing secrets are not configured yet; AAB build will be skipped safely."
+          fi
+
       - name: Checkout
+        if: steps.signing.outputs.ready == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Java 17
+        if: steps.signing.outputs.ready == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -177,32 +192,36 @@ jobs:
           cache: gradle
 
       - name: Set up Flutter
+        if: steps.signing.outputs.ready == 'true'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
       - name: Install Android API 36
+        if: steps.signing.outputs.ready == 'true'
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           [ -x "$SDKMANAGER" ] || SDKMANAGER="$ANDROID_HOME/cmdline-tools/bin/sdkmanager"
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Decode production keystore
-        env:
-          MANOX_KEYSTORE_BASE64: ${{ secrets.MANOX_KEYSTORE_BASE64 }}
+        if: steps.signing.outputs.ready == 'true'
         run: |
           set -euxo pipefail
           printf '%s' "$MANOX_KEYSTORE_BASE64" | base64 --decode > "$MANOX_KEYSTORE_PATH"
           test -s "$MANOX_KEYSTORE_PATH"
 
       - name: Get Flutter dependencies
+        if: steps.signing.outputs.ready == 'true'
         run: flutter pub get
 
       - name: Build signed production AAB
+        if: steps.signing.outputs.ready == 'true'
         run: flutter build appbundle --release
 
       - name: Verify production AAB
+        if: steps.signing.outputs.ready == 'true'
         run: |
           set -euxo pipefail
           AAB="build/app/outputs/bundle/release/app-release.aab"
@@ -211,6 +230,7 @@ jobs:
           file "$AAB"
 
       - name: Upload production AAB
+        if: steps.signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: manox-production-aab
