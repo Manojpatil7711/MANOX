@@ -32,7 +32,12 @@ class _ProfilePageState extends State<ProfilePage> {
     if (mounted) setState(() { _loading = true; _error = null; });
     try {
       final profile = await _repo.fetchProfile();
-      final posts = await _postRepo.fetchMyPosts();
+      List<ManoxPost> posts = <ManoxPost>[];
+      try {
+        posts = await _postRepo.fetchMyPosts();
+      } catch (_) {
+        // Profile information should remain usable when the optional post feed is unavailable.
+      }
       if (!mounted) return;
       setState(() { _profile = profile; _posts = posts; _loading = false; });
     } catch (error) {
