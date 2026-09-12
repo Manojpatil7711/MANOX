@@ -49,24 +49,30 @@ android {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
 
-            doFirst {
-                def required = [
-                    "MANOX_KEYSTORE_PATH",
-                    "MANOX_KEYSTORE_PASSWORD",
-                    "MANOX_KEY_ALIAS",
-                    "MANOX_KEY_PASSWORD"
-                ]
-                def missing = required.findAll { !System.getenv(it) }
-                if (!missing.isEmpty()) {
-                    throw new GradleException(
-                        "Production release signing is not configured. Missing environment variables: " + missing.join(', ')
-                    )
-                }
-                def configuredPath = System.getenv("MANOX_KEYSTORE_PATH")
-                if (!file(configuredPath).exists()) {
-                    throw new GradleException("MANOX_KEYSTORE_PATH does not point to an existing keystore file.")
-                }
+// Keep debug/CI builds usable without production credentials, while hard-failing
+// any actual release artifact build when the production keystore is missing.
+tasks.configureEach { task ->
+    if (task.name in ['assembleRelease', 'bundleRelease']) {
+        task.doFirst {
+            def required = [
+                "MANOX_KEYSTORE_PATH",
+                "MANOX_KEYSTORE_PASSWORD",
+                "MANOX_KEY_ALIAS",
+                "MANOX_KEY_PASSWORD"
+            ]
+            def missing = required.findAll { !System.getenv(it) }
+            if (!missing.isEmpty()) {
+                throw new GradleException(
+                    "Production release signing is not configured. Missing environment variables: " + missing.join(', ')
+                )
+            }
+            def configuredPath = System.getenv("MANOX_KEYSTORE_PATH")
+            if (!file(configuredPath).exists()) {
+                throw new GradleException("MANOX_KEYSTORE_PATH does not point to an existing keystore file.")
             }
         }
     }
