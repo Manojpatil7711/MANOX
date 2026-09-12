@@ -9,34 +9,18 @@ class FakeAuthRepo implements AuthRepository {
   bool shouldFail = false;
   bool delay = false;
   int signInCalls = 0;
-
-  @override
-  bool get hasSession => false;
-
-  @override
-  Future<void> signIn(String email, String password) async {
+  @override bool get hasSession => false;
+  @override Future<void> signIn(String email, String password) async {
     signInCalls++;
     if (delay) await Future.delayed(const Duration(milliseconds: 200));
     if (shouldFail) throw AuthException('Invalid email or password.');
   }
-
-  @override
-  Future<void> signUp({required String firstName, required String surname, required String mobile, required String email, required String password}) async {}
-
-  @override
-  Future<void> sendEmailOtp(String email) async {}
-
-  @override
-  Future<void> verifyEmailOtp(String email, String token) async {}
-
-  @override
-  Future<void> signInWithGoogle() async {}
-
-  @override
-  Future<void> signOut() async {}
-
-  @override
-  Future<void> resetPassword(String email) async {}
+  @override Future<void> signUp({required String firstName, required String surname, required String mobile, required String email, required String password}) async {}
+  @override Future<void> sendEmailOtp(String email) async {}
+  @override Future<void> verifyEmailOtp(String email, String token) async {}
+  @override Future<void> signInWithGoogle() async {}
+  @override Future<void> signOut() async {}
+  @override Future<void> resetPassword(String email) async {}
 }
 
 void main() {
@@ -46,6 +30,12 @@ void main() {
       GoRoute(path: '/home', builder: (context, state) => const Scaffold(body: Center(child: Text('HOME')))),
     ]);
     return MaterialApp.router(routerConfig: router, theme: ThemeData.dark());
+  }
+
+  Future<void> tapSubmit(WidgetTester tester) async {
+    final submit = find.byKey(const Key('login-submit'));
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
   }
 
   testWidgets('Login page renders and has required fields', (WidgetTester tester) async {
@@ -59,20 +49,22 @@ void main() {
   testWidgets('Login validation: empty and invalid inputs', (WidgetTester tester) async {
     final repo = FakeAuthRepo();
     await tester.pumpWidget(buildTestApp(repo));
-    await tester.tap(find.byKey(const Key('login-submit')));
+    await tapSubmit(tester);
     await tester.pump();
     expect(find.text('Email is required'), findsOneWidget);
     expect(find.text('Password is required'), findsOneWidget);
+
     await tester.enterText(find.byKey(const Key('login-email')), 'bad-email');
-    await tester.enterText(find.byKey(const Key('login-password')), '123456');
-    await tester.tap(find.byKey(const Key('login-submit')));
+    await tester.enterText(find.byKey(const Key('login-password')), '12345678');
+    await tapSubmit(tester);
     await tester.pump();
     expect(find.text('Enter a valid email'), findsOneWidget);
+
     await tester.enterText(find.byKey(const Key('login-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('login-password')), '123');
-    await tester.tap(find.byKey(const Key('login-submit')));
+    await tapSubmit(tester);
     await tester.pump();
-    expect(find.text('Password must be at least 6 characters'), findsOneWidget);
+    expect(find.text('Password must be at least 8 characters'), findsOneWidget);
   });
 
   testWidgets('Login success navigates to /home', (WidgetTester tester) async {
@@ -80,7 +72,7 @@ void main() {
     await tester.pumpWidget(buildTestApp(repo));
     await tester.enterText(find.byKey(const Key('login-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('login-password')), 'password123');
-    await tester.tap(find.byKey(const Key('login-submit')));
+    await tapSubmit(tester);
     await tester.pumpAndSettle();
     expect(find.text('HOME'), findsOneWidget);
     expect(repo.signInCalls, 1);
@@ -92,6 +84,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('login-email')), 'test@example.com');
     await tester.enterText(find.byKey(const Key('login-password')), 'password123');
     final submit = find.byKey(const Key('login-submit'));
+    await tester.ensureVisible(submit);
     await tester.tap(submit);
     await tester.pump();
     expect(tester.widget<ElevatedButton>(submit).onPressed, isNull);
