@@ -18,6 +18,7 @@ class _HomePageState extends State<HomePage> {
   bool _loadingFeed = true;
   bool _loadingMore = false;
   bool _hasMore = true;
+  String? _feedError;
   String? _nextPublishedAt;
   String? _nextId;
   int _selectedFeed = 0;
@@ -58,6 +59,7 @@ class _HomePageState extends State<HomePage> {
   );
 
   Future<void> _loadFeed() async {
+    if (mounted) setState(() { _loadingFeed = true; _feedError = null; });
     try {
       final page = await _repository.fetchFeedPage(pageSize: 20);
       if (!mounted) return;
@@ -67,11 +69,15 @@ class _HomePageState extends State<HomePage> {
         _nextId = page.nextId;
         _hasMore = page.hasMore;
         _loadingFeed = false;
+        _feedError = null;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loadingFeed = false);
-      _showMessage('Feed unavailable: ${_cleanError(e)}');
+      setState(() {
+        _loadingFeed = false;
+        _feedError = _cleanError(e);
+      });
+      _showMessage('Feed unavailable. Pull to refresh or tap Retry.');
     }
   }
 
@@ -135,15 +141,11 @@ class _HomePageState extends State<HomePage> {
               SliverToBoxAdapter(child: _composer(theme)),
               SliverToBoxAdapter(child: _sectionHeader(theme)),
               if (_loadingFeed)
-                const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))
+                SliverToBoxAdapter(child: _feedSkeleton(theme))
+              else if (_feedError != null && _posts.isEmpty)
+                SliverFillRemaining(hasScrollBody: false, child: _feedErrorState(theme))
               else if (_posts.isEmpty)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text('Your creator journey starts here.\nBe the first to share something worth seeing.', textAlign: TextAlign.center),
-                  )),
-                )
+                SliverFillRemaining(hasScrollBody: false, child: _emptyFeed(theme))
               else
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 112),
@@ -167,6 +169,61 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: _bottomNav(theme),
     );
   }
+
+  Widget _feedSkeleton(ThemeData theme) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 0, 12, 112),
+    child: Column(children: List.generate(2, (index) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              _SkeletonBox(width: 44, height: 44, radius: 22, color: theme.colorScheme.surfaceContainerHighest),
+              const SizedBox(width: 11),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _SkeletonBox(width: 120, height: 13, color: theme.colorScheme.surfaceContainerHighest),
+                const SizedBox(height: 7),
+                _SkeletonBox(width: 75, height: 10, color: theme.colorScheme.surfaceContainerHighest),
+              ])),
+            ]),
+            const SizedBox(height: 16),
+            _SkeletonBox(width: double.infinity, height: 12, color: theme.colorScheme.surfaceContainerHighest),
+            const SizedBox(height: 8),
+            _SkeletonBox(width: 190, height: 12, color: theme.colorScheme.surfaceContainerHighest),
+            const SizedBox(height: 14),
+            _SkeletonBox(width: double.infinity, height: 190, radius: 15, color: theme.colorScheme.surfaceContainerHighest),
+          ]),
+        ),
+      ),
+    ))),
+  );
+
+  Widget _feedErrorState(ThemeData theme) => Padding(
+    padding: const EdgeInsets.all(28),
+    child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 68, height: 68, decoration: BoxDecoration(color: theme.colorScheme.errorContainer, shape: BoxShape.circle), child: Icon(Icons.cloud_off_rounded, size: 32, color: theme.colorScheme.onErrorContainer)),
+      const SizedBox(height: 16),
+      Text('Your feed is taking a break', textAlign: TextAlign.center, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+      const SizedBox(height: 7),
+      Text(_feedError ?? 'Something went wrong while loading your feed.', textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
+      const SizedBox(height: 18),
+      FilledButton.icon(onPressed: _loadFeed, icon: const Icon(Icons.refresh_rounded), label: const Text('Retry')),
+    ])),
+  );
+
+  Widget _emptyFeed(ThemeData theme) => Center(child: Padding(
+    padding: const EdgeInsets.all(32),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.auto_awesome_rounded, size: 46, color: theme.colorScheme.primary),
+      const SizedBox(height: 14),
+      Text('Your creator journey starts here', textAlign: TextAlign.center, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+      const SizedBox(height: 7),
+      Text('Be the first to share something worth seeing.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+      const SizedBox(height: 18),
+      FilledButton.icon(onPressed: _openCreate, icon: const Icon(Icons.add_rounded), label: const Text('Create a post')),
+    ],
+  ));
 
   Widget _topBar(ThemeData theme) => Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 10, 8),
@@ -203,12 +260,7 @@ class _HomePageState extends State<HomePage> {
             child: SizedBox(
               width: 72,
               child: Column(children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: theme.colorScheme.surfaceContainerHighest, border: Border.all(color: theme.colorScheme.outlineVariant)),
-                  child: Icon(item.icon, size: 27),
-                ),
+                Container(width: 64, height: 64, decoration: BoxDecoration(shape: BoxShape.circle, color: theme.colorScheme.surfaceContainerHighest, border: Border.all(color: theme.colorScheme.outlineVariant)), child: Icon(item.icon, size: 27)),
                 const SizedBox(height: 7),
                 Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
               ]),
@@ -222,23 +274,9 @@ class _HomePageState extends State<HomePage> {
   Widget _safetyHub(ThemeData theme) => Padding(
     padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
     child: Row(children: [
-      Expanded(child: Card(color: theme.colorScheme.errorContainer, child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/women-safety'),
-        child: const Padding(padding: EdgeInsets.all(12), child: Row(children: [
-          Icon(Icons.emergency_outlined, size: 24), SizedBox(width: 9),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Women Safety', style: TextStyle(fontWeight: FontWeight.w900)), SizedBox(height: 2), Text('Safety tools', style: TextStyle(fontSize: 11))])),
-        ])),
-      ))),
+      Expanded(child: Card(color: theme.colorScheme.errorContainer, child: InkWell(borderRadius: BorderRadius.circular(16), onTap: () => context.push('/women-safety'), child: const Padding(padding: EdgeInsets.all(12), child: Row(children: [Icon(Icons.emergency_outlined, size: 24), SizedBox(width: 9), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Women Safety', style: TextStyle(fontWeight: FontWeight.w900)), SizedBox(height: 2), Text('Safety tools', style: TextStyle(fontSize: 11))]))]))))),
       const SizedBox(width: 10),
-      Expanded(child: Card(color: theme.colorScheme.tertiaryContainer, child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/kids-home'),
-        child: const Padding(padding: EdgeInsets.all(12), child: Row(children: [
-          Icon(Icons.child_care_rounded, size: 24), SizedBox(width: 9),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Kids Space', style: TextStyle(fontWeight: FontWeight.w900)), SizedBox(height: 2), Text('Protected mode', style: TextStyle(fontSize: 11))])),
-        ])),
-      ))),
+      Expanded(child: Card(color: theme.colorScheme.tertiaryContainer, child: InkWell(borderRadius: BorderRadius.circular(16), onTap: () => context.push('/kids-home'), child: const Padding(padding: EdgeInsets.all(12), child: Row(children: [Icon(Icons.child_care_rounded, size: 24), SizedBox(width: 9), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Kids Space', style: TextStyle(fontWeight: FontWeight.w900)), SizedBox(height: 2), Text('Protected mode', style: TextStyle(fontSize: 11))]))]))))),
     ]),
   );
 
@@ -248,39 +286,14 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
       child: Row(children: List.generate(labels.length, (index) {
         final active = _selectedFeed == index;
-        return Expanded(child: Padding(
-          padding: EdgeInsets.only(right: index == labels.length - 1 ? 0 : 8),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => setState(() => _selectedFeed = index),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              height: 42,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: active ? theme.colorScheme.onSurface : theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(14)),
-              child: Text(labels[index], style: TextStyle(color: active ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface, fontWeight: FontWeight.w800, fontSize: 12)),
-            ),
-          ),
-        ));
+        return Expanded(child: Padding(padding: EdgeInsets.only(right: index == labels.length - 1 ? 0 : 8), child: InkWell(borderRadius: BorderRadius.circular(14), onTap: () => setState(() => _selectedFeed = index), child: AnimatedContainer(duration: const Duration(milliseconds: 180), height: 42, alignment: Alignment.center, decoration: BoxDecoration(color: active ? theme.colorScheme.onSurface : theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(14)), child: Text(labels[index], style: TextStyle(color: active ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface, fontWeight: FontWeight.w800, fontSize: 12)))));
       })),
     );
   }
 
   Widget _composer(ThemeData theme) => Padding(
     padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-    child: Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: _openCreate,
-        child: const Padding(padding: EdgeInsets.all(13), child: Row(children: [
-          ManoxMark(size: 42), SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Share your world', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)), SizedBox(height: 3), Text('Photo  •  Video  •  Beat  •  Thought', style: TextStyle(fontSize: 11))])),
-          Icon(Icons.add_circle_rounded, size: 30),
-        ])),
-      ),
-    ),
+    child: Material(color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(20), child: InkWell(borderRadius: BorderRadius.circular(20), onTap: _openCreate, child: const Padding(padding: EdgeInsets.all(13), child: Row(children: [ManoxMark(size: 42), SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Share your world', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)), SizedBox(height: 3), Text('Photo  •  Video  •  Beat  •  Thought', style: TextStyle(fontSize: 11))])), Icon(Icons.add_circle_rounded, size: 30)]))),
   );
 
   Widget _sectionHeader(ThemeData theme) => Padding(
@@ -288,21 +301,15 @@ class _HomePageState extends State<HomePage> {
     child: Row(children: [Text('Your feed', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)), const Spacer(), if (!_loadingFeed) Text('${_posts.length}${_hasMore ? '+' : ''}', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700))]),
   );
 
-  Widget _bottomNav(ThemeData theme) => NavigationBar(
-    height: 72,
-    selectedIndex: 0,
-    onDestinationSelected: (index) {
-      if (index == 1) context.push('/trending');
-      if (index == 2) _openCreate();
-      if (index == 3) context.push('/beats');
-      if (index == 4) _openProfile();
-    },
-    destinations: const [
-      NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'),
-      NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore_rounded), label: 'Discover'),
-      NavigationDestination(icon: Icon(Icons.add_rounded), selectedIcon: Icon(Icons.add_circle_rounded), label: 'Create'),
-      NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome_rounded), label: 'Beats'),
-      NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
-    ],
-  );
+  Widget _bottomNav(ThemeData theme) => NavigationBar(height: 72, selectedIndex: 0, onDestinationSelected: (index) { if (index == 1) context.push('/trending'); if (index == 2) _openCreate(); if (index == 3) context.push('/beats'); if (index == 4) _openProfile(); }, destinations: const [NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Home'), NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore_rounded), label: 'Discover'), NavigationDestination(icon: Icon(Icons.add_rounded), selectedIcon: Icon(Icons.add_circle_rounded), label: 'Create'), NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome_rounded), label: 'Beats'), NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile')]);
+}
+
+class _SkeletonBox extends StatelessWidget {
+  final double width;
+  final double height;
+  final double radius;
+  final Color color;
+  const _SkeletonBox({required this.width, required this.height, required this.color, this.radius = 8});
+  @override
+  Widget build(BuildContext context) => Container(width: width, height: height, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(radius)));
 }
