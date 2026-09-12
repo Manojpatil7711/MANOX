@@ -13,43 +13,27 @@ class FakeAuthRepo implements AuthRepository {
 
   @override
   bool get hasSession => authenticated;
-
   @override
-  Future<void> signUp({
-    required String firstName,
-    required String surname,
-    required String mobile,
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signUp({required String firstName, required String surname, required String mobile, required String email, required String password}) async {
     signUpCalls++;
     if (delay) await Future.delayed(const Duration(milliseconds: 200));
     if (shouldFail) throw AuthException('Email already registered.');
   }
-
-  @override
-  Future<void> signIn(String email, String password) async {}
-  @override
-  Future<void> sendEmailOtp(String email) async {}
-  @override
-  Future<void> verifyEmailOtp(String email, String token) async {}
-  @override
-  Future<void> signInWithGoogle() async {}
-  @override
-  Future<void> signOut() async {}
-  @override
-  Future<void> resetPassword(String email) async {}
+  @override Future<void> signIn(String email, String password) async {}
+  @override Future<void> sendEmailOtp(String email) async {}
+  @override Future<void> verifyEmailOtp(String email, String token) async {}
+  @override Future<void> signInWithGoogle() async {}
+  @override Future<void> signOut() async {}
+  @override Future<void> resetPassword(String email) async {}
 }
 
 void main() {
   Widget buildTestApp(FakeAuthRepo repo) {
-    final router = GoRouter(
-      routes: [
-        GoRoute(path: '/', builder: (context, state) => SignupPage(authRepository: repo)),
-        GoRoute(path: '/auth', builder: (context, state) => const Scaffold(body: Center(child: Text('AUTH')))),
-        GoRoute(path: '/home', builder: (context, state) => const Scaffold(body: Center(child: Text('HOME')))),
-      ],
-    );
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (context, state) => SignupPage(authRepository: repo)),
+      GoRoute(path: '/auth', builder: (context, state) => const Scaffold(body: Center(child: Text('AUTH')))),
+      GoRoute(path: '/home', builder: (context, state) => const Scaffold(body: Center(child: Text('HOME')))),
+    ]);
     return MaterialApp.router(routerConfig: router, theme: ThemeData.dark());
   }
 
@@ -81,14 +65,12 @@ void main() {
   testWidgets('Signup validation works', (WidgetTester tester) async {
     final repo = FakeAuthRepo();
     await tester.pumpWidget(buildTestApp(repo));
-
     await tapSubmit(tester);
     await tester.pump();
-
     expect(find.text('First name is required'), findsOneWidget);
     expect(find.text('Surname is required'), findsOneWidget);
     expect(find.text('Enter a valid mobile number'), findsOneWidget);
-    expect(find.text('Enter a valid email'), findsOneWidget);
+    expect(find.text('Email address is required'), findsOneWidget);
 
     await tester.enterText(find.byType(TextFormField).at(0), 'Ava');
     await tester.enterText(find.byType(TextFormField).at(1), 'Carter');
@@ -138,7 +120,6 @@ void main() {
     final repo = FakeAuthRepo()..shouldFail = true..delay = true;
     await tester.pumpWidget(buildTestApp(repo));
     await fillValidForm(tester);
-
     final submit = find.byKey(const Key('signup-submit'));
     await tester.ensureVisible(submit);
     await tester.tap(submit);
