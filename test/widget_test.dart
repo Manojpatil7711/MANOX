@@ -15,10 +15,14 @@ void main() {
 
     await tester.pumpWidget(const ManoxApp());
 
-    // Splash currently consists of 500ms + 350ms + 700ms + 650ms
-    // of scheduled animation/delay work. Advance beyond the full sequence
-    // so no FakeAsync timer remains when the test disposes the widget tree.
-    await tester.pump(const Duration(seconds: 3));
+    // Advance each asynchronous splash stage separately. A single large
+    // pump can finish the animation while its async continuation only then
+    // creates the next Future.delayed timer, leaving that timer pending when
+    // the test disposes the widget tree.
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump(const Duration(milliseconds: 650));
     await tester.pumpAndSettle();
 
     final homeVisible = find.byKey(const Key('manox-home-logo')).evaluate().isNotEmpty;
