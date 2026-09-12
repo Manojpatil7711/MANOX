@@ -15,8 +15,10 @@ void main() {
 
     await tester.pumpWidget(const ManoxApp());
 
-    // Allow the splash animations and its navigation timer to complete.
-    await tester.pump(const Duration(seconds: 2));
+    // Splash currently consists of 500ms + 350ms + 700ms + 650ms
+    // of scheduled animation/delay work. Advance beyond the full sequence
+    // so no FakeAsync timer remains when the test disposes the widget tree.
+    await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
 
     final homeVisible = find.byKey(const Key('manox-home-logo')).evaluate().isNotEmpty;
