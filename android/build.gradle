@@ -9,11 +9,13 @@ allprojects {
 // From android/, ../build resolves to <repo>/build, which is where
 // Flutter expects app-debug.apk and other generated artifacts.
 rootProject.buildDir = "../build"
+
+// Configure a single deterministic build directory for Android subprojects.
+// Do not force-evaluate :app from every subproject: modern Flutter/AGP
+// plugin loading already controls evaluation order, and forcing it here can
+// trigger configuration-time failures in plugin projects.
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(":app")
 }
 
 tasks.register("clean", Delete) {
