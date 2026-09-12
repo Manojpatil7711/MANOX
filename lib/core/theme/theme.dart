@@ -136,9 +136,9 @@ ThemeData manoxTheme() {
     ),
     textTheme: const TextTheme(
       displaySmall: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1),
-      headlineSmall: TextStyle(fontSize: 23, fontWeight: FontWeight.w850, letterSpacing: -0.45),
+      headlineSmall: TextStyle(fontSize: 23, fontWeight: FontWeight.w800, letterSpacing: -0.45),
       titleLarge: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, letterSpacing: -0.15),
-      titleMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w750),
+      titleMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
       bodyLarge: TextStyle(fontSize: 15, height: 1.45),
       bodyMedium: TextStyle(fontSize: 14, height: 1.4),
       bodySmall: TextStyle(fontSize: 12, color: _muted),
