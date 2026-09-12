@@ -26,9 +26,48 @@ android {
         versionName "1.0.0"
     }
 
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv("MANOX_KEYSTORE_PATH")
+            def keystorePassword = System.getenv("MANOX_KEYSTORE_PASSWORD")
+            def keyAlias = System.getenv("MANOX_KEY_ALIAS")
+            def keyPassword = System.getenv("MANOX_KEY_PASSWORD")
+
+            if (keystorePath && keystorePassword && keyAlias && keyPassword) {
+                storeFile file(keystorePath)
+                storePassword keystorePassword
+                this.keyAlias keyAlias
+                this.keyPassword keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            // Never use the debug keystore for a production MANOX build.
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            doFirst {
+                def required = [
+                    "MANOX_KEYSTORE_PATH",
+                    "MANOX_KEYSTORE_PASSWORD",
+                    "MANOX_KEY_ALIAS",
+                    "MANOX_KEY_PASSWORD"
+                ]
+                def missing = required.findAll { !System.getenv(it) }
+                if (!missing.isEmpty()) {
+                    throw new GradleException(
+                        "Production release signing is not configured. Missing environment variables: " + missing.join(', ')
+                    )
+                }
+                def configuredPath = System.getenv("MANOX_KEYSTORE_PATH")
+                if (!file(configuredPath).exists()) {
+                    throw new GradleException("MANOX_KEYSTORE_PATH does not point to an existing keystore file.")
+                }
+            }
         }
     }
 }
