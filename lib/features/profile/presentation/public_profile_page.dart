@@ -28,6 +28,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   int _followers = 0;
   int _following = 0;
   String? _error;
+  String? _postsError;
 
   @override
   void initState() {
@@ -40,15 +41,19 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       setState(() {
         _loading = true;
         _error = null;
+        _postsError = null;
       });
     }
 
     try {
       final profile = await _profiles.fetchProfileByUserId(widget.userId);
       List<ManoxPost> posts = const [];
+      String? postsError;
       try {
         posts = await _postsRepo.fetchPostsByOwner(widget.userId);
-      } catch (_) {}
+      } catch (error) {
+        postsError = error.toString().replaceFirst('Exception: ', '');
+      }
 
       final currentUserId = _profiles.currentUserId;
       final self = currentUserId == widget.userId;
@@ -70,6 +75,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       setState(() {
         _profile = profile;
         _posts = posts;
+        _postsError = postsError;
         _isFollowing = following;
         _followers = followers;
         _following = followingCount;
@@ -79,9 +85,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = error is StateError
-            ? error.message
-            : 'Unable to load profile.';
+        _error = error is StateError ? error.message : 'Unable to load profile.';
       });
     }
   }
@@ -105,11 +109,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            error.toString().replaceFirst('Exception: ', ''),
-          ),
-        ),
+        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
       );
     } finally {
       if (mounted) setState(() => _followBusy = false);
@@ -151,16 +151,9 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     final flag = _flagForCountry(profile.countryCode);
 
     if (profession.isNotEmpty) {
-      items.add(
-        Text(
-          profession,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
-      );
+      items.add(Text(profession, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)));
     }
-    if (flag.isNotEmpty) {
-      items.add(Text(flag, style: const TextStyle(fontSize: 20)));
-    }
+    if (flag.isNotEmpty) items.add(Text(flag, style: const TextStyle(fontSize: 20)));
 
     final link = profile.otherLink?.trim() ?? '';
     if (link.isNotEmpty) {
@@ -172,10 +165,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
             children: [
               Icon(Icons.link_outlined, size: 18),
               SizedBox(width: 5),
-              Text(
-                'Link',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
+              Text('Link', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -189,10 +179,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final item in items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 3),
-              child: item,
-            ),
+            Padding(padding: const EdgeInsets.only(bottom: 3), child: item),
         ],
       ),
     );
@@ -212,56 +199,24 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
             children: [
               CircleAvatar(
                 radius: 46,
-                backgroundImage: profile.avatarUrl == null
-                    ? null
-                    : NetworkImage(profile.avatarUrl!),
-                child: profile.avatarUrl == null
-                    ? const Icon(Icons.person_outline_rounded, size: 42)
-                    : null,
+                backgroundImage: profile.avatarUrl == null ? null : NetworkImage(profile.avatarUrl!),
+                child: profile.avatarUrl == null ? const Icon(Icons.person_outline_rounded, size: 42) : null,
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      profile.displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.35,
-                      ),
-                    ),
+                    Text(profile.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.headlineSmall?.copyWith(fontSize: 23, fontWeight: FontWeight.w800, letterSpacing: -0.35)),
                     const SizedBox(height: 5),
-                    Text(
-                      profile.handle.replaceFirst(RegExp(r'^@+'), '@'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.15,
-                      ),
-                    ),
+                    Text(profile.handle.replaceFirst(RegExp(r'^@+'), '@'), maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, letterSpacing: 0.15)),
                     if (profile.isCreator) ...[
                       const SizedBox(height: 7),
                       Row(
                         children: [
-                          Icon(
-                            Icons.verified_rounded,
-                            size: 16,
-                            color: theme.colorScheme.primary,
-                          ),
+                          Icon(Icons.verified_rounded, size: 16, color: theme.colorScheme.primary),
                           const SizedBox(width: 5),
-                          const Text(
-                            'CREATOR',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
+                          const Text('CREATOR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
                         ],
                       ),
                     ],
@@ -276,29 +231,14 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: _followBusy ? null : _toggleFollow,
-                icon: _followBusy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(
-                        _isFollowing
-                            ? Icons.person_remove_alt_1_rounded
-                            : Icons.person_add_alt_1_rounded,
-                      ),
+                icon: _followBusy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Icon(_isFollowing ? Icons.person_remove_alt_1_rounded : Icons.person_add_alt_1_rounded),
                 label: Text(_isFollowing ? 'Following' : 'Follow'),
               ),
             ),
           ],
           if (profile.bio.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
-            Text(
-              profile.bio,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
-            ),
+            Text(profile.bio, maxLines: 4, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(height: 1.35)),
           ],
           _buildMetadata(theme, profile),
           const SizedBox(height: 20),
@@ -313,22 +253,30 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
           const SizedBox(height: 20),
           const Divider(height: 1),
           const SizedBox(height: 12),
-          if (_posts.isEmpty)
-            const Card(
+          if (_postsError != null)
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(28),
-                child: Center(child: Text('No public posts yet.')),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    const Icon(Icons.cloud_off_rounded, size: 40),
+                    const SizedBox(height: 10),
+                    const Text('Posts could not be loaded.', style: TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    Text(_postsError!, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(onPressed: _load, icon: const Icon(Icons.refresh_rounded), label: const Text('RETRY POSTS')),
+                  ],
+                ),
               ),
             )
+          else if (_posts.isEmpty)
+            const Card(child: Padding(padding: EdgeInsets.all(28), child: Center(child: Text('No public posts yet.'))))
           else
             for (final post in _posts)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: PostCard(
-                  data: _data(post),
-                  repository: _postsRepo,
-                  onChanged: _load,
-                ),
+                child: PostCard(data: _data(post), repository: _postsRepo, onChanged: _load),
               ),
         ],
       ),
@@ -359,10 +307,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-        ),
+        leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_ios_new_rounded)),
         title: const Text('Profile'),
       ),
       body: SafeArea(child: _buildBody(theme)),
@@ -380,10 +325,7 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
         Text(label),
       ],
