@@ -16,38 +16,88 @@ class _HomePageState extends State<HomePage> {
   final _feedScrollController = ScrollController();
   List<HomeDemoData> _posts = List<HomeDemoData>.from(demoPosts);
   bool _loadingFeed = true;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  String? _nextPublishedAt;
+  String? _nextId;
   int _selectedFeed = 0;
 
   @override
-  void initState() { super.initState(); _loadFeed(); }
+  void initState() {
+    super.initState();
+    _feedScrollController.addListener(_onFeedScroll);
+    _loadFeed();
+  }
+
   @override
-  void dispose() { _feedScrollController.dispose(); super.dispose(); }
+  void dispose() {
+    _feedScrollController.removeListener(_onFeedScroll);
+    _feedScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onFeedScroll() {
+    if (!_feedScrollController.hasClients || _loadingFeed || _loadingMore || !_hasMore) return;
+    final position = _feedScrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 700) _loadMoreFeed();
+  }
+
+  HomeDemoData _toHomePost(ManoxPost post) => HomeDemoData(
+    id: post.id,
+    creatorName: post.creatorName,
+    handle: post.handle,
+    text: post.text,
+    likes: post.likes,
+    comments: post.comments,
+    imagePath: post.imageUrl,
+    likedByMe: post.likedByMe,
+    isRemote: true,
+    ownerUserId: post.ownerUserId,
+    allowComments: post.allowComments,
+    allowDownloads: post.allowDownloads,
+  );
 
   Future<void> _loadFeed() async {
     try {
-      final remote = await _repository.fetchFeed();
+      final page = await _repository.fetchFeedPage(pageSize: 20);
       if (!mounted) return;
       setState(() {
-        _posts = remote.map((post) => HomeDemoData(
-          id: post.id,
-          creatorName: post.creatorName,
-          handle: post.handle,
-          text: post.text,
-          likes: post.likes,
-          comments: post.comments,
-          imagePath: post.imageUrl,
-          likedByMe: post.likedByMe,
-          isRemote: true,
-          ownerUserId: post.ownerUserId,
-          allowComments: post.allowComments,
-          allowDownloads: post.allowDownloads,
-        )).toList();
+        _posts = page.posts.map(_toHomePost).toList();
+        _nextPublishedAt = page.nextPublishedAt;
+        _nextId = page.nextId;
+        _hasMore = page.hasMore;
         _loadingFeed = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingFeed = false);
       _showMessage('Feed unavailable: ${_cleanError(e)}');
+    }
+  }
+
+  Future<void> _loadMoreFeed() async {
+    if (_loadingFeed || _loadingMore || !_hasMore || _nextPublishedAt == null || _nextId == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await _repository.fetchFeedPage(
+        beforePublishedAt: _nextPublishedAt,
+        beforeId: _nextId,
+        pageSize: 20,
+      );
+      if (!mounted) return;
+      final existingIds = _posts.map((post) => post.id).toSet();
+      final additional = page.posts.where((post) => !existingIds.contains(post.id)).map(_toHomePost).toList();
+      setState(() {
+        _posts = [..._posts, ...additional];
+        _nextPublishedAt = page.nextPublishedAt;
+        _nextId = page.nextId;
+        _hasMore = page.hasMore;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
+      _showMessage('Could not load more posts: ${_cleanError(e)}');
     }
   }
 
@@ -98,11 +148,16 @@ class _HomePageState extends State<HomePage> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 112),
                   sliver: SliverList.builder(
-                    itemCount: _posts.length,
-                    itemBuilder: (_, index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: PostCard(data: _posts[index], repository: _repository, onChanged: _loadFeed),
-                    ),
+                    itemCount: _posts.length + (_loadingMore ? 1 : 0),
+                    itemBuilder: (_, index) {
+                      if (index == _posts.length) {
+                        return const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()));
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: PostCard(data: _posts[index], repository: _repository, onChanged: _loadFeed),
+                      );
+                    },
                   ),
                 ),
             ],
@@ -230,7 +285,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _sectionHeader(ThemeData theme) => Padding(
     padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-    child: Row(children: [Text('Your feed', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)), const Spacer(), if (!_loadingFeed) Text('${_posts.length}', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700))]),
+    child: Row(children: [Text('Your feed', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)), const Spacer(), if (!_loadingFeed) Text('${_posts.length}${_hasMore ? '+' : ''}', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700))]),
   );
 
   Widget _bottomNav(ThemeData theme) => NavigationBar(
