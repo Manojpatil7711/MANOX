@@ -8,7 +8,7 @@ class SafetyAlertService {
     final client = _client;
     final user = client?.auth.currentUser;
     if (client == null || user == null) return false;
-    final row = await client.from('profiles').select('id, gender').eq('user_id', user.id).maybeSingle();
+    final row = await client.from('profiles').select('id, gender').eq('id', user.id).maybeSingle();
     return row != null && (row['gender']?.toString().toLowerCase() == 'female');
   }
 
@@ -35,7 +35,7 @@ class SafetyAlertService {
     final client = _client;
     final user = client?.auth.currentUser;
     if (client == null || user == null) return;
-    final profile = await client.from('profiles').select('id').eq('user_id', user.id).maybeSingle();
+    final profile = await client.from('profiles').select('id').eq('id', user.id).maybeSingle();
     if (profile == null) return;
     final position = await _location();
     await client.from('safety_presence').upsert({
@@ -55,7 +55,7 @@ class SafetyAlertService {
     if (client == null || user == null) {
       throw const SafetyAlertException('Please sign in before using Safety Alert.');
     }
-    final profile = await client.from('profiles').select('id, gender').eq('user_id', user.id).maybeSingle();
+    final profile = await client.from('profiles').select('id, gender').eq('id', user.id).maybeSingle();
     if (profile == null || profile['gender']?.toString().toLowerCase() != 'female') {
       throw const SafetyAlertException('Safety Alert is available only to profiles set to Female.');
     }
