@@ -34,6 +34,33 @@ class SupabasePostRepository {
     final last=pageRows.last as Map<String,dynamic>;
     return ManoxFeedPage(posts:posts,nextPublishedAt:last['published_at'] as String?,nextId:last['id'] as String?,hasMore:hasMore);
   }
+  /// Loads posts from creators the current user follows. This uses a
+  /// dedicated query because the For You cursor cannot safely be reused here.
+  Future<List<ManoxPost>> fetchFollowingFeed({int limit=50}) async {
+    final follows=await _client.from('profile_follows').select('following_id').eq('follower_id',_userId);
+    final ids=(follows as List).map((row)=>row['following_id'] as String).where((id)=>id!=_userId).toSet().toList();
+    if(ids.isEmpty)return const <ManoxPost>[];
+    final rows=await _client.from('contents').select(_contentSelect)
+        .eq('status','published')
+        .eq('visibility','followers')
+        .eq('audience_category','general')
+        .inFilter('owner_user_id',ids)
+        .order('published_at',ascending:false,nullsFirst:false)
+        .limit(limit.clamp(1,50));
+    return _mapRows(rows as List);
+  }
+
+  /// Loads a global chronological feed without reusing the For You cursor.
+  Future<List<ManoxPost>> fetchLatestFeed({int limit=50}) async {
+    final rows=await _client.from('contents').select(_contentSelect)
+        .eq('status','published')
+        .eq('visibility','public')
+        .eq('audience_category','general')
+        .order('created_at',ascending:false)
+        .limit(limit.clamp(1,50));
+    return _mapRows(rows as List);
+  }
+
   Future<List<ManoxPost>> fetchFeed() async => (await fetchFeedPage()).posts;
   Future<List<ManoxPost>> fetchBeats({bool kidsMode=false,String? kidsCategory}) async {var q=_client.from('contents').select(_contentSelect).eq('status','published').eq('visibility','public').eq('content_type','beat').eq('audience_category',kidsMode?'kids_15_plus':'general');if(kidsMode&&kidsCategory!=null&&kidsCategory.isNotEmpty)q=q.eq('kids_category',kidsCategory);final rows=await q.order('published_at',ascending:false,nullsFirst:false).order('created_at',ascending:false).limit(50);return _mapRows(rows as List);}
   Future<List<ManoxPost>> fetchKidsContent({String? category}) async {var q=_client.from('contents').select(_contentSelect).eq('status','published').eq('audience_category','kids_15_plus');if(category!=null&&category.isNotEmpty)q=q.eq('kids_category',category);final rows=await q.order('published_at',ascending:false,nullsFirst:false).order('created_at',ascending:false).limit(50);return _mapRows(rows as List);}
