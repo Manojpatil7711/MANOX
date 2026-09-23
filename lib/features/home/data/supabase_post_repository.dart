@@ -42,7 +42,7 @@ class SupabasePostRepository {
     if(ids.isEmpty)return const <ManoxPost>[];
     final rows=await _client.from('contents').select(_contentSelect)
         .eq('status','published')
-        .eq('visibility','followers')
+        .inFilter('visibility',['public','followers'])
         .eq('audience_category','general')
         .inFilter('owner_user_id',ids)
         .order('published_at',ascending:false,nullsFirst:false)
