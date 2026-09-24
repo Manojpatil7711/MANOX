@@ -123,7 +123,7 @@ class SupabasePostRepository {
     final profile=post['profiles'] as Map<String,dynamic>?;
     final urls=post['media_urls'] as List?;
     final username=(profile?['username'] as String?)??'you';
-    return ManoxPost(id:id,creatorName:(profile?['display_name'] as String?)??'You',handle:'@\${username.replaceFirst(RegExp(r'^@+'), '')}',text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
+    return ManoxPost(id:id,creatorName:(profile?['display_name'] as String?)??'You',handle:'@'+username.replaceFirst(RegExp(r'^@+'), ''),text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
   }
 
   Future<void> updatePost(String contentId,String text) async=>_client.from('contents').update({'description':text.trim(),'updated_at':DateTime.now().toIso8601String()}).eq('id',contentId).eq('owner_user_id',_userId);
