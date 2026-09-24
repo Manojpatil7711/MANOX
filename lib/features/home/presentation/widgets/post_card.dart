@@ -215,6 +215,34 @@ class _PostCardState extends State<PostCard> {
     return const SizedBox(height: 180, child: Center(child: Icon(Icons.image_not_supported_outlined)));
   }
 
+
+  Future<void> _reportContent() async {
+    final r = widget.repository;
+    if (r == null || !widget.data.isRemote) return;
+    const reasons = ['spam', 'harassment', 'hate', 'sexual', 'violence', 'illegal', 'other'];
+    final reason = await showDialog<String>(context: context, builder: (dialog) => SimpleDialog(
+      title: const Text('Report content'),
+      children: [for (final value in reasons) SimpleDialogOption(onPressed: () => Navigator.pop(dialog, value), child: Text(value[0].toUpperCase() + value.substring(1)))],
+    ));
+    if (reason == null) return;
+    try { await r.reportContent(widget.data.id, reason); if (mounted) _showError('Report submitted.'); }
+    catch (e) { if (mounted) _showError(e.toString()); }
+  }
+
+  Future<void> _blockCreator() async {
+    final r = widget.repository;
+    final id = widget.data.ownerUserId;
+    if (r == null || id == null || id.isEmpty || _isOwner) return;
+    final confirm = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+      title: const Text('Block this user?'),
+      content: const Text('Their content should no longer appear in your experience.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('BLOCK'))],
+    ));
+    if (confirm != true) return;
+    try { await r.blockUser(id); if (mounted) { _showError('User blocked.'); await widget.onChanged?.call(); } }
+    catch (e) { if (mounted) _showError(e.toString()); }
+  }
+
   void _showError(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 
   @override
@@ -240,12 +268,14 @@ class _PostCardState extends State<PostCard> {
             IconButton(tooltip: _saved ? 'Unsave' : 'Save', onPressed: _saveBusy ? null : _toggleSave, icon: Icon(_saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded)),
             PopupMenuButton<String>(onSelected: (value) async {
               if (value == 'save') await _toggleSave();
+              if (value == 'report') await _reportContent();
+              if (value == 'block') await _blockCreator();
               if (value == 'delete' && _isOwner) {
                 final r = widget.repository;
                 if (r == null) return;
                 try { await r.deletePost(widget.data.id); await widget.onChanged?.call(); } catch (e) { if (mounted) _showError(e.toString()); }
               }
-            }, itemBuilder: (_) => [PopupMenuItem(value: 'save', child: Text(_saved ? 'Unsave post' : 'Save post')), if (_isOwner) const PopupMenuItem(value: 'delete', child: Text('Delete'))]),
+            }, itemBuilder: (_) => [PopupMenuItem(value: 'save', child: Text(_saved ? 'Unsave post' : 'Save post')), if (!_isOwner && widget.data.isRemote) const PopupMenuItem(value: 'report', child: Text('Report content')), if (!_isOwner && widget.data.isRemote) const PopupMenuItem(value: 'block', child: Text('Block user')), if (_isOwner) const PopupMenuItem(value: 'delete', child: Text('Delete'))]),
           ]),
         ),
         if (widget.data.text.isNotEmpty)
