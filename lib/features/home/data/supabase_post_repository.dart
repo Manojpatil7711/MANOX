@@ -118,7 +118,7 @@ class SupabasePostRepository {
       'allow_comments':allowComments,'allow_downloads':allowDownloads,
     }).select('id').single();
     final id=row['id'] as String;
-    await _client.rpc('publish_content_secure', params:{'p_content_id':id});
+    await _client.functions.invoke('manox_publish_content', body:{'content_id':id});
     final post=await _client.from('contents').select(_contentSelect).eq('id',id).single();
     final profile=post['profiles'] as Map<String,dynamic>?;
     final urls=post['media_urls'] as List?;
