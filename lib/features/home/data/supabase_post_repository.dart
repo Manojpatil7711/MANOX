@@ -69,7 +69,63 @@ class SupabasePostRepository {
   Future<String?> uploadImage(Uint8List bytes,String extension,String? mimeType) async=>_uploadMedia(bytes,extension,mimeType);
   Future<String?> uploadVideo(Uint8List bytes,String extension,String? mimeType) async {final ext=extension.toLowerCase().replaceAll('.','');if(!{'mp4','mov','m4v','webm','3gp'}.contains(ext))throw ArgumentError('Unsupported video format. Use MP4, MOV, M4V, WEBM or 3GP.');return _uploadMedia(bytes,ext,mimeType??'video/$ext');}
   Future<String?> _uploadMedia(Uint8List bytes,String extension,String? mimeType) async {if(bytes.isEmpty)throw StateError('Selected media is empty.');final path='$_userId/${DateTime.now().microsecondsSinceEpoch}.$extension';await _client.storage.from('manox-media').uploadBinary(path,bytes,fileOptions:FileOptions(contentType:mimeType,upsert:false,cacheControl:'3600'));return path;}
-  Future<ManoxPost> createPost({required String text,String? imagePath,String mediaType='post',String audienceCategory='general',String? creatorSkill,String? kidsCategory,String visibility='public',bool allowComments=true,bool allowDownloads=true}) async {final type=mediaType.trim().isEmpty?'post':mediaType.trim();if(type=='beat'&&imagePath==null)throw ArgumentError('A BEAT must contain video media.');final audience=audienceCategory=='kids_15_plus'?'kids_15_plus':'general';if(audience=='kids_15_plus'&&(kidsCategory==null||kidsCategory.trim().isEmpty))throw StateError('Select a Kids category before publishing.');final safeVisibility={'public','followers','private'}.contains(visibility)?visibility:'public';final row=await _client.from('contents').insert({'owner_user_id':_userId,'content_type':type,'description':text,'media_url':imagePath,'media_urls':imagePath==null?<String>[]:<String>[imagePath],'status':'published','visibility':safeVisibility,'audience_category':audience,'creator_skill':creatorSkill,'kids_category':audience=='kids_15_plus'?kidsCategory:null,'allow_comments':allowComments,'allow_downloads':allowDownloads,'published_at':DateTime.now().toIso8601String()}).select('id').single();final id=row['id'] as String;final post=await _client.from('contents').select(_contentSelect).eq('id',id).single();final profile=post['profiles'] as Map<String,dynamic>?;final urls=post['media_urls'] as List?;final username=(profile?['username'] as String?)??'you';return ManoxPost(id:id,creatorName:(profile?['display_name'] as String?)??'You',handle:'@${username.replaceFirst(RegExp(r'^@+'),'')}',text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);}
+  Future<bool> hasCurrentLegalConsent() async {
+    final rows = await _client.from('legal_consents').select('policy_type, policy_version').eq('user_id', _userId);
+    final current = <String>{};
+    for (final row in (rows as List)) {
+      if (row['policy_version'] == '2026-08-26') current.add(row['policy_type'] as String);
+    }
+    return current.contains('terms_of_use') && current.contains('privacy_policy') && current.contains('community_guidelines');
+  }
+
+  Future<void> saveCurrentLegalConsent() async {
+    await _client.from('legal_consents').upsert([
+      {'user_id': _userId, 'policy_type': 'terms_of_use', 'policy_version': '2026-08-26'},
+      {'user_id': _userId, 'policy_type': 'privacy_policy', 'policy_version': '2026-08-26'},
+      {'user_id': _userId, 'policy_type': 'community_guidelines', 'policy_version': '2026-08-26'},
+    ], onConflict: 'user_id,policy_type');
+  }
+
+  Future<void> reportContent(String contentId, String reason, {String? details}) async {
+    await _client.from('content_reports').insert({
+      'content_id': contentId, 'reporter_id': _userId, 'reason_code': reason, 'details': details,
+    });
+  }
+
+  Future<void> reportProfile(String profileId, String reason, {String? details}) async {
+    if (profileId == _userId) throw StateError('You cannot report yourself.');
+    await _client.from('profile_reports').insert({
+      'profile_id': profileId, 'reporter_id': _userId, 'reason_code': reason, 'details': details,
+    });
+  }
+
+  Future<void> blockUser(String profileId) async {
+    if (profileId == _userId) throw StateError('You cannot block yourself.');
+    await _client.from('user_blocks').upsert({'blocker_id': _userId, 'blocked_id': profileId}, onConflict: 'blocker_id,blocked_id');
+  }
+
+  Future<ManoxPost> createPost({required String text,String? imagePath,String mediaType='post',String audienceCategory='general',String? creatorSkill,String? kidsCategory,String visibility='public',bool allowComments=true,bool allowDownloads=true}) async {
+    final type=mediaType.trim().isEmpty?'post':mediaType.trim();
+    if(type=='beat'&&imagePath==null)throw ArgumentError('A BEAT must contain video media.');
+    final audience=audienceCategory=='kids_15_plus'?'kids_15_plus':'general';
+    if(audience=='kids_15_plus'&&(kidsCategory==null||kidsCategory.trim().isEmpty))throw StateError('Select a Kids category before publishing.');
+    if(!await hasCurrentLegalConsent())throw StateError('Accept Terms, Privacy Policy and Community Guidelines before posting.');
+    final safeVisibility={'public','followers','private'}.contains(visibility)?visibility:'public';
+    final row=await _client.from('contents').insert({
+      'owner_user_id':_userId,'content_type':type,'description':text,'media_url':imagePath,
+      'media_urls':imagePath==null?<String>[]:<String>[imagePath],'status':'draft','visibility':safeVisibility,
+      'audience_category':audience,'creator_skill':creatorSkill,'kids_category':audience=='kids_15_plus'?kidsCategory:null,
+      'allow_comments':allowComments,'allow_downloads':allowDownloads,
+    }).select('id').single();
+    final id=row['id'] as String;
+    await _client.rpc('publish_content_secure', params:{'p_content_id':id});
+    final post=await _client.from('contents').select(_contentSelect).eq('id',id).single();
+    final profile=post['profiles'] as Map<String,dynamic>?;
+    final urls=post['media_urls'] as List?;
+    final username=(profile?['username'] as String?)??'you';
+    return ManoxPost(id:id,creatorName:(profile?['display_name'] as String?)??'You',handle:'@\${username.replaceFirst(RegExp(r'^@+'), '')}',text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
+  }
+
   Future<void> updatePost(String contentId,String text) async=>_client.from('contents').update({'description':text.trim(),'updated_at':DateTime.now().toIso8601String()}).eq('id',contentId).eq('owner_user_id',_userId);
   Future<void> deletePost(String contentId) async=>_client.from('contents').delete().eq('id',contentId).eq('owner_user_id',_userId);
   Future<void> toggleLike(String contentId,bool currentlyLiked) async {if(currentlyLiked){await _client.from('content_likes').delete().eq('content_id',contentId).eq('user_id',_userId);return;}await _client.from('content_likes').insert({'content_id':contentId,'user_id':_userId});}
