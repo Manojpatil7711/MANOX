@@ -31,7 +31,7 @@ class HomeDemoData {
     this.ownerUserId,
     this.allowComments = true,
     this.allowDownloads = true,
-  }) : createdAt = createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }) : createdAt = createdAt ?? const DateTime(1970);
 }
 
 const demoPosts = [
