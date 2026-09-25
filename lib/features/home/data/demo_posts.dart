@@ -24,14 +24,14 @@ class HomeDemoData {
     this.comments = 0,
     this.imagePath,
     this.mediaType = 'post',
-    this.createdAt = const DateTime.fromMillisecondsSinceEpoch(0),
+    DateTime? createdAt,
     this.likedByMe = false,
     this.savedByMe = false,
     this.isRemote = false,
     this.ownerUserId,
     this.allowComments = true,
     this.allowDownloads = true,
-  });
+  }) : createdAt = createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 }
 
 const demoPosts = [
