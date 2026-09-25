@@ -42,13 +42,6 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   }
   @override void dispose() { _video?.dispose(); super.dispose(); }
 
-  Future<void> _choose(String title, List<String> values, String current, ValueChanged<String> onSelected) async {
-    await showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheet) => SafeArea(child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(16), children: [
-      Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)), const SizedBox(height: 12),
-      ...values.map((value) => ListTile(title: Text(value), trailing: value == current ? const Icon(Icons.check_circle_rounded) : null, onTap: () { setState(() => onSelected(value)); Navigator.pop(sheet); })),
-    ])));
-  }
-
   Future<void> _addText() async {
     final controller = TextEditingController(text: _text ?? '');
     final value = await showDialog<String>(context: context, builder: (dialog) => AlertDialog(
@@ -84,8 +77,6 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load beats: ${e.toString().replaceFirst('Bad state: ', '')}')));
     }
   }
-
-  void _changeSpeed() { final next = _speed == 0.5 ? 1.0 : _speed == 1.0 ? 1.5 : _speed == 1.5 ? 2.0 : 0.5; setState(() => _speed = next); _video?.setPlaybackSpeed(next); }
 
   Future<void> _showVolume() async {
     var value = _volume;
@@ -277,6 +268,8 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
                       _video?.seekTo(Duration(milliseconds: values.start.round()));
                     },
                   ),
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: () => Navigator.pop(sheet), child: const Text('DONE'))),
                 ])
               else if (label == 'Filter')
                 Wrap(spacing: 8, runSpacing: 8, children: _filters.map((value) => ChoiceChip(
@@ -309,10 +302,10 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     final tools = <({String label, IconData icon, VoidCallback action})>[
       if (widget.isVideo) (label: 'Trim', icon: Icons.content_cut_rounded, action: () => _video?.seekTo(Duration(milliseconds: _start.round()))),
       if (widget.isVideo) (label: _selectedBeat == null ? 'Beats' : 'Beat ✓', icon: Icons.music_note_rounded, action: _addBeat),
-      if (widget.isVideo) (label: 'Speed', icon: Icons.speed_rounded, action: _changeSpeed),
+      if (widget.isVideo) (label: 'Speed', icon: Icons.speed_rounded, action: () {}),
       if (widget.isVideo) (label: 'Volume', icon: Icons.volume_up_rounded, action: _showVolume),
-      (label: 'Crop', icon: Icons.crop_rounded, action: () => _choose('Aspect ratio', _ratios, _ratio, (v) => _ratio = v)),
-      (label: 'Filter', icon: Icons.auto_awesome_rounded, action: () => _choose('Filters', _filters, _filter, (v) => _filter = v)),
+      (label: 'Crop', icon: Icons.crop_rounded, action: () {}),
+      (label: 'Filter', icon: Icons.auto_awesome_rounded, action: () {}),
       (label: 'Text', icon: Icons.text_fields_rounded, action: _addText),
     ];
     return Material(
