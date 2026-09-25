@@ -1,133 +1,197 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../data/supabase_post_repository.dart';
-import 'widgets/media_preview.dart';
+import 'package:manox/core/theme/app_theme.dart';
+import 'package:manox/features/home/data/supabase_post_repository.dart';
+import 'package:manox/features/editor/presentation/professional_media_editor_v2_page.dart';
+import 'package:manox/features/home/widgets/local_video_preview.dart';
 
 class CreatePostPage extends StatefulWidget {
+  const CreatePostPage({
+    super.key,
+    this.initialBeat = false,
+  });
+
   final bool initialBeat;
-  const CreatePostPage({super.key, this.initialBeat = false});
-  @override State<CreatePostPage> createState() => _CreatePostPageState();
+
+  @override
+  State<CreatePostPage> createState() => _CreatePostPageState();
 }
 
 class _CreatePostPageState extends State<CreatePostPage> {
-  final ImagePicker _picker = ImagePicker();
-  final SupabasePostRepository _repository = SupabasePostRepository();
-  final TextEditingController _captionController = TextEditingController();
+  final _captionController = TextEditingController();
+  final _repository = SupabasePostRepository();
+
   XFile? _media;
-  late bool _isVideo;
-  late bool _isBeat;
+  bool _isVideo = false;
   bool _posting = false;
-  bool _kidsContent = false;
-  String _kidsCategory = 'Science Experiments';
-  String _audience = 'Everyone';
-  bool _comments = true;
-  bool _downloads = true;
   bool _legalAccepted = false;
-  static const List<String> _kidsCategories = ['Science Experiments','Maths','English','History','Geography','GK','Art & Drawing','Music & Dance','Sports','Coding'];
+  bool _addToBeats = false;
+  bool _allowComments = true;
+  bool _allowDownloads = true;
+  bool _kidsContent = false;
+  String _audience = 'Everyone';
+  String _kidsCategory = 'General';
+
+  static const _kidsCategories = [
+    'General',
+    'Education',
+    'Entertainment',
+    'Sports',
+    'Music',
+  ];
 
   @override
-  void initState() { super.initState(); _isVideo = widget.initialBeat; _isBeat = widget.initialBeat; _loadLegalConsent(); }
-  Future<void> _loadLegalConsent() async { try { final accepted = await _repository.hasCurrentLegalConsent(); if (mounted) setState(() => _legalAccepted = accepted); } catch (_) {} }
-  @override
-  void dispose() { _captionController.dispose(); super.dispose(); }
+  void initState() {
+    super.initState();
+    _addToBeats = widget.initialBeat;
+  }
 
-  Future<void> _pickMedia({required bool video, required ImageSource source}) async {
-    final XFile? picked = video ? await _picker.pickVideo(source: source, maxDuration: const Duration(minutes: 10)) : await _picker.pickImage(source: source, imageQuality: 90, maxWidth: 2400);
-    if (picked == null || !mounted) return;
-    setState(() { _media = picked; _isVideo = video; if (!video) _isBeat = false; });
+  @override
+  void dispose() {
+    _captionController.dispose();
+    super.dispose();
+  }
+
+  void _show(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openMediaPicker() async {
-    await showModalBottomSheet<void>(
-      context: context, showDragHandle: true,
-      builder: (sheet) => SafeArea(child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Align(alignment: Alignment.centerLeft, child: Text(widget.initialBeat ? 'Upload a BEAT' : 'Add to your post', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
-          const SizedBox(height: 16),
-          Row(children: [
-            if (!widget.initialBeat) ...[
-              Expanded(child: _sourceTile(sheet, Icons.photo_library_outlined, 'Gallery', () => _pickMedia(video: false, source: ImageSource.gallery))),
-              const SizedBox(width: 10),
-            ],
-            Expanded(child: _sourceTile(sheet, Icons.video_library_outlined, 'Video', () => _pickMedia(video: true, source: ImageSource.gallery))),
-            if (!widget.initialBeat) ...[
-              const SizedBox(width: 10),
-              Expanded(child: _sourceTile(sheet, Icons.camera_alt_outlined, 'Camera', () => _pickMedia(video: false, source: ImageSource.camera))),
-            ],
-          ]),
-          const SizedBox(height: 10),
-          SizedBox(width: double.infinity, child: OutlinedButton.icon(
-            onPressed: () { Navigator.pop(sheet); _pickMedia(video: true, source: ImageSource.camera); },
-            icon: const Icon(Icons.videocam_outlined), label: Text(widget.initialBeat ? 'Record BEAT' : 'Record video'),
-          )),
-        ]),
-      )),
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text(
+                'Add media',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(sheet, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: const Text('Video'),
+              onTap: () => Navigator.pop(sheet, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(sheet, ImageSource.camera),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
     );
-  }
 
-  Widget _sourceTile(BuildContext sheet, IconData icon, String label, VoidCallback action) => InkWell(
-    onTap: () { Navigator.pop(sheet); action(); }, borderRadius: BorderRadius.circular(16),
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: Theme.of(context).dividerColor)),
-      child: Column(children: [Icon(icon, size: 28), const SizedBox(height: 8), Text(label, style: const TextStyle(fontWeight: FontWeight.w700))]),
-    ),
-  );
+    if (source == null || !mounted) return;
+
+    final picker = ImagePicker();
+    final picked = source == ImageSource.camera
+        ? await picker.pickImage(source: source)
+        : await picker.pickMedia();
+
+    if (picked == null || !mounted) return;
+
+    final extension = picked.path.toLowerCase();
+    final isVideo = extension.endsWith('.mp4') ||
+        extension.endsWith('.mov') ||
+        extension.endsWith('.m4v') ||
+        extension.endsWith('.webm');
+
+    setState(() {
+      _media = picked;
+      _isVideo = isVideo;
+    });
+  }
 
   Future<void> _openTools() async {
     final media = _media;
-    if (media == null || media.path.isEmpty) { _show('Select a photo or video before opening the editor.'); return; }
-    final edited = await context.push<bool>('/editor', extra: {'isVideo': _isVideo, 'mediaPath': media.path});
-    if (edited == true && mounted) setState(() {});
-  }
+    if (media == null) {
+      _show('Add media first.');
+      return;
+    }
 
-  Future<void> _publish() async {
-    if (!_legalAccepted) { _show('Accept Terms, Privacy Policy and Community Guidelines before posting.'); return; }
-    final XFile? media = _media;
-    final String caption = _captionController.text.trim();
-    if (media == null && caption.isEmpty) { _show(widget.initialBeat ? 'Select a video to upload your BEAT.' : 'Add a photo, video or caption first.'); return; }
-    if (_isBeat && !_isVideo) { _show('BEATS can only contain video.'); return; }
-    if (_kidsContent && !_isVideo) { _show('Kids content must be a video.'); return; }
-    if (widget.initialBeat && !_isVideo) { _show('Select a video for your BEAT.'); return; }
-    setState(() => _posting = true);
-    try {
-      String? mediaPath;
-      String mediaType = 'post';
-      if (media != null) {
-        final bytes = await media.readAsBytes();
-        final extension = media.path.split('.').last.toLowerCase();
-        if (_isVideo) { mediaPath = await _repository.uploadVideo(bytes, extension, media.mimeType); mediaType = _isBeat ? 'beat' : 'video'; }
-        else { mediaPath = await _repository.uploadImage(bytes, extension, media.mimeType); mediaType = 'image'; }
-      }
-      final visibility = _kidsContent ? 'public' : switch (_audience) { 'Followers' => 'followers', 'Only me' => 'private', _ => 'public' };
-      await _repository.createPost(text: caption, imagePath: mediaPath, mediaType: mediaType, visibility: visibility, audienceCategory: _kidsContent ? 'kids_15_plus' : 'general', kidsCategory: _kidsContent ? _kidsCategory : null, allowComments: _comments, allowDownloads: _kidsContent ? false : (_isVideo ? _downloads : false));
-      if (mounted) Navigator.of(context).pop(true);
-    } catch (e) {
-      if (!mounted) return; setState(() => _posting = false); _show(e.toString().replaceFirst('Exception: ', ''));
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfessionalMediaEditorV2Page(
+          mediaPath: media.path,
+          isVideo: _isVideo,
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      setState(() {});
     }
   }
 
-  void _show(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _publish() async {
+    if (_posting) return;
+
+    if (_media == null) {
+      _show('Add a photo or video first.');
+      return;
+    }
+    if (!_legalAccepted) {
+      _show('Accept the legal terms before publishing.');
+      return;
+    }
+
+    setState(() => _posting = true);
+    try {
+      final id = await _repository.createPost(
+        text: _captionController.text.trim(),
+        mediaPath: _media!.path,
+        contentType: _isVideo ? 'video' : 'image',
+        audience: _audience,
+        allowComments: _allowComments,
+        allowDownloads: _allowDownloads,
+        kidsContent: _kidsContent,
+        kidsCategory: _kidsContent ? _kidsCategory : null,
+        addToBeats: _addToBeats,
+      );
+      if (!mounted) return;
+      _show('Published successfully.');
+      Navigator.pop(context, id);
+    } catch (error) {
+      _show('Could not publish. Please try again.');
+    } finally {
+      if (mounted) setState(() => _posting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final media = _media;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Close',
-          onPressed: _posting ? null : () => Navigator.of(context).pop(false),
+          onPressed: _posting ? null : () => Navigator.pop(context),
           icon: const Icon(Icons.close_rounded),
         ),
-        title: Text(
-          widget.initialBeat ? 'Create BEAT' : 'Create',
-          style: const TextStyle(fontWeight: FontWeight.w800),
+        title: const Text(
+          'Create',
+          style: TextStyle(fontWeight: FontWeight.w800),
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.only(right: 12),
             child: FilledButton(
               onPressed: _posting ? null : _publish,
               child: _posting
@@ -145,126 +209,102 @@ class _CreatePostPageState extends State<CreatePostPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
-            if (_media == null) _emptyMedia() else _mediaPreview(),
-            const SizedBox(height: 14),
+            if (media != null) _mediaPreview() else _emptyMedia(),
+            const SizedBox(height: 16),
             TextField(
               controller: _captionController,
+              minLines: 3,
+              maxLines: 7,
               maxLength: 2200,
-              maxLines: 5,
-              minLines: 2,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: widget.initialBeat
-                    ? 'Write a BEAT caption…'
-                    : 'Write a caption…',
+              decoration: const InputDecoration(
+                labelText: 'Caption',
+                hintText: 'Tell your story...',
                 alignLabelWithHint: true,
-                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 8),
-            if (_isVideo && !widget.initialBeat)
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _addToBeats,
+              onChanged: _posting
+                  ? null
+                  : (value) => setState(() => _addToBeats = value),
+              title: const Text(
+                'Add to BEATS',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: const Text('Make this post discoverable in BEATS.'),
+            ),
+            if (_addToBeats)
               Card(
-                child: SwitchListTile.adaptive(
-                  secondary: const Icon(Icons.music_note_rounded),
-                  title: const Text(
-                    'Add to BEATS',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Text(
+                    'BEATS works best with vertical short-form video.',
+                    style: TextStyle(color: context.appColors.muted),
                   ),
-                  subtitle: const Text(
-                    'Shows this video in the full-screen BEATS feed',
-                  ),
-                  value: _isBeat,
-                  onChanged: _posting
-                      ? null
-                      : (value) => setState(() => _isBeat = value),
                 ),
               ),
-            if (widget.initialBeat)
-              const Card(
-                child: ListTile(
-                  leading: Icon(Icons.music_note_rounded),
-                  title: Text(
-                    'BEAT video',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  subtitle: Text('Full-screen vertical BEATS feed'),
-                ),
-              ),
+            const SizedBox(height: 8),
             Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.tune_rounded),
-                    title: const Text(
-                      'Quick edit',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    subtitle: const Text(
-                      'Trim • Crop • Filter • Text • Audio',
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    enabled: _media != null && !_posting,
-                    onTap: _media == null || _posting ? null : _openTools,
-                  ),
-                  const Divider(height: 1),
-                  if (!_kidsContent)
-                    ListTile(
-                      leading: const Icon(Icons.people_outline_rounded),
-                      title: const Text('Audience'),
-                      subtitle: Text(_audience),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: _posting ? null : _showAudience,
-                    )
-                  else
-                    const ListTile(
-                      leading: Icon(Icons.child_care_rounded),
-                      title: Text('Kids audience'),
-                      subtitle: Text('Public in MANOX Kids only'),
-                    ),
-                  SwitchListTile.adaptive(
-                    secondary: const Icon(Icons.comment_outlined),
-                    title: const Text('Comments'),
-                    value: _comments,
-                    onChanged: _posting
-                        ? null
-                        : (value) => setState(() => _comments = value),
-                  ),
-                  if (_isVideo && !_kidsContent)
-                    SwitchListTile.adaptive(
-                      secondary: const Icon(Icons.download_outlined),
-                      title: const Text('Allow downloads'),
-                      value: _downloads,
-                      onChanged: _posting
-                          ? null
-                          : (value) => setState(() => _downloads = value),
-                    ),
-                ],
+              child: ListTile(
+                leading: const Icon(Icons.tune_rounded),
+                title: const Text(
+                  'Quick edit',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  media == null
+                      ? 'Add media to open the editor'
+                      : 'Trim, crop, filters, speed and text',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                enabled: media != null && !_posting,
+                onTap: media == null || _posting ? null : _openTools,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Card(
-              child: SwitchListTile.adaptive(
-                secondary: const Icon(Icons.child_care_rounded),
+              child: ListTile(
+                leading: const Icon(Icons.visibility_outlined),
                 title: const Text(
-                  'Kids content',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  'Audience',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
-                subtitle: const Text(
-                  'Routes this content only to MANOX Kids',
-                ),
-                value: _kidsContent,
-                onChanged: widget.initialBeat || _posting
-                    ? null
-                    : (value) {
-                        setState(() {
-                          _kidsContent = value;
-                          if (value) {
-                            _isBeat = false;
-                            _audience = 'Everyone';
-                            _downloads = false;
-                          }
-                        });
-                      },
+                subtitle: Text(_audience),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                enabled: !_posting,
+                onTap: _posting ? null : _showAudience,
+              ),
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _allowComments,
+              onChanged: _posting
+                  ? null
+                  : (value) => setState(() => _allowComments = value),
+              title: const Text('Allow comments'),
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _allowDownloads,
+              onChanged: _posting
+                  ? null
+                  : (value) => setState(() => _allowDownloads = value),
+              title: const Text('Allow downloads'),
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _kidsContent,
+              onChanged: _posting
+                  ? null
+                  : (value) => setState(() => _kidsContent = value),
+              title: const Text(
+                'Made for kids',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: const Text(
+                'Applies the appropriate kids-content restrictions.',
               ),
             ),
             if (_kidsContent)
@@ -286,43 +326,39 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         .toList(),
                     onChanged: _posting
                         ? null
-                        : (value) {
-                            setState(() {
-                              _kidsCategory = value ?? _kidsCategory;
-                            });
-                          },
+                        : (value) => setState(
+                              () => _kidsCategory = value ?? _kidsCategory,
+                            ),
                   ),
                 ),
               ),
-            if (!_legalAccepted)
-              Card(
-                child: CheckboxListTile(
-                  value: _legalAccepted,
-                  onChanged: _posting
-                      ? null
-                      : (value) async {
-                          if (value != true) return;
-                          try {
-                            await _repository.saveCurrentLegalConsent();
-                            if (mounted) {
-                              setState(() => _legalAccepted = true);
-                            }
-                          } catch (_) {
-                            if (mounted) {
-                              _show('Could not save legal consent.');
-                            }
+            const SizedBox(height: 8),
+            Card(
+              child: CheckboxListTile(
+                value: _legalAccepted,
+                onChanged: _posting
+                    ? null
+                    : (value) async {
+                        if (value != true) return;
+                        try {
+                          await _repository.saveCurrentLegalConsent();
+                          if (mounted) {
+                            setState(() => _legalAccepted = true);
                           }
-                        },
-                  title: const Text(
-                    'I accept Terms, Privacy Policy and Community Guidelines',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: const Text(
-                    'Required before publishing user-generated content.',
-                  ),
-                  controlAffinity: ListTileControlAffinity.leading,
+                        } catch (_) {
+                          _show('Could not save legal consent.');
+                        }
+                      },
+                title: const Text(
+                  'I accept Terms, Privacy Policy and Community Guidelines',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
+                subtitle: const Text(
+                  'Required before publishing user-generated content.',
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
               ),
+            ),
             const SizedBox(height: 12),
           ],
         ),
@@ -331,47 +367,128 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 
   void _showAudience() {
-    showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheet) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Padding(padding: EdgeInsets.all(18), child: Align(alignment: Alignment.centerLeft, child: Text('Who can see this?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)))),
-      for (final option in ['Everyone', 'Followers', 'Only me']) ListTile(leading: Icon(_audience == option ? Icons.radio_button_checked : Icons.radio_button_off), title: Text(option), onTap: () { setState(() => _audience = option); Navigator.pop(sheet); }),
-      const SizedBox(height: 12),
-    ]));
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(18),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Who can see this?',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            for (final option in ['Everyone', 'Followers', 'Only me'])
+              ListTile(
+                leading: Icon(
+                  _audience == option
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                ),
+                title: Text(option),
+                onTap: () {
+                  setState(() => _audience = option);
+                  Navigator.pop(sheet);
+                },
+              ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _emptyMedia() => InkWell(
-    onTap: _posting ? null : _openMediaPicker,
-    borderRadius: BorderRadius.circular(20),
-    child: Container(
-      height: 300,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: Theme.of(context).dividerColor)),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(widget.initialBeat ? Icons.video_library_rounded : Icons.add_photo_alternate_outlined, size: 56),
-        const SizedBox(height: 12),
-        Text(widget.initialBeat ? 'Upload your BEAT video' : 'Add photo or video', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
-        const Text('Gallery • Camera • Video', style: TextStyle(fontSize: 13)),
-      ]),
-    ),
-  );
+        onTap: _posting ? null : _openMediaPicker,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          height: 300,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Theme.of(context).dividerColor),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                widget.initialBeat
+                    ? Icons.video_library_rounded
+                    : Icons.add_photo_alternate_outlined,
+                size: 56,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                widget.initialBeat
+                    ? 'Upload your BEAT video'
+                    : 'Add photo or video',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Gallery • Camera • Video',
+                style: TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
 
   Widget _mediaPreview() {
     final media = _media!;
-    final screen = MediaQuery.sizeOf(context);
-    final maxHeight = screen.height * 0.60;
-    final previewHeight = (screen.width * 16 / 9).clamp(240.0, maxHeight);
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: _isVideo
-            ? SizedBox(height: previewHeight, child: ManoxLocalVideoPreview(path: media.path, height: previewHeight))
-            : ConstrainedBox(constraints: BoxConstraints(maxHeight: previewHeight), child: Image.file(File(media.path), fit: BoxFit.contain)),
-      ),
-      const SizedBox(height: 10),
-      Row(children: [
-        Expanded(child: OutlinedButton.icon(onPressed: _posting ? null : _openTools, icon: const Icon(Icons.tune_rounded), label: const Text('Quick edit'))),
-        const SizedBox(width: 10),
-        IconButton.filledTonal(tooltip: 'Replace media', onPressed: _posting ? null : _openMediaPicker, icon: const Icon(Icons.swap_horiz_rounded)),
-      ]),
-    ]);
+    final previewHeight = MediaQuery.sizeOf(context).height * 0.58;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: _isVideo
+              ? SizedBox(
+                  height: previewHeight,
+                  child: ManoxLocalVideoPreview(
+                    path: media.path,
+                    height: previewHeight,
+                  ),
+                )
+              : ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: previewHeight),
+                  child: Image.file(
+                    File(media.path),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _posting ? null : _openTools,
+                icon: const Icon(Icons.tune_rounded),
+                label: const Text('Quick edit'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            IconButton.filledTonal(
+              tooltip: 'Replace media',
+              onPressed: _posting ? null : _openMediaPicker,
+              icon: const Icon(Icons.swap_horiz_rounded),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
