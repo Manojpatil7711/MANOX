@@ -56,6 +56,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
       }
 
       if (_isTrending) {
+        final now = DateTime.now();
+        final window = _trendWindow == '24h' ? const Duration(hours: 24) : _trendWindow == '7d' ? const Duration(days: 7) : const Duration(days: 30);
+        posts = posts.where((post) => now.difference(post.createdAt) <= window).toList();
         posts.sort((a, b) => _trendScore(b).compareTo(_trendScore(a)));
       }
 
@@ -75,6 +78,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                 likedByMe: post.likedByMe,
                 isRemote: true,
                 ownerUserId: post.ownerUserId,
+                createdAt: post.createdAt,
               ),
             )
             .toList();
@@ -115,6 +119,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     }
 
     if (_isTrending) {
+      final now = DateTime.now();
+      final window = _trendWindow == '24h' ? const Duration(hours: 24) : _trendWindow == '7d' ? const Duration(days: 7) : const Duration(days: 30);
+      result = result.where((post) => now.difference(post.createdAt) <= window).toList();
       result.sort((a, b) => _trendScore(b).compareTo(_trendScore(a)));
     }
 
@@ -197,7 +204,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                     child: ChoiceChip(
                       label: Text(window == '24h' ? '24 hours' : window == '7d' ? '7 days' : '30 days'),
                       selected: _trendWindow == window,
-                      onSelected: (_) => setState(() => _trendWindow = window),
+                      onSelected: (_) { setState(() => _trendWindow = window); _load(); },
                     ),
                   ),
               ],
