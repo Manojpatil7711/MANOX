@@ -175,7 +175,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2");
     }
     final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}';
-    final command = '-y -i ${_shell(input)}\$vf -frames:v 1 -q:v 2 ${_shell(output)}';
+    final command = '-y -i ${_shell(input)}$vf -frames:v 1 -q:v 2 ${_shell(output)}';
     final session = await FFmpegKit.execute(command);
     final code = await session.getReturnCode();
     if (!ReturnCode.isSuccess(code) || !await File(output).exists()) throw StateError('Photo export failed. Please try another image.');
