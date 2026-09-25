@@ -113,53 +113,222 @@ class _CreatePostPageState extends State<CreatePostPage> {
   void _show(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      leading: IconButton(tooltip: 'Close', onPressed: _posting ? null : () => Navigator.of(context).pop(false), icon: const Icon(Icons.close_rounded)),
-      title: Text(widget.initialBeat ? 'Create BEAT' : 'Create', style: const TextStyle(fontWeight: FontWeight.w800)),
-      actions: [Padding(padding: const EdgeInsets.only(right: 10), child: FilledButton(onPressed: _posting ? null : _publish, child: _posting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Post')))],
-    ),
-    body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32), children: [
-      if (_media == null) _emptyMedia() else _mediaPreview(),
-      const SizedBox(height: 14),
-      TextField(controller: _captionController, maxLength: 2200, maxLines: 5, minLines: 2, textCapitalization: TextCapitalization.sentences, decoration: InputDecoration(hintText: widget.initialBeat ? 'Write a BEAT caption…' : 'Write a caption…', alignLabelWithHint: true, border: const OutlineInputBorder())),
-      const SizedBox(height: 8),
-      if (_isVideo && !widget.initialBeat) Card(child: SwitchListTile.adaptive(secondary: const Icon(Icons.music_note_rounded), title: const Text('Add to BEATS', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Shows this video in the full-screen BEATS feed'), value: _isBeat, onChanged: _posting ? null : (value) => setState(() => _isBeat = value))),
-      if (widget.initialBeat) const Card(child: ListTile(leading: Icon(Icons.music_note_rounded), title: Text('BEAT video', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('Full-screen vertical BEATS feed'))),
-      Card(child: Column(children: [
-        ListTile(leading: const Icon(Icons.tune_rounded), title: const Text('Quick edit', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Trim • Crop • Filter • Text • Audio'), trailing: const Icon(Icons.chevron_right_rounded), enabled: _media != null && !_posting, onTap: _media == null || _posting ? null : _openTools),
-        const Divider(height: 1),
-        if (!_kidsContent) ListTile(leading: const Icon(Icons.people_outline_rounded), title: const Text('Audience'), subtitle: Text(_audience), trailing: const Icon(Icons.chevron_right_rounded), onTap: _posting ? null : _showAudience) else const ListTile(leading: Icon(Icons.child_care_rounded), title: Text('Kids audience'), subtitle: Text('Public in MANOX Kids only')),
-        SwitchListTile.adaptive(secondary: const Icon(Icons.comment_outlined), title: const Text('Comments'), value: _comments, onChanged: _posting ? null : (value) => setState(() => _comments = value)),
-        if (_isVideo && !_kidsContent) SwitchListTile.adaptive(secondary: const Icon(Icons.download_outlined), title: const Text('Allow downloads'), value: _downloads, onChanged: _posting ? null : (value) => setState(() => _downloads = value)),
-      ])),
-      const SizedBox(height: 10),
-      Card(child: SwitchListTile.adaptive(secondary: const Icon(Icons.child_care_rounded), title: const Text('Kids content', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: const Text('Routes this content only to MANOX Kids'), value: _kidsContent, onChanged: widget.initialBeat || _posting ? null : (value) => setState(() { _kidsContent = value; if (value) { _isBeat = false; _audience = 'Everyone'; _downloads = false; } })),
-      if (_kidsContent)
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: DropdownButtonFormField<String>(
-              initialValue: _kidsCategory,
-              decoration: const InputDecoration(labelText: 'Kids category'),
-              items: _kidsCategories
-                  .map((value) => DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      ))
-                  .toList(),
-              onChanged: _posting
-                  ? null
-                  : (value) => setState(
-                        () => _kidsCategory = value ?? _kidsCategory,
-                      ),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Close',
+          onPressed: _posting ? null : () => Navigator.of(context).pop(false),
+          icon: const Icon(Icons.close_rounded),
+        ),
+        title: Text(
+          widget.initialBeat ? 'Create BEAT' : 'Create',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: FilledButton(
+              onPressed: _posting ? null : _publish,
+              child: _posting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Post'),
             ),
           ),
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          children: [
+            if (_media == null) _emptyMedia() else _mediaPreview(),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _captionController,
+              maxLength: 2200,
+              maxLines: 5,
+              minLines: 2,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: widget.initialBeat
+                    ? 'Write a BEAT caption…'
+                    : 'Write a caption…',
+                alignLabelWithHint: true,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_isVideo && !widget.initialBeat)
+              Card(
+                child: SwitchListTile.adaptive(
+                  secondary: const Icon(Icons.music_note_rounded),
+                  title: const Text(
+                    'Add to BEATS',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: const Text(
+                    'Shows this video in the full-screen BEATS feed',
+                  ),
+                  value: _isBeat,
+                  onChanged: _posting
+                      ? null
+                      : (value) => setState(() => _isBeat = value),
+                ),
+              ),
+            if (widget.initialBeat)
+              const Card(
+                child: ListTile(
+                  leading: Icon(Icons.music_note_rounded),
+                  title: Text(
+                    'BEAT video',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text('Full-screen vertical BEATS feed'),
+                ),
+              ),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.tune_rounded),
+                    title: const Text(
+                      'Quick edit',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: const Text(
+                      'Trim • Crop • Filter • Text • Audio',
+                    ),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    enabled: _media != null && !_posting,
+                    onTap: _media == null || _posting ? null : _openTools,
+                  ),
+                  const Divider(height: 1),
+                  if (!_kidsContent)
+                    ListTile(
+                      leading: const Icon(Icons.people_outline_rounded),
+                      title: const Text('Audience'),
+                      subtitle: Text(_audience),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: _posting ? null : _showAudience,
+                    )
+                  else
+                    const ListTile(
+                      leading: Icon(Icons.child_care_rounded),
+                      title: Text('Kids audience'),
+                      subtitle: Text('Public in MANOX Kids only'),
+                    ),
+                  SwitchListTile.adaptive(
+                    secondary: const Icon(Icons.comment_outlined),
+                    title: const Text('Comments'),
+                    value: _comments,
+                    onChanged: _posting
+                        ? null
+                        : (value) => setState(() => _comments = value),
+                  ),
+                  if (_isVideo && !_kidsContent)
+                    SwitchListTile.adaptive(
+                      secondary: const Icon(Icons.download_outlined),
+                      title: const Text('Allow downloads'),
+                      value: _downloads,
+                      onChanged: _posting
+                          ? null
+                          : (value) => setState(() => _downloads = value),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              child: SwitchListTile.adaptive(
+                secondary: const Icon(Icons.child_care_rounded),
+                title: const Text(
+                  'Kids content',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text(
+                  'Routes this content only to MANOX Kids',
+                ),
+                value: _kidsContent,
+                onChanged: widget.initialBeat || _posting
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _kidsContent = value;
+                          if (value) {
+                            _isBeat = false;
+                            _audience = 'Everyone';
+                            _downloads = false;
+                          }
+                        });
+                      },
+              ),
+            ),
+            if (_kidsContent)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _kidsCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Kids category',
+                    ),
+                    items: _kidsCategories
+                        .map(
+                          (value) => DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: _posting
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _kidsCategory = value ?? _kidsCategory;
+                            });
+                          },
+                  ),
+                ),
+              ),
+            if (!_legalAccepted)
+              Card(
+                child: CheckboxListTile(
+                  value: _legalAccepted,
+                  onChanged: _posting
+                      ? null
+                      : (value) async {
+                          if (value != true) return;
+                          try {
+                            await _repository.saveCurrentLegalConsent();
+                            if (mounted) {
+                              setState(() => _legalAccepted = true);
+                            }
+                          } catch (_) {
+                            if (mounted) {
+                              _show('Could not save legal consent.');
+                            }
+                          }
+                        },
+                  title: const Text(
+                    'I accept Terms, Privacy Policy and Community Guidelines',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text(
+                    'Required before publishing user-generated content.',
+                  ),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              ),
+            const SizedBox(height: 12),
+          ],
         ),
-      if (!_legalAccepted) Card(child: CheckboxListTile(value: _legalAccepted, onChanged: _posting ? null : (value) async { if (value != true) return; try { await _repository.saveCurrentLegalConsent(); if (mounted) setState(() => _legalAccepted = true); } catch (_) { if (mounted) _show('Could not save legal consent.'); } }, title: const Text('I accept Terms, Privacy Policy and Community Guidelines', style: TextStyle(fontWeight: FontWeight.w700)), subtitle: const Text('Required before publishing user-generated content.'), controlAffinity: ListTileControlAffinity.leading)),
-      const SizedBox(height: 12),
-    ])),
-  );
+      ),
+    );
+  }
 
   void _showAudience() {
     showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheet) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
