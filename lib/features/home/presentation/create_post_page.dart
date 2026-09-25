@@ -38,5 +38,49 @@ class _CreatePostPageState extends State<CreatePostPage> {
   @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(leading: IconButton(tooltip:'Close',onPressed:_posting?null:()=>Navigator.of(context).pop(false),icon:const Icon(Icons.close_rounded)), title:Text(widget.initialBeat?'Create BEAT':'Create',style:const TextStyle(fontWeight:FontWeight.w800)), actions:[Padding(padding:const EdgeInsets.only(right:10),child:FilledButton(onPressed:_posting?null:_publish,child:_posting?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Text('Post')))]), body: SafeArea(child: ListView(padding:const EdgeInsets.fromLTRB(16,12,16,32),children:[if (_media == null) _emptyMedia() else _mediaPreview(), const SizedBox(height:14), TextField(controller:_captionController,maxLength:2200,maxLines:5,minLines:2,textCapitalization:TextCapitalization.sentences,decoration:InputDecoration(hintText:widget.initialBeat?'Write a BEAT caption…':'Write a caption…',alignLabelWithHint:true,border:const OutlineInputBorder())), const SizedBox(height:8), if (_isVideo && !widget.initialBeat) Card(child:SwitchListTile.adaptive(secondary:const Icon(Icons.music_note_rounded),title:const Text('Add to BEATS',style:TextStyle(fontWeight:FontWeight.w800)),subtitle:const Text('Shows this video in the full-screen BEATS feed'),value:_isBeat,onChanged:_posting?null:(value)=>setState(()=>_isBeat=value))), if (widget.initialBeat) const Card(child:ListTile(leading:Icon(Icons.music_note_rounded),title:Text('BEAT video',style:TextStyle(fontWeight:FontWeight.w800),),subtitle:Text('Full-screen vertical BEATS feed'))), Card(child:Column(children:[ListTile(leading:const Icon(Icons.tune_rounded),title:const Text('Quick edit',style:TextStyle(fontWeight:FontWeight.w800),),subtitle:const Text('Trim • Crop • Filter • Text • Audio'),trailing:const Icon(Icons.chevron_right_rounded),onTap:_posting?null:_openTools),const Divider(height:1),if (!_kidsContent) ListTile(leading:const Icon(Icons.people_outline_rounded),title:const Text('Audience'),subtitle:Text(_audience),trailing:const Icon(Icons.chevron_right_rounded),onTap:_posting?null:_showAudience) else const ListTile(leading:Icon(Icons.child_care_rounded),title:Text('Kids audience'),subtitle:Text('Public in MANOX Kids only')),SwitchListTile.adaptive(secondary:const Icon(Icons.comment_outlined),title:const Text('Comments'),value:_comments,onChanged:_posting?null:(value)=>setState(()=>_comments=value)),if(_isVideo && !_kidsContent) SwitchListTile.adaptive(secondary:const Icon(Icons.download_outlined),title:const Text('Allow downloads'),value:_downloads,onChanged:_posting?null:(value)=>setState(()=>_downloads=value))])), const SizedBox(height:10), Card(child:SwitchListTile.adaptive(secondary:const Icon(Icons.child_care_rounded),title:const Text('Kids content',style:TextStyle(fontWeight:FontWeight.w800)),subtitle:const Text('Routes this content only to MANOX Kids'),value:_kidsContent,onChanged:widget.initialBeat||_posting?null:(value)=>setState((){_kidsContent=value;if(value){_isBeat=false;_audience='Everyone';_downloads=false;}}))), if (_kidsContent) Card(child:Padding(padding:const EdgeInsets.fromLTRB(16,8,16,12),child:DropdownButtonFormField<String>(initialValue:_kidsCategory,decoration:const InputDecoration(labelText:'Kids category'),items:_kidsCategories.map((value)=>DropdownMenuItem<String>(value:value,child:Text(value))).toList(),onChanged:_posting?null:(value)=>setState(()=>_kidsCategory=value??_kidsCategory)))), if (!_legalAccepted) Card(child:CheckboxListTile(value:_legalAccepted,onChanged:_posting?null:(value) async { if (value != true) return; try { await _repository.saveCurrentLegalConsent(); if (mounted) setState(() => _legalAccepted = true); } catch (_) { if (mounted) _show('Could not save legal consent.'); } },title:const Text('I accept Terms, Privacy Policy and Community Guidelines',style:TextStyle(fontWeight:FontWeight.w700)),subtitle:const Text('Required before publishing user-generated content.'),controlAffinity:ListTileControlAffinity.leading)), const SizedBox(height:8), const SizedBox(height:4), ])), );
   void _showAudience() { showModalBottomSheet<void>(context:context,showDragHandle:true,builder:(sheet)=>SafeArea(child:Column(mainAxisSize:MainAxisSize.min,children:[const Padding(padding:EdgeInsets.all(18),child:Align(alignment:Alignment.centerLeft,child:Text('Who can see this?',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)))),for(final option in ['Everyone','Followers','Only me']) ListTile(leading:Icon(_audience==option?Icons.radio_button_checked:Icons.radio_button_off),title:Text(option),onTap:(){setState(()=>_audience=option);Navigator.pop(sheet);}),const SizedBox(height:12)]))); }
   Widget _emptyMedia() => InkWell(onTap:_posting?null:_openMediaPicker,borderRadius:BorderRadius.circular(20),child:Container(height:300,decoration:BoxDecoration(borderRadius:BorderRadius.circular(20),border:Border.all(color:Theme.of(context).dividerColor)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(widget.initialBeat?Icons.video_library_rounded:Icons.add_photo_alternate_outlined,size:56),const SizedBox(height:12),Text(widget.initialBeat?'Upload your BEAT video':'Add photo or video',style:const TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:6),const Text('Gallery • Camera • Video',style:TextStyle(fontSize:13))])));
-  Widget _mediaPreview() { final media=_media!; return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[ClipRRect(borderRadius:BorderRadius.circular(20),child:_isVideo?SizedBox(height:MediaQuery.sizeOf(context).height*0.58,child:ManoxLocalVideoPreview(path:media.path,height:MediaQuery.sizeOf(context).height*0.58)):ConstrainedBox(constraints:BoxConstraints(maxHeight:MediaQuery.sizeOf(context).height*0.58),child:Image.file(File(media.path),fit:BoxFit.contain)),const SizedBox(height:10),Row(children:[Expanded(child:OutlinedButton.icon(onPressed:_posting?null:_openTools,icon:const Icon(Icons.tune_rounded),label:const Text('Quick edit'))),const SizedBox(width:10),IconButton.filledTonal(tooltip:'Replace media',onPressed:_posting?null:_openMediaPicker,icon:const Icon(Icons.swap_horiz_rounded))])]); }
+  Widget _mediaPreview() {
+    final media = _media!;
+    final previewHeight = MediaQuery.sizeOf(context).height * 0.58;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: _isVideo
+              ? SizedBox(
+                  height: previewHeight,
+                  child: ManoxLocalVideoPreview(
+                    path: media.path,
+                    height: previewHeight,
+                  ),
+                )
+              : ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: previewHeight),
+                  child: Image.file(
+                    File(media.path),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _posting ? null : _openTools,
+                icon: const Icon(Icons.tune_rounded),
+                label: const Text('Quick edit'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            IconButton.filledTonal(
+              tooltip: 'Replace media',
+              onPressed: _posting ? null : _openMediaPicker,
+              icon: const Icon(Icons.swap_horiz_rounded),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
