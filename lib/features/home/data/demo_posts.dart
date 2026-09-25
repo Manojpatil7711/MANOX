@@ -15,7 +15,7 @@ class HomeDemoData {
   final bool allowComments;
   final bool allowDownloads;
 
-  const HomeDemoData({
+  HomeDemoData({
     required this.id,
     required this.creatorName,
     required this.handle,
@@ -31,10 +31,10 @@ class HomeDemoData {
     this.ownerUserId,
     this.allowComments = true,
     this.allowDownloads = true,
-  }) : createdAt = createdAt ?? const DateTime(1970);
+  }) : createdAt = createdAt ?? DateTime(1970);
 }
 
-const demoPosts = [
+final demoPosts = [
   HomeDemoData(
     id: 'p1',
     creatorName: 'Ava Carter',
