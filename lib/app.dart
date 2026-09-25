@@ -9,7 +9,6 @@ import 'features/home/presentation/kids_mode_gate_page.dart';
 import 'features/home/presentation/kids_home_page.dart';
 import 'features/home/presentation/beats_page.dart';
 import 'features/home/presentation/create_post_page.dart';
-import 'features/home/presentation/tools_page.dart';
 import 'features/home/presentation/live_page.dart';
 import 'features/home/presentation/entertainment_page.dart';
 import 'features/home/presentation/discovery_page.dart';
@@ -22,7 +21,6 @@ import 'features/creator/creator.dart';
 import 'features/settings/settings.dart';
 import 'features/settings/presentation/kids_protection_page.dart';
 import 'features/communication/presentation/communication_pages.dart';
-import 'features/editor/presentation/safe_media_editor_page.dart';
 import 'features/editor/presentation/professional_media_editor_v2_page.dart';
 import 'features/compliance/presentation/community_safety_page.dart';
 import 'features/safety/presentation/safety_alert_button.dart';
@@ -66,7 +64,6 @@ class ManoxApp extends StatelessWidget {
       GoRoute(path: '/kids-home', builder: (_, __) => const KidsHomePage()),
       GoRoute(path: '/kids-protection', builder: (_, __) => const KidsProtectionPage()),
       GoRoute(path: '/create', builder: (context, state) => CreatePostPage(initialBeat: state.uri.queryParameters['beat'] == 'true')),
-      GoRoute(path: '/tools', builder: (_, __) => const ToolsPage()),
       GoRoute(path: '/beats', builder: (context, state) => BeatsPage(kidsMode: state.uri.queryParameters['mode'] == 'kids')),
       GoRoute(path: '/live', builder: (_, __) => const LivePage()),
       GoRoute(path: '/entertainment', builder: (_, __) => const EntertainmentPage()),
@@ -89,11 +86,6 @@ class ManoxApp extends StatelessWidget {
         final raw = state.extra;
         final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
         return ProfessionalMediaEditorV2Page(isVideo: extra['isVideo'] == true, mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null);
-      }),
-      GoRoute(path: '/editor-safe', builder: (context, state) {
-        final raw = state.extra;
-        final extra = raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
-        return SafeMediaEditorPage(isVideo: extra['isVideo'] == true, mediaPath: extra['mediaPath'] is String ? extra['mediaPath'] as String : null);
       }),
     ],
   );
