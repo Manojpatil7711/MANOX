@@ -2,17 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:manox/core/theme/app_theme.dart';
-import 'package:manox/features/home/data/supabase_post_repository.dart';
-import 'package:manox/features/editor/presentation/professional_media_editor_v2_page.dart';
-import 'package:manox/features/home/widgets/local_video_preview.dart';
+
+import '../data/supabase_post_repository.dart';
+import '../presentation/widgets/media_preview.dart';
+import '../../editor/presentation/professional_media_editor_v2_page.dart';
 
 class CreatePostPage extends StatefulWidget {
-  const CreatePostPage({
-    super.key,
-    this.initialBeat = false,
-  });
-
+  const CreatePostPage({super.key, this.initialBeat = false});
   final bool initialBeat;
 
   @override
@@ -70,19 +66,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const ListTile(
-              title: Text(
-                'Add media',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
+              title: Text('Add media', style: TextStyle(fontWeight: FontWeight.w800)),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Gallery'),
-              onTap: () => Navigator.pop(sheet, ImageSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.videocam_outlined),
-              title: const Text('Video'),
               onTap: () => Navigator.pop(sheet, ImageSource.gallery),
             ),
             ListTile(
@@ -105,15 +93,9 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     if (picked == null || !mounted) return;
 
-    final extension = picked.path.toLowerCase();
-    final isVideo = extension.endsWith('.mp4') ||
-        extension.endsWith('.mov') ||
-        extension.endsWith('.m4v') ||
-        extension.endsWith('.webm');
-
     setState(() {
       _media = picked;
-      _isVideo = isVideo;
+      _isVideo = isManoxVideo(picked.path);
     });
   }
 
@@ -134,15 +116,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
       ),
     );
 
-    if (result == true && mounted) {
-      setState(() {});
-    }
+    if (result == true && mounted) setState(() {});
   }
 
   Future<void> _publish() async {
     if (_posting) return;
-
-    if (_media == null) {
+    final media = _media;
+    if (media == null) {
       _show('Add a photo or video first.');
       return;
     }
@@ -153,22 +133,22 @@ class _CreatePostPageState extends State<CreatePostPage> {
 
     setState(() => _posting = true);
     try {
-      final id = await _repository.createPost(
+      final post = await _repository.createPost(
         text: _captionController.text.trim(),
-        mediaPath: _media!.path,
-        contentType: _isVideo ? 'video' : 'image',
-        audience: _audience,
+        imagePath: media.path,
+        mediaType: _addToBeats ? 'beat' : (_isVideo ? 'video' : 'image'),
+        audienceCategory: _kidsContent ? 'kids_15_plus' : 'general',
+        kidsCategory: _kidsContent ? _kidsCategory : null,
+        visibility: _audience == 'Followers' ? 'followers' : (_audience == 'Only me' ? 'private' : 'public'),
         allowComments: _allowComments,
         allowDownloads: _allowDownloads,
-        kidsContent: _kidsContent,
-        kidsCategory: _kidsContent ? _kidsCategory : null,
-        addToBeats: _addToBeats,
       );
+
       if (!mounted) return;
       _show('Published successfully.');
-      Navigator.pop(context, id);
+      Navigator.pop(context, post.id);
     } catch (error) {
-      _show('Could not publish. Please try again.');
+      _show(error is StateError ? error.message : 'Could not publish. Please try again.');
     } finally {
       if (mounted) setState(() => _posting = false);
     }
@@ -185,10 +165,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
           onPressed: _posting ? null : () => Navigator.pop(context),
           icon: const Icon(Icons.close_rounded),
         ),
-        title: const Text(
-          'Create',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Create', style: TextStyle(fontWeight: FontWeight.w800)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -222,17 +199,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 alignLabelWithHint: true,
               ),
             ),
-            const SizedBox(height: 8),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               value: _addToBeats,
-              onChanged: _posting
-                  ? null
-                  : (value) => setState(() => _addToBeats = value),
-              title: const Text(
-                'Add to BEATS',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
+              onChanged: _posting ? null : (value) => setState(() => _addToBeats = value),
+              title: const Text('Add to BEATS', style: TextStyle(fontWeight: FontWeight.w700)),
               subtitle: const Text('Make this post discoverable in BEATS.'),
             ),
             if (_addToBeats)
@@ -241,7 +212,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   padding: const EdgeInsets.all(14),
                   child: Text(
                     'BEATS works best with vertical short-form video.',
-                    style: TextStyle(color: context.appColors.muted),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ),
               ),
@@ -249,15 +220,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.tune_rounded),
-                title: const Text(
-                  'Quick edit',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text(
-                  media == null
-                      ? 'Add media to open the editor'
-                      : 'Trim, crop, filters, speed and text',
-                ),
+                title: const Text('Quick edit', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(media == null ? 'Add media to open the editor' : 'Trim, crop, filters, speed and text'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 enabled: media != null && !_posting,
                 onTap: media == null || _posting ? null : _openTools,
@@ -267,10 +231,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.visibility_outlined),
-                title: const Text(
-                  'Audience',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
+                title: const Text('Audience', style: TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(_audience),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 enabled: !_posting,
@@ -280,32 +241,21 @@ class _CreatePostPageState extends State<CreatePostPage> {
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               value: _allowComments,
-              onChanged: _posting
-                  ? null
-                  : (value) => setState(() => _allowComments = value),
+              onChanged: _posting ? null : (value) => setState(() => _allowComments = value),
               title: const Text('Allow comments'),
             ),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               value: _allowDownloads,
-              onChanged: _posting
-                  ? null
-                  : (value) => setState(() => _allowDownloads = value),
+              onChanged: _posting ? null : (value) => setState(() => _allowDownloads = value),
               title: const Text('Allow downloads'),
             ),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               value: _kidsContent,
-              onChanged: _posting
-                  ? null
-                  : (value) => setState(() => _kidsContent = value),
-              title: const Text(
-                'Made for kids',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: const Text(
-                'Applies the appropriate kids-content restrictions.',
-              ),
+              onChanged: _posting ? null : (value) => setState(() => _kidsContent = value),
+              title: const Text('Made for kids', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Applies the appropriate kids-content restrictions.'),
             ),
             if (_kidsContent)
               Card(
@@ -313,22 +263,13 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   child: DropdownButtonFormField<String>(
                     initialValue: _kidsCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'Kids category',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Kids category'),
                     items: _kidsCategories
-                        .map(
-                          (value) => DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          ),
-                        )
+                        .map((value) => DropdownMenuItem<String>(value: value, child: Text(value)))
                         .toList(),
                     onChanged: _posting
                         ? null
-                        : (value) => setState(
-                              () => _kidsCategory = value ?? _kidsCategory,
-                            ),
+                        : (value) => setState(() => _kidsCategory = value ?? _kidsCategory),
                   ),
                 ),
               ),
@@ -342,9 +283,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                         if (value != true) return;
                         try {
                           await _repository.saveCurrentLegalConsent();
-                          if (mounted) {
-                            setState(() => _legalAccepted = true);
-                          }
+                          if (mounted) setState(() => _legalAccepted = true);
                         } catch (_) {
                           _show('Could not save legal consent.');
                         }
@@ -353,9 +292,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   'I accept Terms, Privacy Policy and Community Guidelines',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
-                subtitle: const Text(
-                  'Required before publishing user-generated content.',
-                ),
+                subtitle: const Text('Required before publishing user-generated content.'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ),
@@ -380,19 +317,14 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Who can see this?',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                 ),
               ),
             ),
             for (final option in ['Everyone', 'Followers', 'Only me'])
               ListTile(
                 leading: Icon(
-                  _audience == option
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
+                  _audience == option ? Icons.radio_button_checked : Icons.radio_button_off,
                 ),
                 title: Text(option),
                 onTap: () {
@@ -419,27 +351,14 @@ class _CreatePostPageState extends State<CreatePostPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                widget.initialBeat
-                    ? Icons.video_library_rounded
-                    : Icons.add_photo_alternate_outlined,
-                size: 56,
-              ),
+              Icon(widget.initialBeat ? Icons.video_library_rounded : Icons.add_photo_alternate_outlined, size: 56),
               const SizedBox(height: 12),
               Text(
-                widget.initialBeat
-                    ? 'Upload your BEAT video'
-                    : 'Add photo or video',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+                widget.initialBeat ? 'Upload your BEAT video' : 'Add photo or video',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Gallery • Camera • Video',
-                style: TextStyle(fontSize: 13),
-              ),
+              const Text('Gallery • Camera • Video', style: TextStyle(fontSize: 13)),
             ],
           ),
         ),
@@ -457,17 +376,11 @@ class _CreatePostPageState extends State<CreatePostPage> {
           child: _isVideo
               ? SizedBox(
                   height: previewHeight,
-                  child: ManoxLocalVideoPreview(
-                    path: media.path,
-                    height: previewHeight,
-                  ),
+                  child: ManoxLocalVideoPreview(path: media.path, height: previewHeight),
                 )
               : ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: previewHeight),
-                  child: Image.file(
-                    File(media.path),
-                    fit: BoxFit.contain,
-                  ),
+                  child: Image.file(File(media.path), fit: BoxFit.contain),
                 ),
         ),
         const SizedBox(height: 10),
