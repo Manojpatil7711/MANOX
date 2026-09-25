@@ -26,7 +26,7 @@ CREATE OR REPLACE FUNCTION public.prevent_direct_content_publish()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $function$
 BEGIN
-  IF NEW.status = 'published' AND COALESCE(OLD.status, '') <> 'published' AND auth.role() <> 'service_role' THEN
+  IF NEW.status = 'published' AND COALESCE(OLD.status, '') <> 'published' AND (auth.jwt() ->> 'role') <> 'service_role' THEN
     RAISE EXCEPTION 'published_status_requires_server_publish';
   END IF;
   RETURN NEW;
@@ -46,6 +46,8 @@ USING (auth.uid() = owner_user_id) WITH CHECK (auth.uid() = owner_user_id);
 CREATE POLICY contents_owner_delete ON public.contents FOR DELETE TO authenticated
 USING (auth.uid() = owner_user_id);
 
+REVOKE EXECUTE ON FUNCTION public.can_publish_content(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.prevent_direct_content_publish() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.publish_content_secure(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.publish_content_secure(uuid) TO authenticated, service_role;
 
