@@ -247,17 +247,104 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   Widget _timeline(double durationMs) => Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 6), child: Column(children: [Row(children: [const Icon(Icons.content_cut_rounded, size: 18), const SizedBox(width: 8), Text('${_fmt(_start)} – ${_fmt(_end)}'), const Spacer(), Text('${((_end - _start) / 1000).toStringAsFixed(1)}s')]), RangeSlider(min: 0, max: durationMs, values: RangeValues(_start.clamp(0, durationMs - 1), _end.clamp(1, durationMs)), onChanged: _exporting ? null : (values) { setState(() { _start = values.start; _end = values.end; }); _video?.seekTo(Duration(milliseconds: values.start.round())); })]));
   String _fmt(double ms) { final seconds = (ms / 1000).floor(); return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}'; }
 
+  Future<void> _openToolSheet(String label, VoidCallback action) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: const Color(0xFF171717),
+      isScrollControlled: true,
+      builder: (sheet) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 14),
+              if (label == 'Trim' && widget.isVideo)
+                Column(children: [
+                  Row(children: [const Icon(Icons.content_cut_rounded, size: 18), const SizedBox(width: 8), Text('${_fmt(_start)} – ${_fmt(_end)}'), const Spacer(), Text('${((_end - _start) / 1000).toStringAsFixed(1)}s')]),
+                  RangeSlider(
+                    min: 0,
+                    max: _video?.value.duration.inMilliseconds.toDouble() ?? 1,
+                    values: RangeValues(
+                      _start.clamp(0, (_video?.value.duration.inMilliseconds.toDouble() ?? 1) - 1),
+                      _end.clamp(1, _video?.value.duration.inMilliseconds.toDouble() ?? 1),
+                    ),
+                    onChanged: _exporting ? null : (values) {
+                      setState(() { _start = values.start; _end = values.end; });
+                      _video?.seekTo(Duration(milliseconds: values.start.round()));
+                    },
+                  ),
+                ])
+              else if (label == 'Filter')
+                Wrap(spacing: 8, runSpacing: 8, children: _filters.map((value) => ChoiceChip(
+                  label: Text(value),
+                  selected: _filter == value,
+                  onSelected: (_) { setState(() => _filter = value); Navigator.pop(sheet); },
+                )).toList())
+              else if (label == 'Crop')
+                Wrap(spacing: 8, runSpacing: 8, children: _ratios.map((value) => ChoiceChip(
+                  label: Text(value),
+                  selected: _ratio == value,
+                  onSelected: (_) { setState(() => _ratio = value); Navigator.pop(sheet); },
+                )).toList())
+              else if (label == 'Speed')
+                Wrap(spacing: 8, children: [0.5, 1.0, 1.5, 2.0].map((value) => ChoiceChip(
+                  label: Text('${value}x'),
+                  selected: _speed == value,
+                  onSelected: (_) { setState(() => _speed = value); _video?.setPlaybackSpeed(value); Navigator.pop(sheet); },
+                )).toList())
+              else
+                FilledButton.icon(onPressed: () { Navigator.pop(sheet); action(); }, icon: const Icon(Icons.check_rounded), label: const Text('APPLY')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _tools() {
     final tools = <({String label, IconData icon, VoidCallback action})>[
       if (widget.isVideo) (label: 'Trim', icon: Icons.content_cut_rounded, action: () => _video?.seekTo(Duration(milliseconds: _start.round()))),
       if (widget.isVideo) (label: _selectedBeat == null ? 'Beats' : 'Beat ✓', icon: Icons.music_note_rounded, action: _addBeat),
-      if (widget.isVideo) (label: '${_speed}x', icon: Icons.speed_rounded, action: _changeSpeed),
+      if (widget.isVideo) (label: 'Speed', icon: Icons.speed_rounded, action: _changeSpeed),
       if (widget.isVideo) (label: 'Volume', icon: Icons.volume_up_rounded, action: _showVolume),
       (label: 'Crop', icon: Icons.crop_rounded, action: () => _choose('Aspect ratio', _ratios, _ratio, (v) => _ratio = v)),
       (label: 'Filter', icon: Icons.auto_awesome_rounded, action: () => _choose('Filters', _filters, _filter, (v) => _filter = v)),
       (label: 'Text', icon: Icons.text_fields_rounded, action: _addText),
     ];
-    return SizedBox(height: 94, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 10), itemCount: tools.length, separatorBuilder: (_, __) => const SizedBox(width: 7), itemBuilder: (_, index) { final tool = tools[index]; return InkWell(onTap: _exporting ? null : tool.action, borderRadius: BorderRadius.circular(14), child: SizedBox(width: 72, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircleAvatar(radius: 22, backgroundColor: const Color(0xFF242424), child: Icon(tool.icon)), const SizedBox(height: 5), Text(tool.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))]))); }));
+    return Material(
+      color: const Color(0xFF111111),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+            itemCount: tools.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, index) {
+              final tool = tools[index];
+              return InkWell(
+                onTap: _exporting ? null : () => _openToolSheet(tool.label, tool.action),
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: 76,
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    CircleAvatar(radius: 23, backgroundColor: const Color(0xFF242424), child: Icon(tool.icon)),
+                    const SizedBox(height: 5),
+                    Text(tool.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _preview() {
