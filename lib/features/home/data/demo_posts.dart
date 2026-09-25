@@ -7,6 +7,7 @@ class HomeDemoData {
   final int comments;
   final String? imagePath;
   final String mediaType;
+  final DateTime createdAt;
   final bool likedByMe;
   final bool savedByMe;
   final bool isRemote;
@@ -23,6 +24,7 @@ class HomeDemoData {
     this.comments = 0,
     this.imagePath,
     this.mediaType = 'post',
+    this.createdAt = const DateTime.fromMillisecondsSinceEpoch(0),
     this.likedByMe = false,
     this.savedByMe = false,
     this.isRemote = false,
