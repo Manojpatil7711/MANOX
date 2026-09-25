@@ -164,7 +164,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     final temp = await getTemporaryDirectory();
     final extension = input.split('.').last.toLowerCase();
     final safeExtension = <String>{'jpg','jpeg','png','webp'}.contains(extension) ? extension : 'jpg';
-    final output = '\${temp.path}/manox_photo_render_\${DateTime.now().millisecondsSinceEpoch}.\$safeExtension';
+    final output = '${temp.path}/manox_photo_render_${DateTime.now().millisecondsSinceEpoch}.$safeExtension';
     final filters = <String>[];
     final ratioFilter = _ratioFilter();
     if (ratioFilter != null) filters.add(ratioFilter);
@@ -172,10 +172,10 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     if (photoFilter != null) filters.add(photoFilter);
     if (_text != null && _text!.trim().isNotEmpty) {
       final safe = _text!.replaceAll('\\\\', '\\\\\\\\').replaceAll(':', '\\\\:').replaceAll("'", "\\\\'");
-      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='\$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2");
+      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2");
     }
-    final vf = filters.isEmpty ? '' : ' -vf \${_shell(filters.join(','))}';
-    final command = '-y -i \${_shell(input)}\$vf -frames:v 1 -q:v 2 \${_shell(output)}';
+    final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}';
+    final command = '-y -i ${_shell(input)}\$vf -frames:v 1 -q:v 2 ${_shell(output)}';
     final session = await FFmpegKit.execute(command);
     final code = await session.getReturnCode();
     if (!ReturnCode.isSuccess(code) || !await File(output).exists()) throw StateError('Photo export failed. Please try another image.');
