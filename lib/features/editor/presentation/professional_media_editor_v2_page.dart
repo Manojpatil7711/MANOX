@@ -158,9 +158,50 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     }
   }
 
+  Future<String?> _renderPhoto() async {
+    final input = widget.mediaPath;
+    if (input == null || input.isEmpty || !await File(input).exists()) return null;
+    final temp = await getTemporaryDirectory();
+    final extension = input.split('.').last.toLowerCase();
+    final safeExtension = <String>{'jpg','jpeg','png','webp'}.contains(extension) ? extension : 'jpg';
+    final output = '\${temp.path}/manox_photo_render_\${DateTime.now().millisecondsSinceEpoch}.\$safeExtension';
+    final filters = <String>[];
+    final ratioFilter = _ratioFilter();
+    if (ratioFilter != null) filters.add(ratioFilter);
+    final photoFilter = _videoFilter();
+    if (photoFilter != null) filters.add(photoFilter);
+    if (_text != null && _text!.trim().isNotEmpty) {
+      final safe = _text!.replaceAll('\\\\', '\\\\\\\\').replaceAll(':', '\\\\:').replaceAll("'", "\\\\'");
+      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='\$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2");
+    }
+    final vf = filters.isEmpty ? '' : ' -vf \${_shell(filters.join(','))}';
+    final command = '-y -i \${_shell(input)}\$vf -frames:v 1 -q:v 2 \${_shell(output)}';
+    final session = await FFmpegKit.execute(command);
+    final code = await session.getReturnCode();
+    if (!ReturnCode.isSuccess(code) || !await File(output).exists()) throw StateError('Photo export failed. Please try another image.');
+    return output;
+  }
+
   Future<void> _done() async {
-    if (!widget.isVideo) { if (mounted) Navigator.of(context).pop(true); return; }
-    if (_exporting) return; setState(() => _exporting = true);
+    if (_exporting) return;
+    if (!widget.isVideo) {
+      setState(() => _exporting = true);
+      String? rendered;
+      try {
+        rendered = await _renderPhoto();
+        if (rendered == null || widget.mediaPath == null) throw StateError('No photo selected.');
+        await File(widget.mediaPath!).writeAsBytes(await File(rendered).readAsBytes(), flush: true);
+        try { await File(rendered).delete(); } catch (_) {}
+        if (mounted) Navigator.of(context).pop(true);
+      } catch (e) {
+        if (rendered != null) { try { await File(rendered).delete(); } catch (_) {} }
+        if (!mounted) return;
+        setState(() => _exporting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
+      }
+      return;
+    }
+    setState(() => _exporting = true);
     String? rendered;
     String? backup;
     try {
