@@ -281,7 +281,27 @@ class _PostCardState extends State<PostCard> {
         if (widget.data.text.isNotEmpty)
           Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12), child: Text(widget.data.text, style: const TextStyle(fontSize: 14.5, height: 1.4))),
         if (imagePath != null && imagePath.isNotEmpty)
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: ClipRRect(borderRadius: BorderRadius.circular(15), child: _buildMedia(imagePath))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: widget.data.isRemote && widget.repository != null
+                  ? FutureBuilder<String?>(
+                      future: widget.repository!.signedMediaUrl(imagePath),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const SizedBox(height: 300, child: Center(child: CircularProgressIndicator()));
+                        }
+                        final resolved = snapshot.data;
+                        if (resolved == null || resolved.isEmpty) {
+                          return const SizedBox(height: 180, child: Center(child: Icon(Icons.broken_image_outlined)));
+                        }
+                        return _buildMedia(resolved);
+                      },
+                    )
+                  : _buildMedia(imagePath),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 7),
           child: Row(children: [
