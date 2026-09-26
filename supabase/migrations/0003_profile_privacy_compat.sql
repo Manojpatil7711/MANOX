@@ -39,8 +39,8 @@ ALTER TABLE public.profile_privacy
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 UPDATE public.profile_privacy
-SET user_id = id
-WHERE user_id IS NULL;
+SET user_id = profile_privacy.id
+WHERE profile_privacy.user_id IS NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS profile_privacy_user_id_key
   ON public.profile_privacy(user_id);
