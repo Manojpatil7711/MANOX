@@ -6,6 +6,12 @@
 
 BEGIN;
 
+-- Historical production schema includes platform_role on profiles, while the
+-- repository's early baseline does not. Restore that compatibility column before
+-- defining admin-aware functions below.
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS platform_role text NOT NULL DEFAULT 'user';
+
 CREATE TABLE IF NOT EXISTS public.contents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_user_id uuid NOT NULL,
