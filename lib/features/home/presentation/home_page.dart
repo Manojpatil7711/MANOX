@@ -352,47 +352,26 @@ class _HomePageState extends State<HomePage> {
 
   Widget _creatorDiscovery(ThemeData theme) {
     const items = [
-      ('Beats', Icons.auto_awesome_rounded, '/beats'),
-      ('Live', Icons.radio_rounded, '/live'),
       ('Trending', Icons.local_fire_department_rounded, '/trending'),
+      ('Beats', Icons.auto_awesome_rounded, '/beats'),
       ('Learn', Icons.school_rounded, '/learn'),
-      ('Entertainment', Icons.movie_rounded, '/entertainment'),
-      ('Sports', Icons.sports_soccer_rounded, '/sports'),
     ];
 
-    return SizedBox(
-      height: 112,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () => context.push(item.$3),
-            child: SizedBox(
-              width: 72,
-              child: Column(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      border: Border.all(color: theme.colorScheme.outlineVariant),
-                    ),
-                    child: Icon(item.$2, size: 27),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(item.$1, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-                ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+      child: Row(
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            Expanded(
+              child: _QuickAction(
+                icon: items[index].$2,
+                label: items[index].$1,
+                onTap: () => context.push(items[index].$3),
               ),
             ),
-          );
-        },
+            if (index != items.length - 1) const SizedBox(width: 10),
+          ],
+        ],
       ),
     );
   }
@@ -503,7 +482,7 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
       child: Row(
         children: [
-          Text('Your feed', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text(_selectedFeed == 0 ? 'For you' : _selectedFeed == 1 ? 'Following' : 'Latest', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
           const Spacer(),
           if (!_loadingFeed)
             Text('${_posts.length}${_hasMore ? '+' : ''}', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
@@ -533,7 +512,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _SafetyCard extends StatelessWidget {
+class _QuickAction extends StatelessWidget {\n  final IconData icon;\n  final String label;\n  final VoidCallback onTap;\n\n  const _QuickAction({required this.icon, required this.label, required this.onTap});\n\n  @override\n  Widget build(BuildContext context) {\n    final theme = Theme.of(context);\n    return Material(\n      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),\n      borderRadius: BorderRadius.circular(18),\n      child: InkWell(\n        borderRadius: BorderRadius.circular(18),\n        onTap: onTap,\n        child: Padding(\n          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),\n          child: Row(\n            mainAxisAlignment: MainAxisAlignment.center,\n            children: [\n              Icon(icon, size: 19),\n              const SizedBox(width: 7),\n              Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800))),\n            ],\n          ),\n        ),\n      ),\n    );\n  }\n}\n\nclass _SafetyCard extends StatelessWidget {
   final Color color;
   final IconData icon;
   final String title;
