@@ -130,6 +130,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
       _show('Accept the legal terms before publishing.');
       return;
     }
+    if (_addToBeats && !_isVideo) {
+      _show('BEATS requires a video. Please choose a video or turn off Add to BEATS.');
+      return;
+    }
 
     setState(() => _posting = true);
     try {
@@ -202,9 +206,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               value: _addToBeats,
-              onChanged: _posting ? null : (value) => setState(() => _addToBeats = value),
+              onChanged: _posting
+                  ? null
+                  : (value) {
+                      if (value && !_isVideo) {
+                        _show('BEATS is for video posts. Add a video first.');
+                        return;
+                      }
+                      setState(() => _addToBeats = value);
+                    },
               title: const Text('Add to BEATS', style: TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: const Text('Make this post discoverable in BEATS.'),
+              subtitle: const Text('Make this video discoverable in BEATS.'),
             ),
             if (_addToBeats)
               Card(
