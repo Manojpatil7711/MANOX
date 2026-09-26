@@ -27,6 +27,9 @@ jobs:
       - name: Initialize local Supabase configuration
         run: supabase init --force
 
+      - name: Start local Supabase database
+        run: supabase db start
+
       - name: Run database tests
         run: supabase test db
 
