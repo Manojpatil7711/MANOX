@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS public.profile_privacy (
 ALTER TABLE public.profile_privacy ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.profile_privacy
+  ADD COLUMN IF NOT EXISTS id uuid;
+
+ALTER TABLE public.profile_privacy
   ADD COLUMN IF NOT EXISTS user_id uuid;
 ALTER TABLE public.profile_privacy
   ADD COLUMN IF NOT EXISTS private_account boolean NOT NULL DEFAULT false;
@@ -39,8 +42,15 @@ ALTER TABLE public.profile_privacy
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 UPDATE public.profile_privacy
-SET user_id = profile_privacy.id
-WHERE profile_privacy.user_id IS NULL;
+SET user_id = public.profile_privacy.id
+WHERE public.profile_privacy.user_id IS NULL;
+
+UPDATE public.profile_privacy
+SET id = public.profile_privacy.user_id
+WHERE public.profile_privacy.id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS profile_privacy_id_key
+  ON public.profile_privacy(id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS profile_privacy_user_id_key
   ON public.profile_privacy(user_id);
@@ -68,7 +78,12 @@ CREATE POLICY "Users can update own privacy"
   WITH CHECK (auth.uid() = user_id);
 
 INSERT INTO public.profile_privacy (id, user_id)
-SELECT id, id FROM auth.users
-ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id;
+SELECT u.id, u.id
+FROM auth.users AS u
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM public.profile_privacy AS pp
+  WHERE pp.user_id = u.id
+);
 
 COMMIT;
