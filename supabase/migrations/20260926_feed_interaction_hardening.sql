@@ -1,4 +1,5 @@
 -- MANOX feed interaction hardening.
+-- Constraints are intentionally idempotent for safe redeploys.
 ALTER TABLE public.content_comments
   DROP CONSTRAINT IF EXISTS content_comments_body_length_check;
 ALTER TABLE public.content_comments
