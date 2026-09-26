@@ -89,7 +89,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   }
 
   String _shell(String value) => "'${value.replaceAll("'", "'\\''")}'";
-  String? _videoFilter() { switch (_filter) { case 'B&W': return 'hue=s=0'; case 'Warm': return 'colorbalance=rs=.08:gs=.03:bs=-.03'; case 'Cool': return 'colorbalance=rs=-.03:gs=.02:bs=.08'; case 'Vintage': return 'curves=vintage'; case 'Cinema': return 'eq=contrast=1.08:saturation=1.08:brightness=-.02'; case 'Vivid': return 'eq=contrast=1.12:saturation=1.22'; default: return null; } }
+  String? _videoFilter() { switch (_filter) { case 'Natural': return 'eq=contrast=1.02:saturation=1.04:brightness=.01'; case 'B&W': return 'hue=s=0'; case 'Warm': return 'colorbalance=rs=.08:gs=.03:bs=-.03'; case 'Cool': return 'colorbalance=rs=-.03:gs=.02:bs=.08'; case 'Vintage': return 'curves=vintage'; case 'Cinema': return 'eq=contrast=1.08:saturation=1.08:brightness=-.02'; case 'Vivid': return 'eq=contrast=1.12:saturation=1.22'; default: return null; } }
   String? _ratioFilter() { switch (_ratio) { case '9:16': return 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920'; case '4:5': return 'scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350'; case '1:1': return 'scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080'; case '16:9': return 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080'; case '4:3': return 'scale=1440:1080:force_original_aspect_ratio=increase,crop=1440:1080'; default: return null; } }
 
   Future<File> _downloadBeat(String url) async {
@@ -340,10 +340,18 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     );
   }
 
+  double _previewAspectRatio() { switch (_ratio) { case '9:16': return 9 / 16; case '4:5': return 4 / 5; case '1:1': return 1; case '16:9': return 16 / 9; case '4:3': return 4 / 3; default: return 9 / 16; } }
+
+  ColorFilter? _previewColorFilter() { switch (_filter) { case 'Natural': return const ColorFilter.matrix(<double>[1.02,0,0,0,2, 0,1.02,0,0,2, 0,0,1.02,0,2, 0,0,0,1,0]); case 'B&W': return const ColorFilter.matrix(<double>[.2126,.7152,.0722,0,0, .2126,.7152,.0722,0,0, .2126,.7152,.0722,0,0, 0,0,0,1,0]); case 'Warm': return const ColorFilter.matrix(<double>[1.05,0,0,0,4, 0,1.02,0,0,2, 0,0,.96,0,-2, 0,0,0,1,0]); case 'Cool': return const ColorFilter.matrix(<double>[.96,0,0,0,-2, 0,1.02,0,0,2, 0,0,1.06,0,4, 0,0,0,1,0]); case 'Vivid': return const ColorFilter.matrix(<double>[1.12,-.06,-.06,0,0, -.06,1.12,-.06,0,0, -.06,-.06,1.12,0,0, 0,0,0,1,0]); default: return null; } }
+
   Widget _preview() {
-    if (!_ready) return const Center(child: CircularProgressIndicator()); Widget media;
-    if (widget.isVideo && _video?.value.isInitialized == true) { final size = _video!.value.size; media = FittedBox(fit: BoxFit.contain, child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(_video!))); }
-    else if (widget.mediaPath?.isNotEmpty == true) media = Image.file(File(widget.mediaPath!), fit: BoxFit.contain); else media = const Icon(Icons.add_photo_alternate_outlined, size: 70, color: Colors.white38);
+    if (!_ready) return const Center(child: CircularProgressIndicator());
+    Widget media;
+    if (widget.isVideo && _video?.value.isInitialized == true) { final size = _video!.value.size; media = FittedBox(fit: BoxFit.cover, child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(_video!))); }
+    else if (widget.mediaPath?.isNotEmpty == true) media = Image.file(File(widget.mediaPath!), fit: BoxFit.cover); else media = const Icon(Icons.add_photo_alternate_outlined, size: 70, color: Colors.white38);
+    final filter = _previewColorFilter();
+    if (filter != null) media = ColorFiltered(colorFilter: filter, child: media);
+    media = ClipRect(child: AspectRatio(aspectRatio: _previewAspectRatio(), child: media));
     return Stack(fit: StackFit.expand, children: [Center(child: media), if (_text != null) Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_text!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, shadows: [Shadow(blurRadius: 8, color: Colors.black)])))), Positioned(top: 10, left: 10, child: _pill(_ratio)), Positioned(top: 10, right: 10, child: _pill(_selectedBeat == null ? _filter : 'BEAT • ${_selectedBeat!.creatorName}'))]);
   }
   Widget _pill(String text) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)), child: Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)));
