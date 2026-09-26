@@ -79,8 +79,48 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_requests (
   provider_reference text
 );
 
+-- The repository's original 0001 migration already creates withdrawal_requests,
+-- but with the legacy profile_id/amount schema. Later payout migrations use the
+-- creator-wallet schema, so upgrade the legacy table in-place for clean replay.
+ALTER TABLE public.withdrawal_requests
+  ADD COLUMN IF NOT EXISTS creator_id uuid,
+  ADD COLUMN IF NOT EXISTS method_id uuid,
+  ADD COLUMN IF NOT EXISTS amount_minor bigint,
+  ADD COLUMN IF NOT EXISTS requested_at timestamptz,
+  ADD COLUMN IF NOT EXISTS processed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS failure_code text,
+  ADD COLUMN IF NOT EXISTS provider_reference text;
+
+UPDATE public.withdrawal_requests
+SET creator_id = COALESCE(creator_id, profile_id),
+    amount_minor = COALESCE(amount_minor, GREATEST(1, round(amount * 100))::bigint),
+    requested_at = COALESCE(requested_at, created_at)
+WHERE creator_id IS NULL
+   OR amount_minor IS NULL
+   OR requested_at IS NULL;
+
+ALTER TABLE public.withdrawal_requests
+  ALTER COLUMN creator_id SET NOT NULL,
+  ALTER COLUMN method_id DROP NOT NULL,
+  ALTER COLUMN amount_minor SET NOT NULL,
+  ALTER COLUMN amount_minor SET DEFAULT 0,
+  ALTER COLUMN requested_at SET NOT NULL,
+  ALTER COLUMN requested_at SET DEFAULT now();
+
+ALTER TABLE public.withdrawal_requests
+  DROP CONSTRAINT IF EXISTS withdrawal_requests_status_check;
+
+ALTER TABLE public.withdrawal_requests
+  ADD CONSTRAINT withdrawal_requests_status_check
+  CHECK (status IN ('pending_security','queued','processing','paid','failed','cancelled','held'));
+
+ALTER TABLE public.withdrawal_requests
+  ADD CONSTRAINT withdrawal_requests_creator_id_fkey
+  FOREIGN KEY (creator_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
 CREATE UNIQUE INDEX IF NOT EXISTS withdrawal_requests_idempotency_uidx
-  ON public.withdrawal_requests(creator_id, idempotency_key);
+  ON public.withdrawal_requests(idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS public.advertisers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
