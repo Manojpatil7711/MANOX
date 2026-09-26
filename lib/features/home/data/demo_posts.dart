@@ -7,6 +7,7 @@ class HomeDemoData {
   final int comments;
   final String? imagePath;
   final String mediaType;
+  final DateTime createdAt;
   final bool likedByMe;
   final bool savedByMe;
   final bool isRemote;
@@ -14,7 +15,7 @@ class HomeDemoData {
   final bool allowComments;
   final bool allowDownloads;
 
-  const HomeDemoData({
+  HomeDemoData({
     required this.id,
     required this.creatorName,
     required this.handle,
@@ -23,16 +24,17 @@ class HomeDemoData {
     this.comments = 0,
     this.imagePath,
     this.mediaType = 'post',
+    DateTime? createdAt,
     this.likedByMe = false,
     this.savedByMe = false,
     this.isRemote = false,
     this.ownerUserId,
     this.allowComments = true,
     this.allowDownloads = true,
-  });
+  }) : createdAt = createdAt ?? DateTime(1970);
 }
 
-const demoPosts = [
+final demoPosts = [
   HomeDemoData(
     id: 'p1',
     creatorName: 'Ava Carter',

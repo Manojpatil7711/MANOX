@@ -90,6 +90,28 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     }
   }
 
+
+  Future<void> _reportProfile() async {
+    final reason = await showDialog<String>(context: context, builder: (dialog) => SimpleDialog(
+      title: const Text('Report user'),
+      children: [for (final value in const ['spam','harassment','hate','sexual','violence','illegal','other']) SimpleDialogOption(onPressed: () => Navigator.pop(dialog, value), child: Text(value[0].toUpperCase() + value.substring(1)))],
+    ));
+    if (reason == null) return;
+    try { await _postsRepo.reportProfile(widget.userId, reason); if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report submitted.'))); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
+  }
+
+  Future<void> _blockProfile() async {
+    final confirm = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+      title: const Text('Block this user?'),
+      content: const Text('Their content should no longer appear in your experience.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('BLOCK'))],
+    ));
+    if (confirm != true) return;
+    try { await _postsRepo.blockUser(widget.userId); if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User blocked.'))); context.pop(); } }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()))); }
+  }
+
   Future<void> _toggleFollow() async {
     final profile = _profile;
     if (profile == null || _followBusy) return;
@@ -309,6 +331,16 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       appBar: AppBar(
         leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_ios_new_rounded)),
         title: const Text('Profile'),
+        actions: [
+          if (_profile != null && _profiles.currentUserId != widget.userId)
+            PopupMenuButton<String>(
+              onSelected: (value) async { if (value == 'report') await _reportProfile(); if (value == 'block') await _blockProfile(); },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'report', child: Text('Report user')),
+                PopupMenuItem(value: 'block', child: Text('Block user')),
+              ],
+            ),
+        ],
       ),
       body: SafeArea(child: _buildBody(theme)),
     );

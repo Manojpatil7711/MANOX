@@ -42,13 +42,6 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   }
   @override void dispose() { _video?.dispose(); super.dispose(); }
 
-  Future<void> _choose(String title, List<String> values, String current, ValueChanged<String> onSelected) async {
-    await showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (sheet) => SafeArea(child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(16), children: [
-      Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)), const SizedBox(height: 12),
-      ...values.map((value) => ListTile(title: Text(value), trailing: value == current ? const Icon(Icons.check_circle_rounded) : null, onTap: () { setState(() => onSelected(value)); Navigator.pop(sheet); })),
-    ])));
-  }
-
   Future<void> _addText() async {
     final controller = TextEditingController(text: _text ?? '');
     final value = await showDialog<String>(context: context, builder: (dialog) => AlertDialog(
@@ -84,8 +77,6 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load beats: ${e.toString().replaceFirst('Bad state: ', '')}')));
     }
   }
-
-  void _changeSpeed() { final next = _speed == 0.5 ? 1.0 : _speed == 1.0 ? 1.5 : _speed == 1.5 ? 2.0 : 0.5; setState(() => _speed = next); _video?.setPlaybackSpeed(next); }
 
   Future<void> _showVolume() async {
     var value = _volume;
@@ -158,9 +149,50 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     }
   }
 
+  Future<String?> _renderPhoto() async {
+    final input = widget.mediaPath;
+    if (input == null || input.isEmpty || !await File(input).exists()) return null;
+    final temp = await getTemporaryDirectory();
+    final extension = input.split('.').last.toLowerCase();
+    final safeExtension = <String>{'jpg','jpeg','png','webp'}.contains(extension) ? extension : 'jpg';
+    final output = '${temp.path}/manox_photo_render_${DateTime.now().millisecondsSinceEpoch}.$safeExtension';
+    final filters = <String>[];
+    final ratioFilter = _ratioFilter();
+    if (ratioFilter != null) filters.add(ratioFilter);
+    final photoFilter = _videoFilter();
+    if (photoFilter != null) filters.add(photoFilter);
+    if (_text != null && _text!.trim().isNotEmpty) {
+      final safe = _text!.replaceAll('\\\\', '\\\\\\\\').replaceAll(':', '\\\\:').replaceAll("'", "\\\\'");
+      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2");
+    }
+    final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}';
+    final command = '-y -i ${_shell(input)}$vf -frames:v 1 -q:v 2 ${_shell(output)}';
+    final session = await FFmpegKit.execute(command);
+    final code = await session.getReturnCode();
+    if (!ReturnCode.isSuccess(code) || !await File(output).exists()) throw StateError('Photo export failed. Please try another image.');
+    return output;
+  }
+
   Future<void> _done() async {
-    if (!widget.isVideo) { if (mounted) Navigator.of(context).pop(true); return; }
-    if (_exporting) return; setState(() => _exporting = true);
+    if (_exporting) return;
+    if (!widget.isVideo) {
+      setState(() => _exporting = true);
+      String? rendered;
+      try {
+        rendered = await _renderPhoto();
+        if (rendered == null || widget.mediaPath == null) throw StateError('No photo selected.');
+        await File(widget.mediaPath!).writeAsBytes(await File(rendered).readAsBytes(), flush: true);
+        try { await File(rendered).delete(); } catch (_) {}
+        if (mounted) Navigator.of(context).pop(true);
+      } catch (e) {
+        if (rendered != null) { try { await File(rendered).delete(); } catch (_) {} }
+        if (!mounted) return;
+        setState(() => _exporting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))));
+      }
+      return;
+    }
+    setState(() => _exporting = true);
     String? rendered;
     String? backup;
     try {
@@ -206,17 +238,106 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   Widget _timeline(double durationMs) => Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 6), child: Column(children: [Row(children: [const Icon(Icons.content_cut_rounded, size: 18), const SizedBox(width: 8), Text('${_fmt(_start)} – ${_fmt(_end)}'), const Spacer(), Text('${((_end - _start) / 1000).toStringAsFixed(1)}s')]), RangeSlider(min: 0, max: durationMs, values: RangeValues(_start.clamp(0, durationMs - 1), _end.clamp(1, durationMs)), onChanged: _exporting ? null : (values) { setState(() { _start = values.start; _end = values.end; }); _video?.seekTo(Duration(milliseconds: values.start.round())); })]));
   String _fmt(double ms) { final seconds = (ms / 1000).floor(); return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}'; }
 
+  Future<void> _openToolSheet(String label, VoidCallback action) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: const Color(0xFF171717),
+      isScrollControlled: true,
+      builder: (sheet) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 14),
+              if (label == 'Trim' && widget.isVideo)
+                Column(children: [
+                  Row(children: [const Icon(Icons.content_cut_rounded, size: 18), const SizedBox(width: 8), Text('${_fmt(_start)} – ${_fmt(_end)}'), const Spacer(), Text('${((_end - _start) / 1000).toStringAsFixed(1)}s')]),
+                  RangeSlider(
+                    min: 0,
+                    max: _video?.value.duration.inMilliseconds.toDouble() ?? 1,
+                    values: RangeValues(
+                      _start.clamp(0, (_video?.value.duration.inMilliseconds.toDouble() ?? 1) - 1),
+                      _end.clamp(1, _video?.value.duration.inMilliseconds.toDouble() ?? 1),
+                    ),
+                    onChanged: _exporting ? null : (values) {
+                      setState(() { _start = values.start; _end = values.end; });
+                      _video?.seekTo(Duration(milliseconds: values.start.round()));
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: () => Navigator.pop(sheet), child: const Text('DONE'))),
+                ])
+              else if (label == 'Filter')
+                Wrap(spacing: 8, runSpacing: 8, children: _filters.map((value) => ChoiceChip(
+                  label: Text(value),
+                  selected: _filter == value,
+                  onSelected: (_) { setState(() => _filter = value); Navigator.pop(sheet); },
+                )).toList())
+              else if (label == 'Crop')
+                Wrap(spacing: 8, runSpacing: 8, children: _ratios.map((value) => ChoiceChip(
+                  label: Text(value),
+                  selected: _ratio == value,
+                  onSelected: (_) { setState(() => _ratio = value); Navigator.pop(sheet); },
+                )).toList())
+              else if (label == 'Speed')
+                Wrap(spacing: 8, children: [0.5, 1.0, 1.5, 2.0].map((value) => ChoiceChip(
+                  label: Text('${value}x'),
+                  selected: _speed == value,
+                  onSelected: (_) { setState(() => _speed = value); _video?.setPlaybackSpeed(value); Navigator.pop(sheet); },
+                )).toList())
+              else
+                FilledButton.icon(onPressed: () { Navigator.pop(sheet); action(); }, icon: const Icon(Icons.check_rounded), label: const Text('APPLY')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _tools() {
     final tools = <({String label, IconData icon, VoidCallback action})>[
       if (widget.isVideo) (label: 'Trim', icon: Icons.content_cut_rounded, action: () => _video?.seekTo(Duration(milliseconds: _start.round()))),
       if (widget.isVideo) (label: _selectedBeat == null ? 'Beats' : 'Beat ✓', icon: Icons.music_note_rounded, action: _addBeat),
-      if (widget.isVideo) (label: '${_speed}x', icon: Icons.speed_rounded, action: _changeSpeed),
+      if (widget.isVideo) (label: 'Speed', icon: Icons.speed_rounded, action: () {}),
       if (widget.isVideo) (label: 'Volume', icon: Icons.volume_up_rounded, action: _showVolume),
-      (label: 'Crop', icon: Icons.crop_rounded, action: () => _choose('Aspect ratio', _ratios, _ratio, (v) => _ratio = v)),
-      (label: 'Filter', icon: Icons.auto_awesome_rounded, action: () => _choose('Filters', _filters, _filter, (v) => _filter = v)),
+      (label: 'Crop', icon: Icons.crop_rounded, action: () {}),
+      (label: 'Filter', icon: Icons.auto_awesome_rounded, action: () {}),
       (label: 'Text', icon: Icons.text_fields_rounded, action: _addText),
     ];
-    return SizedBox(height: 94, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 10), itemCount: tools.length, separatorBuilder: (_, __) => const SizedBox(width: 7), itemBuilder: (_, index) { final tool = tools[index]; return InkWell(onTap: _exporting ? null : tool.action, borderRadius: BorderRadius.circular(14), child: SizedBox(width: 72, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircleAvatar(radius: 22, backgroundColor: const Color(0xFF242424), child: Icon(tool.icon)), const SizedBox(height: 5), Text(tool.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700))]))); }));
+    return Material(
+      color: const Color(0xFF111111),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+            itemCount: tools.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, index) {
+              final tool = tools[index];
+              return InkWell(
+                onTap: _exporting ? null : () => _openToolSheet(tool.label, tool.action),
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: 76,
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    CircleAvatar(radius: 23, backgroundColor: const Color(0xFF242424), child: Icon(tool.icon)),
+                    const SizedBox(height: 5),
+                    Text(tool.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _preview() {

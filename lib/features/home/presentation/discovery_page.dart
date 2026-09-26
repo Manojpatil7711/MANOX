@@ -56,6 +56,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
       }
 
       if (_isTrending) {
+        final now = DateTime.now();
+        final window = _trendWindow == '24h' ? const Duration(hours: 24) : _trendWindow == '7d' ? const Duration(days: 7) : const Duration(days: 30);
+        posts = posts.where((post) => now.difference(post.createdAt) <= window).toList();
         posts.sort((a, b) => _trendScore(b).compareTo(_trendScore(a)));
       }
 
@@ -75,6 +78,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
                 likedByMe: post.likedByMe,
                 isRemote: true,
                 ownerUserId: post.ownerUserId,
+                createdAt: post.createdAt,
               ),
             )
             .toList();
@@ -115,6 +119,9 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     }
 
     if (_isTrending) {
+      final now = DateTime.now();
+      final window = _trendWindow == '24h' ? const Duration(hours: 24) : _trendWindow == '7d' ? const Duration(days: 7) : const Duration(days: 30);
+      result = result.where((post) => now.difference(post.createdAt) <= window).toList();
       result.sort((a, b) => _trendScore(b).compareTo(_trendScore(a)));
     }
 
@@ -193,17 +200,17 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               children: [
                 for (final window in ['24h', '7d', '30d'])
                   Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
-                      label: Text(window),
+                      label: Text(window == '24h' ? '24 hours' : window == '7d' ? '7 days' : '30 days'),
                       selected: _trendWindow == window,
-                      onSelected: (_) => setState(() => _trendWindow = window),
+                      onSelected: (_) { setState(() => _trendWindow = window); _load(); },
                     ),
                   ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _filterChips(),
         ],
       ),
@@ -218,8 +225,8 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
     required Widget extra,
   }) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
@@ -242,7 +249,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
           ),
           const SizedBox(height: 6),
           Text(subtitle),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           TextField(
             controller: _searchController,
             onChanged: (_) => setState(() {}),
@@ -261,7 +268,7 @@ class _DiscoveryPageState extends State<DiscoveryPage> {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           extra,
         ],
       ),

@@ -68,16 +68,40 @@ class _HomePageState extends State<HomePage> {
       });
     }
     try {
-      final page = await _repository.fetchFeedPage(pageSize: 20);
-      if (!mounted) return;
-      setState(() {
-        _posts = page.posts.map(_toHomePost).toList();
-        _nextPublishedAt = page.nextPublishedAt;
-        _nextId = page.nextId;
-        _hasMore = page.hasMore;
-        _loadingFeed = false;
-        _feedError = null;
-      });
+      if (_selectedFeed == 1) {
+        final posts = await _repository.fetchFollowingFeed(limit: 50);
+        if (!mounted) return;
+        setState(() {
+          _posts = posts.map(_toHomePost).toList();
+          _nextPublishedAt = null;
+          _nextId = null;
+          _hasMore = false;
+          _loadingFeed = false;
+          _feedError = null;
+        });
+      } else if (_selectedFeed == 2) {
+        final posts = await _repository.fetchLatestFeed(limit: 50);
+        if (!mounted) return;
+        setState(() {
+          _posts = posts.map(_toHomePost).toList();
+          _nextPublishedAt = null;
+          _nextId = null;
+          _hasMore = false;
+          _loadingFeed = false;
+          _feedError = null;
+        });
+      } else {
+        final page = await _repository.fetchFeedPage(pageSize: 20);
+        if (!mounted) return;
+        setState(() {
+          _posts = page.posts.map(_toHomePost).toList();
+          _nextPublishedAt = page.nextPublishedAt;
+          _nextId = page.nextId;
+          _hasMore = page.hasMore;
+          _loadingFeed = false;
+          _feedError = null;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -89,7 +113,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadMoreFeed() async {
-    if (_loadingFeed || _loadingMore || !_hasMore || _nextPublishedAt == null || _nextId == null) return;
+    if (_selectedFeed != 0 || _loadingFeed || _loadingMore || !_hasMore || _nextPublishedAt == null || _nextId == null) return;
     setState(() => _loadingMore = true);
     try {
       final page = await _repository.fetchFeedPage(
@@ -122,7 +146,7 @@ class _HomePageState extends State<HomePage> {
     if (posted == true && mounted) await _loadFeed();
   }
 
-  void _openProfile() => context.go('/profile');
+  void _openProfile() => context.push('/profile');
   void _openMessages() => context.push('/messages');
   void _openNotifications() => context.push('/notifications');
   void _openSearch() => context.push('/search');
@@ -414,7 +438,7 @@ class _HomePageState extends State<HomePage> {
               padding: EdgeInsets.only(right: index == labels.length - 1 ? 0 : 8),
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-                onTap: () => setState(() => _selectedFeed = index),
+                onTap: () async { if (_selectedFeed == index) return; setState(() => _selectedFeed = index); await _loadFeed(); },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   height: 42,
