@@ -1,0 +1,35 @@
+name: Supabase Database Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  database-tests:
+    name: RLS Database Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Initialize local Supabase configuration
+        run: supabase init --force
+
+      - name: Run database tests
+        run: supabase test db
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop --no-backup || true
