@@ -512,7 +512,39 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _QuickAction extends StatelessWidget {\n  final IconData icon;\n  final String label;\n  final VoidCallback onTap;\n\n  const _QuickAction({required this.icon, required this.label, required this.onTap});\n\n  @override\n  Widget build(BuildContext context) {\n    final theme = Theme.of(context);\n    return Material(\n      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),\n      borderRadius: BorderRadius.circular(18),\n      child: InkWell(\n        borderRadius: BorderRadius.circular(18),\n        onTap: onTap,\n        child: Padding(\n          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),\n          child: Row(\n            mainAxisAlignment: MainAxisAlignment.center,\n            children: [\n              Icon(icon, size: 19),\n              const SizedBox(width: 7),\n              Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800))),\n            ],\n          ),\n        ),\n      ),\n    );\n  }\n}\n\nclass _SafetyCard extends StatelessWidget {
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 19),
+              const SizedBox(width: 7),
+              Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SafetyCard extends StatelessWidget {
   final Color color;
   final IconData icon;
   final String title;
