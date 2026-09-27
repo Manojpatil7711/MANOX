@@ -146,7 +146,7 @@ class _HomePageState extends State<HomePage> {
     if (posted == true && mounted) await _loadFeed();
   }
 
-  void _openProfile() => context.push('/profile');
+  void _openProfile() => context.go('/profile');
   void _openMessages() => context.push('/messages');
   void _openNotifications() => context.push('/notifications');
   void _openSearch() => context.push('/search');
@@ -507,7 +507,7 @@ class _HomePageState extends State<HomePage> {
         NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore_rounded), label: 'Discover'),
         NavigationDestination(icon: Icon(Icons.add_rounded), selectedIcon: Icon(Icons.add_circle_rounded), label: 'Create'),
         NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome_rounded), label: 'Beats'),
-        NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
+        NavigationDestination(key: Key('home-profile-nav'), icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
       ],
     );
   }
