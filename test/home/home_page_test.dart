@@ -32,9 +32,10 @@ void main() {
       expect(find.text('Latest'), findsOneWidget);
       expect(find.byKey(const Key('home-profile-button')), findsOneWidget);
 
-      await tester.tap(find.text('Latest'));
+      await tester.tap(find.byKey(const Key('home-feed-tab-2')));
       await tester.pumpAndSettle();
-      expect(find.text('Latest'), findsOneWidget);
+      expect(find.byKey(const Key('home-feed-tab-2')), findsOneWidget);
+      expect(find.text('Latest'), findsNWidgets(2));
     },
   );
 }
