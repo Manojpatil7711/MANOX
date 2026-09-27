@@ -416,6 +416,7 @@ class _HomePageState extends State<HomePage> {
             child: Padding(
               padding: EdgeInsets.only(right: index == labels.length - 1 ? 0 : 8),
               child: InkWell(
+                key: Key('home-feed-tab-$index'),
                 borderRadius: BorderRadius.circular(14),
                 onTap: () async { if (_selectedFeed == index) return; setState(() => _selectedFeed = index); await _loadFeed(); },
                 child: AnimatedContainer(
