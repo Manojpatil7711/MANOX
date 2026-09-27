@@ -60,7 +60,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _show(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  void _goBack() { if (context.canPop()) context.pop(); else context.go('/home'); }
+  void _goBack() { if (context.canPop()) { context.pop(); } else { context.go('/home'); } }
 
   Future<void> _shareProfile() async {
     final profile = _profile;
@@ -138,7 +138,7 @@ class _ProfilePageState extends State<ProfilePage> {
         const SliverToBoxAdapter(child: SizedBox(height: 28)),
       ]));
     }
-    return Scaffold(appBar: AppBar(leading: IconButton(key: const Key('profile-back-button'), icon: const Icon(Icons.arrow_back_ios_new_rounded), onPressed: _goBack), title: const Text('Profile'), actions: [IconButton(key: const Key('profile-settings-button'), onPressed: () => context.push('/settings'), icon: const Icon(Icons.settings_outlined))]), body: SafeArea(child: body));
+    return Scaffold(appBar: AppBar(leading: IconButton(key: const Key('profile-back-button'), icon: const Icon(Icons.arrow_back_ios_new_rounded), onPressed: _goBack), title: const Text('Profile'), centerTitle: false, actions: [IconButton(key: const Key('profile-settings-button'), onPressed: () => context.push('/settings'), icon: const Icon(Icons.settings_outlined))]), body: SafeArea(child: body));
   }
 }
 
