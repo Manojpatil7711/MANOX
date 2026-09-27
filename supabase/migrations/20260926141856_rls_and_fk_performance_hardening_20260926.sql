@@ -4,9 +4,6 @@
 
 CREATE INDEX IF NOT EXISTS idx_ad_campaigns_advertiser_id ON public.ad_campaigns (advertiser_id);
 CREATE INDEX IF NOT EXISTS idx_advertisers_owner_profile_id ON public.advertisers (owner_profile_id);
-CREATE INDEX IF NOT EXISTS idx_content_appeals_action_id ON public.content_appeals (action_id);
-CREATE INDEX IF NOT EXISTS idx_content_appeals_content_id ON public.content_appeals (content_id);
-CREATE INDEX IF NOT EXISTS idx_content_appeals_reviewer_id ON public.content_appeals (reviewer_id);
 CREATE INDEX IF NOT EXISTS idx_content_shares_profile_id ON public.content_shares (profile_id);
 CREATE INDEX IF NOT EXISTS idx_content_views_viewer_id ON public.content_views (viewer_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_created_by ON public.conversations (created_by);
