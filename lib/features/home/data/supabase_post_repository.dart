@@ -175,4 +175,3 @@ class _SignedMediaCacheEntry {
   final DateTime expiresAt;
   const _SignedMediaCacheEntry(this.url, this.expiresAt);
 }
-}
