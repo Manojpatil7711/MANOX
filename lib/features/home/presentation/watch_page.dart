@@ -134,7 +134,7 @@ class _WatchItemState extends State<_WatchItem> {
       final path = widget.post.imagePath;
       if (path == null || path.isEmpty) return;
       final url = await widget.repo.signedMediaUrl(path);
-      if (mounted) setState(() => _url = url);
+      if (mounted && url != null && url.isNotEmpty) setState(() => _url = url);
     } catch (_) {}
   }
 
