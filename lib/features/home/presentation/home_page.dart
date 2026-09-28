@@ -23,6 +23,7 @@ class _HomePageState extends State<HomePage> {
   String? _nextPublishedAt;
   String? _nextId;
   int _selectedFeed = 0;
+  int _contentFilter = 0;
 
   @override
   void initState() {
@@ -146,7 +147,7 @@ class _HomePageState extends State<HomePage> {
     if (posted == true && mounted) await _loadFeed();
   }
 
-  void _openProfile() => context.go('/profile');
+  void _openProfile() => context.push('/profile');
   void _openMessages() => context.push('/messages');
   void _openNotifications() => context.push('/notifications');
   void _openSearch() => context.push('/search');
@@ -157,6 +158,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   String _cleanError(Object error) => error.toString().replaceFirst('Exception: ', '');
+
+  List<HomeDemoData> get _visiblePosts {
+    if (_contentFilter == 1) return _posts.where((p) => (p.mediaType ?? '').toLowerCase() == 'video').toList();
+    if (_contentFilter == 2) return _posts.where((p) => (p.mediaType ?? '').toLowerCase() == 'beat').toList();
+    if (_contentFilter == 3) return _posts.where((p) => (p.mediaType ?? '').toLowerCase() != 'video' && (p.mediaType ?? '').toLowerCase() != 'beat').toList();
+    return _posts;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +182,7 @@ class _HomePageState extends State<HomePage> {
               SliverToBoxAdapter(child: _creatorDiscovery(theme)),
               SliverToBoxAdapter(child: _safetyHub(theme)),
               SliverToBoxAdapter(child: _feedTabs(theme)),
+              SliverToBoxAdapter(child: _contentFilters(theme)),
               SliverToBoxAdapter(child: _composer(theme)),
               SliverToBoxAdapter(child: _sectionHeader(theme)),
               if (_loadingFeed)
@@ -186,9 +195,9 @@ class _HomePageState extends State<HomePage> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 112),
                   sliver: SliverList.builder(
-                    itemCount: _posts.length + (_loadingMore ? 1 : 0),
+                    itemCount: _visiblePosts.length + (_loadingMore ? 1 : 0),
                     itemBuilder: (context, index) {
-                      if (index == _posts.length) {
+                      if (index == _visiblePosts.length) {
                         return const Padding(
                           padding: EdgeInsets.all(20),
                           child: Center(child: CircularProgressIndicator()),
@@ -197,7 +206,7 @@ class _HomePageState extends State<HomePage> {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: PostCard(
-                          data: _posts[index],
+                          data: _visiblePosts[index],
                           repository: _repository,
                           onChanged: _loadFeed,
                         ),
@@ -353,6 +362,7 @@ class _HomePageState extends State<HomePage> {
   Widget _creatorDiscovery(ThemeData theme) {
     const items = [
       ('Trending', Icons.local_fire_department_rounded, '/trending'),
+      ('Watch', Icons.play_circle_fill_rounded, '/watch'),
       ('Beats', Icons.auto_awesome_rounded, '/beats'),
       ('Learn', Icons.school_rounded, '/learn'),
     ];
@@ -440,6 +450,33 @@ class _HomePageState extends State<HomePage> {
             ),
           );
         }),
+      ),
+    );
+  }
+
+  Widget _contentFilters(ThemeData theme) {
+    const filters = [
+      ('All', Icons.apps_rounded),
+      ('Video', Icons.play_circle_fill_rounded),
+      ('BEATS', Icons.auto_awesome_rounded),
+      ('Photo', Icons.image_rounded),
+    ];
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+        scrollDirection: Axis.horizontal,
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, index) {
+          final active = _contentFilter == index;
+          return ChoiceChip(
+            selected: active,
+            avatar: Icon(filters[index].$2, size: 16),
+            label: Text(filters[index].$1),
+            onSelected: (_) => setState(() => _contentFilter = index),
+          );
+        },
       ),
     );
   }
