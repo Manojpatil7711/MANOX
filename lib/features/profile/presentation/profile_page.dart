@@ -107,11 +107,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _gridTile(ManoxPost post) {
     final image = post.imageUrl;
-    return InkWell(onTap: () => _openPost(post), child: Stack(fit: StackFit.expand, children: [
+    return RepaintBoundary(child: InkWell(onTap: () => _openPost(post), child: Stack(fit: StackFit.expand, children: [
       if (image != null && image.isNotEmpty) Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _fallbackTile(post)) else _fallbackTile(post),
       if (post.contentType == 'video' || post.contentType == 'beat') const Positioned(right: 6, top: 6, child: Icon(Icons.play_circle_fill_rounded, size: 23, color: Colors.white)),
       Positioned(left: 6, bottom: 5, child: DecoratedBox(decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2), child: Text('${post.likes}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white))))),
-    ]));
+    ])));
   }
 
   Widget _fallbackTile(ManoxPost post) => Container(color: Theme.of(context).colorScheme.surfaceContainerHighest, alignment: Alignment.center, padding: const EdgeInsets.all(8), child: Text(post.text.isEmpty ? 'MANOX' : post.text, maxLines: 4, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center));
