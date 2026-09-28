@@ -138,7 +138,7 @@ class _ProfilePageState extends State<ProfilePage> {
         const SliverToBoxAdapter(child: SizedBox(height: 28)),
       ]));
     }
-    return Scaffold(appBar: AppBar(leading: IconButton(key: const Key('profile-back-button'), icon: const Icon(Icons.arrow_back_ios_new_rounded), onPressed: _goBack), title: const Text('Profile'), centerTitle: false, actions: [IconButton(key: const Key('profile-settings-button'), onPressed: () => context.push('/settings'), icon: const Icon(Icons.settings_outlined))]), body: SafeArea(child: body));
+    return Scaffold(appBar: AppBar(leading: IconButton(key: const Key('profile-back-button'), icon: const Icon(Icons.arrow_back_rounded), onPressed: _goBack), title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.w900)), actions: [IconButton(tooltip: 'Share profile', onPressed: _shareProfile, icon: const Icon(Icons.ios_share_rounded)), IconButton(key: const Key('profile-settings-button'), tooltip: 'Settings', onPressed: () => context.push('/settings'), icon: const Icon(Icons.tune_rounded))]), body: SafeArea(child: body));
   }
 }
 
