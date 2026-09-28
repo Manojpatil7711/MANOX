@@ -103,7 +103,7 @@ class _PostCardState extends State<PostCard> {
           _liked = !wasLiked;
           _likes = (_likes + (_liked ? 1 : -1)).clamp(0, 1 << 30);
         });
-        await widget.onChanged?.call();
+        // Keep the feed position stable; the local like count is already updated.
       }
     } catch (e) {
       if (mounted) _showError(e.toString());
@@ -181,7 +181,7 @@ class _PostCardState extends State<PostCard> {
       controller.clear();
       if (mounted) {
         setState(() => _comments += 1);
-        await widget.onChanged?.call();
+        // Keep the feed position stable after commenting.
       }
     } catch (e) {
       if (mounted) _showError(e.toString());
@@ -251,7 +251,8 @@ class _PostCardState extends State<PostCard> {
     final theme = Theme.of(context);
     final creator = widget.data.creatorName.isEmpty ? 'MANOX Creator' : widget.data.creatorName;
     final initial = creator.substring(0, 1).toUpperCase();
-    return Card(
+    return RepaintBoundary(
+      child: Card(
       margin: const EdgeInsets.fromLTRB(10, 7, 10, 7),
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -313,6 +314,7 @@ class _PostCardState extends State<PostCard> {
           ]),
         ),
       ]),
+      ),
     );
   }
 }
