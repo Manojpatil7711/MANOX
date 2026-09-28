@@ -125,14 +125,49 @@ class _SettingsPageState extends State<SettingsPage> {
     catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not sign out. Please try again.'))); }
   }
 
-  Widget _section(String title, IconData icon, List<Widget> children) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Padding(padding: const EdgeInsets.fromLTRB(4, 20, 4, 8), child: Row(children: [Icon(icon, size: 19), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.w700))])), Card(child: Column(children: children))]);
+  Widget _section(String title, IconData icon, List<Widget> children) => Padding(
+    padding: const EdgeInsets.only(top: 18),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(6, 0, 6, 9),
+        child: Row(children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(width: 10),
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.2)),
+        ]),
+      ),
+      Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: children),
+      ),
+    ]),
+  );
 
-  ListTile _item({required IconData icon, required String title, String? subtitle, required VoidCallback onTap}) => ListTile(leading: Icon(icon), title: Text(title), subtitle: subtitle == null ? null : Text(subtitle), trailing: const Icon(Icons.chevron_right_rounded), onTap: onTap);
+  ListTile _item({required IconData icon, required String title, String? subtitle, required VoidCallback onTap}) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+    minVerticalPadding: 9,
+    leading: Icon(icon, size: 22),
+    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+    subtitle: subtitle == null ? null : Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+    trailing: const Icon(Icons.chevron_right_rounded, size: 22),
+    onTap: onTap,
+  );
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Settings & Privacy'), actions: [TextButton(onPressed: _saving ? null : _savePrivacy, child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('SAVE'))]),
-    body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 32), children: [
+    body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 36),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      children: [
       _section('Account', Icons.person_outline_rounded, [
         _item(icon: Icons.edit_outlined, title: 'Edit profile', subtitle: 'Name, username, bio and profile photo', onTap: _openEditProfile),
         _item(icon: Icons.mail_outline_rounded, title: 'Email & account', subtitle: 'Email and verification', onTap: _openEmailAccount),
