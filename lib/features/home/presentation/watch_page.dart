@@ -58,7 +58,7 @@ class _WatchPageState extends State<WatchPage> {
       if (path == null || path.isEmpty) continue;
       try {
         final url = await _repo.signedMediaUrl(path);
-        if (mounted) setState(() => _urlCache[post.id] = url);
+        if (mounted && url != null) setState(() => _urlCache[post.id] = url);
       } catch (_) {}
     }
   }
@@ -274,11 +274,25 @@ class _Action extends StatelessWidget {
   final VoidCallback onTap;
   const _Action({required this.icon, required this.text, required this.onTap});
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Material(color: Colors.black45, shape: const CircleBorder(), child: InkWell(customBorder: const CircleBorder(), onTap: onTap, child: SizedBox(width: 46, height: 46, child: Icon(icon, color: Colors.white))),
-      const SizedBox(height: 4),
-      Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-    ],
-  );
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Material(
+          color: Colors.black45,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 46,
+              height: 46,
+              child: Icon(icon, color: Colors.white),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
 }
