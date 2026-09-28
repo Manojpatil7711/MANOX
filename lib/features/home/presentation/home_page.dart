@@ -24,6 +24,7 @@ class _HomePageState extends State<HomePage> {
   String? _nextId;
   int _selectedFeed = 0;
   int _contentFilter = 0;
+  int _feedGeneration = 0;
 
   @override
   void initState() {
@@ -57,11 +58,14 @@ class _HomePageState extends State<HomePage> {
         likedByMe: post.likedByMe,
         isRemote: true,
         ownerUserId: post.ownerUserId,
+        mediaType: post.contentType,
+        savedByMe: post.savedByMe,
         allowComments: post.allowComments,
         allowDownloads: post.allowDownloads,
       );
 
   Future<void> _loadFeed() async {
+    final generation = ++_feedGeneration;
     if (mounted) {
       setState(() {
         _loadingFeed = true;
@@ -71,7 +75,7 @@ class _HomePageState extends State<HomePage> {
     try {
       if (_selectedFeed == 1) {
         final posts = await _repository.fetchFollowingFeed(limit: 50);
-        if (!mounted) return;
+        if (!mounted || generation != _feedGeneration) return;
         setState(() {
           _posts = posts.map(_toHomePost).toList();
           _nextPublishedAt = null;
@@ -104,7 +108,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _feedGeneration) return;
       setState(() {
         _loadingFeed = false;
         _feedError = _cleanError(e);
@@ -162,7 +166,8 @@ class _HomePageState extends State<HomePage> {
   List<HomeDemoData> get _visiblePosts {
     if (_contentFilter == 1) return _posts.where((p) => p.mediaType.toLowerCase() == 'video').toList();
     if (_contentFilter == 2) return _posts.where((p) => p.mediaType.toLowerCase() == 'beat').toList();
-    if (_contentFilter == 3) return _posts.where((p) => p.mediaType.toLowerCase() != 'video' && p.mediaType.toLowerCase() != 'beat').toList();
+    if (_contentFilter == 3) return _posts.where((p) => p.mediaType.toLowerCase() == 'photo' || p.mediaType.toLowerCase() == 'image').toList();
+    if (_contentFilter == 4) return _posts.where((p) => p.mediaType.toLowerCase() == 'post' || p.mediaType.toLowerCase() == 'text').toList();
     return _posts;
   }
 
@@ -455,7 +460,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _contentFilters(ThemeData theme) {
-    const filters = [('All', Icons.apps_rounded), ('Video', Icons.play_circle_fill_rounded), ('BEATS', Icons.auto_awesome_rounded), ('Photo', Icons.image_rounded)];
+    const filters = [('All', Icons.apps_rounded), ('Video', Icons.play_circle_fill_rounded), ('BEATS', Icons.auto_awesome_rounded), ('Photo', Icons.image_rounded), ('Text', Icons.notes_rounded)];
     return SizedBox(height: 48, child: ListView.separated(padding: const EdgeInsets.fromLTRB(14, 0, 14, 10), scrollDirection: Axis.horizontal, itemCount: filters.length, separatorBuilder: (_, __) => const SizedBox(width: 8), itemBuilder: (_, index) {
       final active = _contentFilter == index;
       return ChoiceChip(selected: active, avatar: Icon(filters[index].$2, size: 16), label: Text(filters[index].$1), onSelected: (_) => setState(() => _contentFilter = index));
