@@ -12,8 +12,8 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   Future<ProfileData> _profileFromRow(Map<String,dynamic> row,{DateTime? privateDob}) async {
     final userId=(row['user_id'] as String?) ?? (row['id'] as String);
-    List<String> postIds=<String>[];
-    try { final rows=await _client.from('contents').select('id').eq('owner_user_id',userId).eq('status','published').order('created_at',ascending:false); postIds=(rows as List).map((e)=>e['id'] as String).toList(); } catch (_) {}
+    // Keep profile loading independent from the content feed. ProfilePage loads posts separately.
+    const postIds=<String>[];
     final rawSkills=row['skills'];
     final skills=rawSkills is List ? rawSkills.whereType<String>().map((e)=>e.trim()).where((e)=>e.isNotEmpty).take(12).toList() : <String>[];
     final username=(row['username'] as String?)?.trim() ?? 'user';
