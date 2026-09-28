@@ -24,6 +24,9 @@ class _HomePageState extends State<HomePage> {
   String? _nextId;
   int _selectedFeed = 0;
   int _contentFilter = 0;
+  int _feedRequestId = 0;
+  List<HomeDemoData>? _cachedVisiblePosts;
+  int _cachedFilter = -1;
 
   @override
   void initState() {
@@ -62,6 +65,7 @@ class _HomePageState extends State<HomePage> {
       );
 
   Future<void> _loadFeed() async {
+    final requestId = ++_feedRequestId;
     if (mounted) {
       setState(() {
         _loadingFeed = true;
@@ -71,9 +75,10 @@ class _HomePageState extends State<HomePage> {
     try {
       if (_selectedFeed == 1) {
         final posts = await _repository.fetchFollowingFeed(limit: 50);
-        if (!mounted) return;
+        if (!mounted || requestId != _feedRequestId) return;
         setState(() {
           _posts = posts.map(_toHomePost).toList();
+          _invalidateVisiblePosts();
           _nextPublishedAt = null;
           _nextId = null;
           _hasMore = false;
@@ -93,9 +98,10 @@ class _HomePageState extends State<HomePage> {
         });
       } else {
         final page = await _repository.fetchFeedPage(pageSize: 20);
-        if (!mounted) return;
+        if (!mounted || requestId != _feedRequestId) return;
         setState(() {
           _posts = page.posts.map(_toHomePost).toList();
+          _invalidateVisiblePosts();
           _nextPublishedAt = page.nextPublishedAt;
           _nextId = page.nextId;
           _hasMore = page.hasMore;
@@ -104,7 +110,7 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || requestId != _feedRequestId) return;
       setState(() {
         _loadingFeed = false;
         _feedError = _cleanError(e);
@@ -115,6 +121,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadMoreFeed() async {
     if (_selectedFeed != 0 || _loadingFeed || _loadingMore || !_hasMore || _nextPublishedAt == null || _nextId == null) return;
+    final requestId = _feedRequestId;
     setState(() => _loadingMore = true);
     try {
       final page = await _repository.fetchFeedPage(
@@ -122,7 +129,7 @@ class _HomePageState extends State<HomePage> {
         beforeId: _nextId,
         pageSize: 20,
       );
-      if (!mounted) return;
+      if (!mounted || requestId != _feedRequestId) return;
       final existingIds = _posts.map((post) => post.id).toSet();
       final additional = page.posts
           .where((post) => !existingIds.contains(post.id))
@@ -130,13 +137,14 @@ class _HomePageState extends State<HomePage> {
           .toList();
       setState(() {
         _posts = [..._posts, ...additional];
+        _invalidateVisiblePosts();
         _nextPublishedAt = page.nextPublishedAt;
         _nextId = page.nextId;
         _hasMore = page.hasMore;
         _loadingMore = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || requestId != _feedRequestId) return;
       setState(() => _loadingMore = false);
       _showMessage('Could not load more posts: ${_cleanError(e)}');
     }
@@ -160,10 +168,21 @@ class _HomePageState extends State<HomePage> {
   String _cleanError(Object error) => error.toString().replaceFirst('Exception: ', '');
 
   List<HomeDemoData> get _visiblePosts {
-    if (_contentFilter == 1) return _posts.where((p) => p.mediaType.toLowerCase() == 'video').toList();
-    if (_contentFilter == 2) return _posts.where((p) => p.mediaType.toLowerCase() == 'beat').toList();
-    if (_contentFilter == 3) return _posts.where((p) => p.mediaType.toLowerCase() != 'video' && p.mediaType.toLowerCase() != 'beat').toList();
-    return _posts;
+    if (_cachedVisiblePosts != null && _cachedFilter == _contentFilter) return _cachedVisiblePosts!;
+    final filtered = switch (_contentFilter) {
+      1 => _posts.where((p) => p.mediaType.toLowerCase() == 'video').toList(growable: false),
+      2 => _posts.where((p) => p.mediaType.toLowerCase() == 'beat').toList(growable: false),
+      3 => _posts.where((p) => p.mediaType.toLowerCase() != 'video' && p.mediaType.toLowerCase() != 'beat').toList(growable: false),
+      _ => _posts,
+    };
+    _cachedFilter = _contentFilter;
+    _cachedVisiblePosts = filtered;
+    return filtered;
+  }
+
+  void _invalidateVisiblePosts() {
+    _cachedFilter = -1;
+    _cachedVisiblePosts = null;
   }
 
   @override
