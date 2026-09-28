@@ -15,6 +15,8 @@ class SupabasePostRepository {
   static const Map<String, String> _videoMimeByExtension = {
     'mp4': 'video/mp4', 'mov': 'video/quicktime', 'm4v': 'video/x-m4v', 'webm': 'video/webm', '3gp': 'video/3gpp',
   };
+  final Map<String, _SignedMediaCacheEntry> _signedMediaCache = {};
+
   SupabaseClient get _client { final client=SupabaseService.client; if(client==null)throw StateError('MANOX backend is not configured.'); return client; }
   String get _userId { final id=_client.auth.currentUser?.id; if(id==null)throw StateError('Please sign in first.'); return id; }
   Future<bool> isOwner(String contentId) async { final row=await _client.from('contents').select('owner_user_id').eq('id',contentId).maybeSingle(); return row!=null&&row['owner_user_id']==_userId; }
@@ -28,7 +30,16 @@ class SupabasePostRepository {
   Future<List<ManoxSavedItem>> fetchSavedItems({String? folderName}) async { var q=_client.from('saved_contents').select('content_id,folder_name,created_at').eq('profile_id',_userId); if(folderName!=null)q=q.eq('folder_name',folderName); final rows=await q.order('created_at',ascending:false); return(rows as List).map((r)=>ManoxSavedItem(contentId:r['content_id'] as String,folderName:r['folder_name'] as String,createdAt:DateTime.parse(r['created_at'] as String))).toList(); }
   Future<Set<String>> _fetchSavedIdsForContent(List rows) async { final contentIds=rows.map((row)=>(row['id'] as String)).toSet().toList(); if(contentIds.isEmpty)return <String>{}; final savedRows=await _client.from('saved_contents').select('content_id').eq('profile_id',_userId).inFilter('content_id',contentIds); return (savedRows as List).map((row)=>row['content_id'] as String).toSet(); }
   Future<List<String>> fetchSaveFolders() async=>['Watch later','Important','Helpful'];
-  Future<List<ManoxPost>> _mapRows(List rows) async { final savedIds=await _fetchSavedIdsForContent(rows); final likedRows=rows.isEmpty?const[]:await _client.from('content_likes').select('content_id').eq('user_id',_userId).inFilter('content_id',rows.map((row)=>(row['id'] as String)).toList()); final likedIds=likedRows.map((row)=>row['content_id'] as String).toSet(); return rows.map((row){final likeCount=((row['content_likes'] as List?)?.isNotEmpty==true?(row['content_likes'] as List).first['count'] as num?:null)?.toInt()??0;final commentCount=((row['content_comments'] as List?)?.isNotEmpty==true?(row['content_comments'] as List).first['count'] as num?:null)?.toInt()??0;final profile=row['profiles'] as Map<String,dynamic>?;final mediaUrls=List<dynamic>.from(row['media_urls']??const[]);final rawUsername=(profile?['username'] as String?)??'creator';return ManoxPost(id:row['id'] as String,creatorName:(profile?['display_name'] as String?)??'MANOX Creator',handle:'@${rawUsername.replaceFirst(RegExp(r'^@+'), '')}',text:(row['description'] as String?)??'',likes:likeCount,comments:commentCount,likedByMe:likedIds.contains(row['id']),savedByMe:savedIds.contains(row['id']),contentType:(row['content_type'] as String?)??'post',createdAt:DateTime.tryParse((row['created_at'] as String?)??'')??DateTime.fromMillisecondsSinceEpoch(0),imageUrl:mediaUrls.isNotEmpty?mediaUrls.first as String:row['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:row['owner_user_id'] as String?,allowComments:(row['allow_comments'] as bool?)??true,allowDownloads:(row['allow_downloads'] as bool?)??true);}).toList(); }
+  Future<List<ManoxPost>> _mapRows(List rows) async {
+    if (rows.isEmpty) return const <ManoxPost>[];
+    final contentIds = rows.map((row) => row['id'] as String).toList(growable: false);
+    final results = await Future.wait<Object>([
+      _fetchSavedIdsForContent(rows),
+      _client.from('content_likes').select('content_id').eq('user_id',_userId).inFilter('content_id',contentIds),
+    ]);
+    final savedIds = results[0] as Set<String>;
+    final likedRows = results[1] as List;
+    final likedIds=likedRows.map((row)=>row['content_id'] as String).toSet(); return rows.map((row){final likeCount=((row['content_likes'] as List?)?.isNotEmpty==true?(row['content_likes'] as List).first['count'] as num?:null)?.toInt()??0;final commentCount=((row['content_comments'] as List?)?.isNotEmpty==true?(row['content_comments'] as List).first['count'] as num?:null)?.toInt()??0;final profile=row['profiles'] as Map<String,dynamic>?;final mediaUrls=List<dynamic>.from(row['media_urls']??const[]);final rawUsername=(profile?['username'] as String?)??'creator';return ManoxPost(id:row['id'] as String,creatorName:(profile?['display_name'] as String?)??'MANOX Creator',handle:'@${rawUsername.replaceFirst(RegExp(r'^@+'), '')}',text:(row['description'] as String?)??'',likes:likeCount,comments:commentCount,likedByMe:likedIds.contains(row['id']),savedByMe:savedIds.contains(row['id']),contentType:(row['content_type'] as String?)??'post',createdAt:DateTime.tryParse((row['created_at'] as String?)??'')??DateTime.fromMillisecondsSinceEpoch(0),imageUrl:mediaUrls.isNotEmpty?mediaUrls.first as String:row['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:row['owner_user_id'] as String?,allowComments:(row['allow_comments'] as bool?)??true,allowDownloads:(row['allow_downloads'] as bool?)??true);}).toList(); }
   String get _contentSelect=>'id, owner_user_id, description, media_url, media_urls, content_type, created_at, published_at, allow_comments, allow_downloads, profiles!contents_owner_user_id_fkey(username, display_name, avatar_url), content_likes(count), content_comments(count)';
   Future<ManoxFeedPage> fetchFeedPage({String? beforePublishedAt,String? beforeId,int pageSize=20}) async {
     final size=pageSize.clamp(1,50);
@@ -142,5 +153,26 @@ class SupabasePostRepository {
   Future<void> addComment(String contentId,String body) async {final trimmed=body.trim();if(trimmed.isEmpty)return;if(trimmed.length>1000)throw ArgumentError('Comment must be 1000 characters or fewer.');await _client.from('content_comments').insert({'content_id':contentId,'user_id':_userId,'body':trimmed,'status':'visible','created_at':DateTime.now().toIso8601String(),'updated_at':DateTime.now().toIso8601String()});}
   Future<void> recordShare(String contentId,{String target='system'}) async=>_client.from('content_shares').insert({'content_id':contentId,'profile_id':_userId,'share_target':target});
   Future<String> createShareUrl(String contentId) async=>'https://manox.app/content/$contentId';
-  Future<String?> signedMediaUrl(String path) async {if(path.startsWith('http://')||path.startsWith('https://'))return path;return _client.storage.from('manox-media').createSignedUrl(path,60*60);}
+  Future<String?> signedMediaUrl(String path) async {
+    final normalized = path.trim();
+    if (normalized.isEmpty) return null;
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
+    final cached = _signedMediaCache[normalized];
+    if (cached != null && cached.expiresAt.isAfter(DateTime.now())) return cached.url;
+    try {
+      final url = await _client.storage.from('manox-media').createSignedUrl(normalized, 60 * 60);
+      _signedMediaCache[normalized] = _SignedMediaCacheEntry(url, DateTime.now().add(const Duration(minutes: 55)));
+      return url;
+    } catch (_) {
+      _signedMediaCache.remove(normalized);
+      rethrow;
+    }
+  }
+}
+
+class _SignedMediaCacheEntry {
+  final String url;
+  final DateTime expiresAt;
+  const _SignedMediaCacheEntry(this.url, this.expiresAt);
+}
 }
