@@ -10,6 +10,8 @@ class ManoxMediaPreview extends StatefulWidget {
   final bool loop;
   final bool fullScreenStyle;
   final VoidCallback? onVideoTap;
+  final ValueChanged<bool>? onPlaybackChanged;
+  final bool showProgress;
 
   const ManoxMediaPreview({
     super.key,
@@ -20,6 +22,8 @@ class ManoxMediaPreview extends StatefulWidget {
     this.loop = true,
     this.fullScreenStyle = false,
     this.onVideoTap,
+    this.onPlaybackChanged,
+    this.showProgress = false,
   });
 
   @override
@@ -58,7 +62,11 @@ class _ManoxMediaPreviewState extends State<ManoxMediaPreview> {
       if (widget.autoPlay && mounted) {
         await controller.play();
       }
-      if (mounted) setState(() {});
+      widget.onPlaybackChanged?.call(controller.value.isPlaying);
+      if (mounted) {
+        setState(() {});
+        widget.onPlaybackChanged?.call(controller.value.isPlaying);
+      }
     } catch (_) {
       if (mounted) setState(() => _failed = true);
       if (controller != null && _controller == controller) {
@@ -132,17 +140,24 @@ class _ManoxMediaPreviewState extends State<ManoxMediaPreview> {
                 ),
               ),
             ),
-            if (!controller.value.isPlaying && !widget.fullScreenStyle)
+            if (!controller.value.isPlaying)
               Container(
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black54,
-                ),
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.black54),
                 padding: const EdgeInsets.all(12),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: Colors.white,
-                  size: 34,
+                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
+              ),
+            if (widget.showProgress)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: ValueListenableBuilder<VideoPlayerValue>(
+                  valueListenable: controller,
+                  builder: (_, value, __) {
+                    final duration = value.duration.inMilliseconds;
+                    final position = value.position.inMilliseconds.clamp(0, duration);
+                    return LinearProgressIndicator(minHeight: 3, value: duration > 0 ? position / duration : null);
+                  },
                 ),
               ),
           ],
