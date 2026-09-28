@@ -146,7 +146,7 @@ class _HomePageState extends State<HomePage> {
     if (posted == true && mounted) await _loadFeed();
   }
 
-  void _openProfile() => context.go('/profile');
+  void _openProfile() => context.push('/profile');
   void _openMessages() => context.push('/messages');
   void _openNotifications() => context.push('/notifications');
   void _openSearch() => context.push('/search');
@@ -353,6 +353,7 @@ class _HomePageState extends State<HomePage> {
   Widget _creatorDiscovery(ThemeData theme) {
     const items = [
       ('Trending', Icons.local_fire_department_rounded, '/trending'),
+      ('Watch', Icons.play_circle_fill_rounded, '/watch'),
       ('Beats', Icons.auto_awesome_rounded, '/beats'),
       ('Learn', Icons.school_rounded, '/learn'),
     ];
