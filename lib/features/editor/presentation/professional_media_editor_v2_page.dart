@@ -20,6 +20,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   VideoPlayerController? _video;
   bool _ready = false;
   bool _exporting = false;
+  String? _videoError;
   double _start = 0;
   double _end = 1;
   double _volume = 1;
@@ -42,7 +43,15 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     if (widget.isVideo && widget.mediaPath?.isNotEmpty == true) {
       final v = VideoPlayerController.file(File(widget.mediaPath!));
       _video = v;
-      try { await v.initialize(); await v.setLooping(true); _end = v.value.duration.inMilliseconds.toDouble(); if (_end <= 0) _end = 1; await v.play(); } catch (_) {}
+      try {
+        await v.initialize();
+        await v.setLooping(true);
+        _end = v.value.duration.inMilliseconds.toDouble();
+        if (_end <= 0) _end = 1;
+        await v.play();
+      } catch (error) {
+        _videoError = 'This video could not be previewed. Try another MP4/MOV file or post the original video.';
+      }
     }
     if (mounted) setState(() => _ready = true);
   }
@@ -413,8 +422,10 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   Widget _preview() {
     if (!_ready) return const Center(child: CircularProgressIndicator());
     Widget media;
-    if (widget.isVideo && _video?.value.isInitialized == true) { final size = _video!.value.size; media = FittedBox(fit: BoxFit.cover, child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(_video!))); }
-    else if (widget.mediaPath?.isNotEmpty == true) media = Image.file(File(widget.mediaPath!), fit: BoxFit.cover); else media = const Icon(Icons.add_photo_alternate_outlined, size: 70, color: Colors.white38);
+    if (widget.isVideo && _videoError != null) { return Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.video_file_outlined, size: 56, color: Colors.white70), const SizedBox(height: 12), Text(_videoError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)), const SizedBox(height: 8), const Text('Your original file is kept unchanged until export succeeds.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 12))]))); }
+    if (widget.isVideo && _video?.value.isInitialized == true) { final size = _video!.value.size; media = FittedBox(fit: BoxFit.contain, child: SizedBox(width: size.width, height: size.height, child: VideoPlayer(_video!))); }
+    else if (widget.isVideo) { media = const Center(child: CircularProgressIndicator()); }
+    else if (widget.mediaPath?.isNotEmpty == true) media = Image.file(File(widget.mediaPath!), fit: BoxFit.contain); else media = const Icon(Icons.add_photo_alternate_outlined, size: 70, color: Colors.white38);
     final filter = _previewColorFilter();
     if (filter != null) media = ColorFiltered(colorFilter: filter, child: media);
     media = ClipRect(child: AspectRatio(aspectRatio: _previewAspectRatio(), child: media));
