@@ -144,12 +144,14 @@ class SupabasePostRepository {
   }
 
   Future<void> reportContent(String contentId, String reason, {String? details}) async {
+    await _ensureCurrentProfile();
     await _client.from('content_reports').insert({
       'content_id': contentId, 'reporter_id': _userId, 'reason_code': reason, 'details': details,
     });
   }
 
   Future<void> reportProfile(String profileId, String reason, {String? details}) async {
+    await _ensureCurrentProfile();
     if (profileId == _userId) throw StateError('You cannot report yourself.');
     await _client.from('profile_reports').insert({
       'profile_id': profileId, 'reporter_id': _userId, 'reason_code': reason, 'details': details,
@@ -157,6 +159,7 @@ class SupabasePostRepository {
   }
 
   Future<void> blockUser(String profileId) async {
+    await _ensureCurrentProfile();
     if (profileId == _userId) throw StateError('You cannot block yourself.');
     await _client.from('user_blocks').upsert({'blocker_id': _userId, 'blocked_id': profileId}, onConflict: 'blocker_id,blocked_id');
   }
