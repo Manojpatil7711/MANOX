@@ -158,7 +158,7 @@ class _PostCardState extends State<PostCard> {
                     if (!sheetContext.mounted) return;
                     setSheetState(() {
                       loading = false;
-                      loadError = 'Unable to load comments. Pull down to retry.';
+                      loadError = 'Unable to load comments. Tap retry to try again.';
                     });
                   }
                 });
