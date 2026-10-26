@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 import '../data/supabase_post_repository.dart';
 
 class LivePage extends StatefulWidget {
@@ -10,7 +8,6 @@ class LivePage extends StatefulWidget {
 }
 
 class _LivePageState extends State<LivePage> {
-  final _picker = ImagePicker();
   final _repository = SupabasePostRepository();
   bool _loading = true;
   List<ManoxPost> _creators = const [];
