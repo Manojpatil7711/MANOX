@@ -81,6 +81,7 @@ class _LiveRoomSheet extends StatefulWidget {
 
 class _LiveRoomSheetState extends State<_LiveRoomSheet> {
   final _commentController = TextEditingController();
+  final _commentFocusNode = FocusNode();
   bool _liked = false;
   int _likes = 0;
   int _comments = 0;
@@ -91,6 +92,7 @@ class _LiveRoomSheetState extends State<_LiveRoomSheet> {
   @override
   void dispose() {
     _commentController.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
   }
 
@@ -146,13 +148,14 @@ class _LiveRoomSheetState extends State<_LiveRoomSheet> {
       const Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text('Preview only: likes and comments stay on this screen and are not saved. Gifts are not charged.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 11))),
       Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
         _LiveAction(icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '$_likes', onTap: _toggleLike),
-        _LiveAction(icon: Icons.mode_comment_outlined, label: '$_comments', onTap: () => FocusScope.of(context).requestFocus()),
+        _LiveAction(icon: Icons.mode_comment_outlined, label: '$_comments', onTap: () => FocusScope.of(context).requestFocus(_commentFocusNode)),
         _LiveAction(icon: Icons.card_giftcard_rounded, label: _selectedGift ?? 'Gift', onTap: _openGiftPicker),
         const _LiveAction(icon: Icons.currency_rupee_rounded, label: '₹ 🔒', onTap: null),
       ])),
       Padding(padding: EdgeInsets.fromLTRB(12, 4, 12, MediaQuery.of(context).viewInsets.bottom + 12), child: Row(children: [
         Expanded(child: TextField(
           controller: _commentController,
+          focusNode: _commentFocusNode,
           style: const TextStyle(color: Colors.white),
           textInputAction: TextInputAction.send,
           onSubmitted: (_) => _sendComment(),
