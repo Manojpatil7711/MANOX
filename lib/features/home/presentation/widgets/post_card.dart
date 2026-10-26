@@ -117,74 +117,160 @@ class _PostCardState extends State<PostCard> {
       _showError('Comments are disabled for this post.');
       return;
     }
-    final r = widget.repository;
-    if (r == null || !widget.data.isRemote) {
+    final repository = widget.repository;
+    if (repository == null || !widget.data.isRemote) {
       _showError('Comments will be available on live posts.');
       return;
     }
+
     final controller = TextEditingController();
+    final comments = <ManoxComment>[];
+    bool loading = true;
+    bool sending = false;
+    bool loadStarted = false;
+    String? loadError;
+
     try {
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
+        useSafeArea: true,
         builder: (sheetContext) {
           final height = MediaQuery.of(sheetContext).size.height * 0.65;
-          return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
-            child: SizedBox(
-              height: height,
-              child: Column(children: [
-                const Padding(padding: EdgeInsets.fromLTRB(16, 4, 16, 12), child: Text('Comments', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
-                Expanded(child: FutureBuilder<List<ManoxComment>>(
-                  future: r.fetchComments(widget.data.id),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                    if (snapshot.hasError) return const Center(child: Text('Unable to load comments.'));
-                    final comments = snapshot.data ?? const <ManoxComment>[];
-                    if (comments.isEmpty) return const Center(child: Text('No comments yet. Be the first!'));
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: comments.length,
-                      separatorBuilder: (_, __) => const Divider(),
-                      itemBuilder: (_, index) {
-                        final comment = comments[index];
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(comment.userName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: Text(comment.body),
-                        );
-                      },
-                    );
-                  },
-                )),
-                Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 16), child: Row(children: [
-                  Expanded(child: TextField(controller: controller, textInputAction: TextInputAction.send, onSubmitted: (_) => _sendComment(controller, r), decoration: const InputDecoration(hintText: 'Write a comment...'))),
-                  const SizedBox(width: 8),
-                  IconButton.filled(onPressed: () => _sendComment(controller, r), icon: const Icon(Icons.send_rounded)),
-                ])),
-              ]),
-            ),
+          return StatefulBuilder(
+            builder: (context, setSheetState) {
+              if (!loadStarted) {
+                loadStarted = true;
+                Future<void>(() async {
+                  try {
+                    final result = await repository.fetchComments(widget.data.id);
+                    if (!sheetContext.mounted) return;
+                    setSheetState(() {
+                      comments
+                        ..clear()
+                        ..addAll(result);
+                      loading = false;
+                      loadError = null;
+                    });
+                  } catch (_) {
+                    if (!sheetContext.mounted) return;
+                    setSheetState(() {
+                      loading = false;
+                      loadError = 'Unable to load comments. Pull down to retry.';
+                    });
+                  }
+                });
+              }
+
+              Future<void> sendComment() async {
+                final body = controller.text.trim();
+                if (body.isEmpty || sending) return;
+                if (body.length > 1000) {
+                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                    const SnackBar(content: Text('Comment must be 1000 characters or fewer.')),
+                  );
+                  return;
+                }
+                setSheetState(() => sending = true);
+                try {
+                  await repository.addComment(widget.data.id, body);
+                  if (!sheetContext.mounted) return;
+                  controller.clear();
+                  setSheetState(() {
+                    comments.add(ManoxComment(
+                      id: 'local-${DateTime.now().microsecondsSinceEpoch}',
+                      userName: 'You',
+                      body: body,
+                      createdAt: DateTime.now(),
+                    ));
+                    sending = false;
+                    loadError = null;
+                  });
+                  if (mounted) setState(() => _comments = (_comments + 1).clamp(0, 1 << 30));
+                } catch (error) {
+                  if (!sheetContext.mounted) return;
+                  setSheetState(() => sending = false);
+                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                    SnackBar(content: Text('Comment could not be sent: ${error.toString().replaceFirst('Exception: ', '')}')),
+                  );
+                }
+              }
+
+              return Padding(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(sheetContext).viewInsets.bottom),
+                child: SizedBox(
+                  height: height,
+                  child: Column(children: [
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: Text('Comments', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                    ),
+                    Expanded(
+                      child: loading
+                          ? const Center(child: CircularProgressIndicator())
+                          : loadError != null && comments.isEmpty
+                              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                  Text(loadError!, textAlign: TextAlign.center),
+                                  const SizedBox(height: 8),
+                                  FilledButton.tonal(
+                                    onPressed: () {
+                                      setSheetState(() { loading = true; loadError = null; loadStarted = false; });
+                                    },
+                                    child: const Text('RETRY'),
+                                  ),
+                                ]))
+                              : comments.isEmpty
+                                  ? const Center(child: Text('No comments yet. Be the first!'))
+                                  : ListView.separated(
+                                      key: const PageStorageKey<String>('manox-comments-list'),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      itemCount: comments.length,
+                                      separatorBuilder: (_, __) => const Divider(),
+                                      itemBuilder: (_, index) {
+                                        final comment = comments[index];
+                                        return ListTile(
+                                          contentPadding: EdgeInsets.zero,
+                                          title: Text(comment.userName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                          subtitle: Text(comment.body),
+                                        );
+                                      },
+                                    ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: Row(children: [
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            maxLength: 1000,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => sendComment(),
+                            decoration: const InputDecoration(
+                              hintText: 'Write a comment...',
+                              counterText: '',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filled(
+                          tooltip: 'Send comment',
+                          onPressed: sending ? null : sendComment,
+                          icon: sending
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.send_rounded),
+                        ),
+                      ]),
+                    ),
+                  ]),
+                ),
+              );
+            },
           );
         },
       );
     } finally {
       controller.dispose();
-    }
-  }
-
-  Future<void> _sendComment(TextEditingController controller, SupabasePostRepository repository) async {
-    final text = controller.text.trim();
-    if (text.isEmpty) return;
-    try {
-      await repository.addComment(widget.data.id, text);
-      controller.clear();
-      if (mounted) {
-        setState(() => _comments += 1);
-        // Keep the feed position stable after commenting.
-      }
-    } catch (e) {
-      if (mounted) _showError(e.toString());
     }
   }
 
