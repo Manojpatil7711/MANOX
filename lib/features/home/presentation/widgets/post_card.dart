@@ -22,6 +22,7 @@ class _PostCardState extends State<PostCard> {
   bool _vibed = false;
   bool _saved = false;
   bool _saveBusy = false;
+  final Map<String, Future<String?>> _mediaUrlFutures = <String, Future<String?>>{};
 
   @override
   void initState() {
@@ -290,15 +291,54 @@ class _PostCardState extends State<PostCard> {
   }
 
   Widget _buildMedia(String path) {
-    if (isManoxVideo(path)) return ManoxMediaPreview(url: path, height: 300);
     final uri = Uri.tryParse(path);
-    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
-      return Image.network(path, width: double.infinity, height: 300, fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const SizedBox(height: 180, child: Center(child: Icon(Icons.broken_image_outlined))),
-        loadingBuilder: (context, child, progress) => progress == null ? child : const SizedBox(height: 300, child: Center(child: CircularProgressIndicator())),
-      );
-    }
-    return const SizedBox(height: 180, child: Center(child: Icon(Icons.image_not_supported_outlined)));
+    final isRemoteUrl = uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
+    final future = _mediaUrlFutures.putIfAbsent(path, () {
+      if (isRemoteUrl) return Future<String?>.value(path);
+      final repository = widget.repository;
+      if (repository == null) return Future<String?>.value(null);
+      return repository.signedMediaUrl(path);
+    });
+
+    return FutureBuilder<String?>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 300,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final resolvedUrl = snapshot.data;
+        if (snapshot.hasError || resolvedUrl == null || resolvedUrl.isEmpty) {
+          return const SizedBox(
+            height: 180,
+            child: Center(child: Icon(Icons.broken_image_outlined)),
+          );
+        }
+        if (isManoxVideo(path)) {
+          return ManoxMediaPreview(url: resolvedUrl, height: 300);
+        }
+        return Image.network(
+          resolvedUrl,
+          width: double.infinity,
+          height: 300,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const SizedBox(
+            height: 180,
+            child: Center(child: Icon(Icons.broken_image_outlined)),
+          ),
+          loadingBuilder: (context, child, progress) => progress == null
+              ? child
+              : const SizedBox(
+                  height: 300,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+        );
+      },
+    );
   }
 
 
