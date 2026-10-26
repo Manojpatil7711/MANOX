@@ -166,19 +166,37 @@ class _WatchItemState extends State<_WatchItem> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final wasSaved = _saved;
     try {
-      if (_saved) await widget.repo.unsaveContent(widget.post.id);
-      else await widget.repo.saveContent(widget.post.id);
-      if (mounted) setState(() => _saved = !_saved);
-    } catch (_) {}
+      if (wasSaved) {
+        await widget.repo.unsaveContent(widget.post.id);
+      } else {
+        await widget.repo.saveContent(widget.post.id);
+      }
+      if (!mounted) return;
+      setState(() => _saved = !wasSaved);
+      _showActionMessage(wasSaved ? 'Removed from Saved.' : 'Saved to your collection.');
+    } catch (_) {
+      _showActionMessage('Could not update Saved. Please try again.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _share() async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
     try {
       final url = await widget.repo.createShareUrl(widget.post.id);
+      await SharePlus.instance.share(ShareParams(text: '\${widget.post.text}\n$url', subject: 'Watch on MANOX'));
       await widget.repo.recordShare(widget.post.id);
-      await SharePlus.instance.share(ShareParams(text: '${widget.post.text}\n$url', subject: 'Watch on MANOX'));
-    } catch (_) {}
+    } catch (_) {
+      _showActionMessage('Could not share this video. Please try again.');
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   String get _hook {
