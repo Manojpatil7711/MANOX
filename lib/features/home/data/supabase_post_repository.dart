@@ -25,11 +25,21 @@ class SupabasePostRepository {
         .eq('id', _userId)
         .maybeSingle();
     if (existing != null) return;
-    await _client.from('profiles').insert({
-      'id': _userId,
-      'username': 'user_${_userId.substring(0, 8)}',
-      'display_name': 'MANOX User',
-    });
+    try {
+      await _client.from('profiles').insert({
+        'id': _userId,
+        'username': 'user_${_userId.substring(0, 8)}',
+        'display_name': 'MANOX User',
+      });
+    } on PostgrestException catch (error) {
+      if (error.code != '23505') rethrow;
+      final racedInsert = await _client
+          .from('profiles')
+          .select('id')
+          .eq('id', _userId)
+          .maybeSingle();
+      if (racedInsert == null) rethrow;
+    }
   }
   Future<bool> isOwner(String contentId) async { final row=await _client.from('contents').select('owner_user_id').eq('id',contentId).maybeSingle(); return row!=null&&row['owner_user_id']==_userId; }
   Future<bool> isSaved(String contentId) async { final row=await _client.from('saved_contents').select('content_id').eq('profile_id',_userId).eq('content_id',contentId).maybeSingle(); return row!=null; }
