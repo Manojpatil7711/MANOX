@@ -51,7 +51,7 @@ class _LivePageState extends State<LivePage> {
           const SizedBox(height: 6),
           const Text('Live broadcasting is not available yet. We will enable this when the streaming service is connected.', textAlign: TextAlign.center),
           const SizedBox(height: 18),
-          const FilledButton.icon(onPressed: null, icon: Icon(Icons.lock_outline_rounded), label: Text('Live streaming coming soon')),
+          FilledButton.icon(onPressed: null, icon: const Icon(Icons.lock_outline_rounded), label: const Text('Live streaming coming soon')),
           const SizedBox(height: 8),
           const Text('No live video is sent or recorded from this screen yet.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
         ]))),
