@@ -296,7 +296,18 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     if (photoFilter != null) filters.add(photoFilter);
     if (_text != null && _text!.trim().isNotEmpty) {
       final safe = _text!.replaceAll('\\\\', '\\\\\\\\').replaceAll(':', '\\\\:').replaceAll("'", "\\\\'");
-      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2");
+      final baseY = _textPosition == 'Top' ? 'h*0.12' : (_textPosition == 'Bottom' ? 'h-text_h-h*0.12' : '(h-text_h)/2');
+      final y = _keyframes ? '$baseY+abs(sin(t*2))*h*0.18' : baseY;
+      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=3:bordercolor=black:x=(w-text_w)/2:y=$y");
+    }
+    for (var i = 0; i < _stickers.length; i++) {
+      final sticker = _stickers[i].replaceAll("'", '');
+      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$sticker':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=w*0.12:y=h*${0.18 + (i % 4) * 0.14}");
+    }
+    if (_mask == 'Vignette') filters.add('vignette=PI/4');
+    if (_mask == 'Cinematic bars' || _mask == 'Letterbox') {
+      filters.add('drawbox=x=0:y=0:w=iw:h=ih*0.10:color=black@1:t=fill');
+      filters.add('drawbox=x=0:y=ih*0.90:w=iw:h=ih*0.10:color=black@1:t=fill');
     }
     final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}';
     final command = '-y -i ${_shell(input)}$vf -frames:v 1 -q:v 2 ${_shell(output)}';
@@ -457,7 +468,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
             itemBuilder: (_, index) {
               final tool = tools[index];
               return InkWell(
-                onTap: _exporting ? null : () => _openToolSheet(tool.label, tool.action),
+                onTap: _exporting ? null : () { if (['Overlay','Mask','Stickers'].contains(tool.label)) { tool.action(); } else { _openToolSheet(tool.label, tool.action); } },
                 borderRadius: BorderRadius.circular(16),
                 child: SizedBox(
                   width: 76,
