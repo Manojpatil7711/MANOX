@@ -40,6 +40,20 @@ class _ManoxMediaPreviewState extends State<ManoxMediaPreview> {
     _init();
   }
 
+  @override
+  void didUpdateWidget(covariant ManoxMediaPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url ||
+        oldWidget.loop != widget.loop ||
+        oldWidget.autoPlay != widget.autoPlay) {
+      final previous = _controller;
+      _controller = null;
+      _failed = false;
+      previous?.dispose();
+      _init();
+    }
+  }
+
   Future<void> _init() async {
     VideoPlayerController? controller;
     try {
@@ -59,19 +73,18 @@ class _ManoxMediaPreviewState extends State<ManoxMediaPreview> {
       }
 
       await controller.setLooping(widget.loop);
-      if (widget.autoPlay && mounted) {
+      if (widget.autoPlay && mounted && _controller == controller) {
         await controller.play();
       }
-      widget.onPlaybackChanged?.call(controller.value.isPlaying);
-      if (mounted) {
+      if (mounted && _controller == controller) {
         setState(() {});
         widget.onPlaybackChanged?.call(controller.value.isPlaying);
       }
     } catch (_) {
-      if (mounted) setState(() => _failed = true);
       if (controller != null && _controller == controller) {
         _controller = null;
         await controller.dispose();
+        if (mounted) setState(() => _failed = true);
       } else {
         await controller?.dispose();
       }
@@ -95,9 +108,12 @@ class _ManoxMediaPreviewState extends State<ManoxMediaPreview> {
       } else {
         await controller.play();
       }
-      if (mounted) setState(() {});
+      if (mounted && _controller == controller) {
+        setState(() {});
+        widget.onPlaybackChanged?.call(controller.value.isPlaying);
+      }
     } catch (_) {
-      if (mounted) setState(() => _failed = true);
+      if (mounted && _controller == controller) setState(() => _failed = true);
     }
   }
 
@@ -190,10 +206,24 @@ class _ManoxLocalVideoPreviewState extends State<ManoxLocalVideoPreview> {
     _init();
   }
 
+  @override
+  void didUpdateWidget(covariant ManoxLocalVideoPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path) {
+      final previous = _controller;
+      _controller = null;
+      previous?.dispose();
+      _init();
+    }
+  }
+
   Future<void> _init() async {
     VideoPlayerController? controller;
     try {
-      if (widget.path.trim().isEmpty) return;
+      if (widget.path.trim().isEmpty) {
+        if (mounted) setState(() {});
+        return;
+      }
       controller = VideoPlayerController.file(File(widget.path));
       _controller = controller;
       await controller.initialize();
