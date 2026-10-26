@@ -35,11 +35,13 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   String _mask = 'None';
   bool _keyframes = false;
   final List<String> _stickers = <String>[];
+  final List<String> _elements = <String>[];
   ManoxPost? _selectedBeat;
   static const _filters = ['Original','Natural','Cinema','Warm','Cool','Vintage','B&W','Vivid','Golden Hour','Moody','Fade','Matte','Dream','Noir','Sepia','Arctic','Sunset','Rose','Emerald','Cyberpunk','Film Grain','Soft Glow','High Contrast','Pastel','Dramatic','Retro'];
   static const _textPresets = ['Bold','Classic','Outline','Neon','Shadow','Typewriter','Elegant','Impact','Bubble','Minimal','Glitch','Caption'];
   static const _textColors = ['white','yellow','black','red','lime','cyan','magenta','orange','deepskyblue','hotpink'];
   static const _stickerPacks = ['🔥','✨','❤️','💯','😂','😍','🥹','😎','👑','⚡','💥','🌈','⭐','🎯','🚀','💫','🫶','👏','💖','🤍','🖤','🎉','🌟','💀','👀','📍','🎵','💬','☁️','🌸','🍀','🦋','🐼','🐸','🍓','☀️','🌙','🎮','🏆','💎'];
+  static const _elementPack = ['★','✦','♡','➜','✓','✕','●','■','▲','◆','∞','+','?','!','→','↗','☀','☾','♫','⚡','💬','⌁','◉','⬟'];
   static const _ratios = ['Original','9:16','4:5','1:1','16:9','4:3'];
 
   @override void initState() { super.initState(); _init(); }
@@ -141,6 +143,31 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
           if (_stickers.isNotEmpty) TextButton.icon(
             onPressed: () { setState(() => _stickers.clear()); Navigator.pop(sheet); },
             icon: const Icon(Icons.delete_outline_rounded), label: const Text('Clear all stickers'),
+          ),
+        ]),
+      )),
+    );
+  }
+
+  Future<void> _addElement() async {
+    await showModalBottomSheet<void>(
+      context: context, showDragHandle: true, isScrollControlled: true,
+      backgroundColor: const Color(0xFF171717),
+      builder: (sheet) => SafeArea(child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Free design elements', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          const Text('Shapes, arrows, symbols and decorative marks'),
+          const SizedBox(height: 12),
+          SizedBox(height: 210, child: GridView.count(crossAxisCount: 6, children: _elementPack.map((element) => IconButton(
+            tooltip: 'Add $element',
+            onPressed: () { setState(() => _elements.add(element)); Navigator.pop(sheet); },
+            icon: Text(element, style: const TextStyle(fontSize: 27)),
+          )).toList())),
+          if (_elements.isNotEmpty) TextButton.icon(
+            onPressed: () { setState(() => _elements.clear()); Navigator.pop(sheet); },
+            icon: const Icon(Icons.delete_outline_rounded), label: const Text('Clear elements'),
           ),
         ]),
       )),
@@ -249,11 +276,12 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
         final shadow = _textPreset == 'Shadow' || _textPreset == 'Glitch' ? ':shadowcolor=black:shadowx=4:shadowy=4' : '';
         filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=$border:bordercolor=${_textPreset == 'Neon' ? _textColor : 'black'}$shadow:x=(w-text_w)/2:y=$y");
       }
-      for (var i = 0; i < _stickers.length; i++) {
-        final sticker = _stickers[i].replaceAll("'", '');
-        final x = i.isEven ? 'w*0.12' : 'w-text_w-w*0.12';
-        final y = 'h*${0.18 + (i % 4) * 0.14}';
-        filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$sticker':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=$x:y=$y");
+      for (final layer in <String>[..._stickers, ..._elements]) {
+        final symbol = layer.replaceAll("'", '');
+        final index = <String>[..._stickers, ..._elements].indexOf(layer);
+        final x = index.isEven ? 'w*0.12' : 'w-text_w-w*0.12';
+        final y = 'h*${0.18 + (index % 4) * 0.14}';
+        filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$symbol':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=$x:y=$y");
       }
       if (_mask == 'Vignette') filters.add('vignette=PI/4');
       if (_mask == 'Cinematic bars' || _mask == 'Letterbox') {
@@ -300,9 +328,10 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       final y = _keyframes ? '$baseY+abs(sin(t*2))*h*0.18' : baseY;
       filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=3:bordercolor=black:x=(w-text_w)/2:y=$y");
     }
-    for (var i = 0; i < _stickers.length; i++) {
-      final sticker = _stickers[i].replaceAll("'", '');
-      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$sticker':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=w*0.12:y=h*${0.18 + (i % 4) * 0.14}");
+    for (final layer in <String>[..._stickers, ..._elements]) {
+      final symbol = layer.replaceAll("'", '');
+      final index = <String>[..._stickers, ..._elements].indexOf(layer);
+      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$symbol':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=w*0.12:y=h*${0.18 + (index % 4) * 0.14}");
     }
     if (_mask == 'Vignette') filters.add('vignette=PI/4');
     if (_mask == 'Cinematic bars' || _mask == 'Letterbox') {
@@ -453,6 +482,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       (label: 'Overlay', icon: Icons.layers_rounded, action: _showOverlayControls),
       (label: 'Mask', icon: Icons.crop_free_rounded, action: _showOverlayControls),
       (label: 'Stickers', icon: Icons.emoji_emotions_rounded, action: _addSticker),
+      (label: 'Elements', icon: Icons.category_rounded, action: _addElement),
     ];
     return Material(
       color: const Color(0xFF111111),
@@ -468,7 +498,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
             itemBuilder: (_, index) {
               final tool = tools[index];
               return InkWell(
-                onTap: _exporting ? null : () { if (['Overlay','Mask','Stickers'].contains(tool.label)) { tool.action(); } else { _openToolSheet(tool.label, tool.action); } },
+                onTap: _exporting ? null : () { if (['Overlay','Mask','Stickers','Elements'].contains(tool.label)) { tool.action(); } else { _openToolSheet(tool.label, tool.action); } },
                 borderRadius: BorderRadius.circular(16),
                 child: SizedBox(
                   width: 76,
@@ -508,7 +538,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     final filter = _previewColorFilter();
     if (filter != null) media = ColorFiltered(colorFilter: filter, child: media);
     media = ClipRect(child: AspectRatio(aspectRatio: _previewAspectRatio(), child: media));
-    return Stack(fit: StackFit.expand, children: [Center(child: media), if (_text != null) Align(alignment: _textPosition == 'Top' ? Alignment.topCenter : (_textPosition == 'Bottom' ? Alignment.bottomCenter : Alignment.center), child: Padding(padding: const EdgeInsets.all(24), child: Text(_text!, textAlign: TextAlign.center, style: TextStyle(fontSize: (_textSize / 2).clamp(12, 48), fontWeight: _previewTextWeight(), color: _previewTextColor(_textColor), shadows: [Shadow(blurRadius: _textPreset == 'Neon' ? 18 : 8, color: Colors.black), if (_textPreset == 'Shadow') const Shadow(blurRadius: 3, offset: Offset(3, 3), color: Colors.black)])))), ..._stickers.asMap().entries.map((entry) => Positioned(left: entry.key.isEven ? 18 : null, right: entry.key.isOdd ? 18 : null, top: 52.0 + (entry.key % 4) * 48, child: Text(entry.value, style: const TextStyle(fontSize: 36, shadows: [Shadow(blurRadius: 6, color: Colors.black)])))), if (_mask == 'Cinematic bars' || _mask == 'Letterbox') ...[const Positioned(top: 0, left: 0, right: 0, height: 22, child: ColoredBox(color: Colors.black)), const Positioned(bottom: 0, left: 0, right: 0, height: 22, child: ColoredBox(color: Colors.black))], if (_mask == 'Vignette') const Positioned.fill(child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: RadialGradient(colors: [Colors.transparent, Colors.black54], stops: [0.55, 1.0]))))), Positioned(top: 10, left: 10, child: _pill(_ratio)), Positioned(top: 10, right: 10, child: _pill(_selectedBeat == null ? _filter : 'BEAT • ${_selectedBeat!.creatorName}'))]);
+    return Stack(fit: StackFit.expand, children: [Center(child: media), if (_text != null) Align(alignment: _textPosition == 'Top' ? Alignment.topCenter : (_textPosition == 'Bottom' ? Alignment.bottomCenter : Alignment.center), child: Padding(padding: const EdgeInsets.all(24), child: Text(_text!, textAlign: TextAlign.center, style: TextStyle(fontSize: (_textSize / 2).clamp(12, 48), fontWeight: _previewTextWeight(), color: _previewTextColor(_textColor), shadows: [Shadow(blurRadius: _textPreset == 'Neon' ? 18 : 8, color: Colors.black), if (_textPreset == 'Shadow') const Shadow(blurRadius: 3, offset: Offset(3, 3), color: Colors.black)])))), ...[..._stickers, ..._elements].asMap().entries.map((entry) => Positioned(left: entry.key.isEven ? 18 : null, right: entry.key.isOdd ? 18 : null, top: 52.0 + (entry.key % 4) * 48, child: Text(entry.value, style: const TextStyle(fontSize: 36, shadows: [Shadow(blurRadius: 6, color: Colors.black)])))), if (_mask == 'Cinematic bars' || _mask == 'Letterbox') ...[const Positioned(top: 0, left: 0, right: 0, height: 22, child: ColoredBox(color: Colors.black)), const Positioned(bottom: 0, left: 0, right: 0, height: 22, child: ColoredBox(color: Colors.black))], if (_mask == 'Vignette') const Positioned.fill(child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: RadialGradient(colors: [Colors.transparent, Colors.black54], stops: [0.55, 1.0]))))), Positioned(top: 10, left: 10, child: _pill(_ratio)), Positioned(top: 10, right: 10, child: _pill(_selectedBeat == null ? _filter : 'BEAT • ${_selectedBeat!.creatorName}'))]);
   }
   Widget _pill(String text) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)), child: Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)));
 }
