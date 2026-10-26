@@ -12,7 +12,6 @@ class LivePage extends StatefulWidget {
 class _LivePageState extends State<LivePage> {
   final _picker = ImagePicker();
   final _repository = SupabasePostRepository();
-  bool _starting = false;
   bool _loading = true;
   List<ManoxPost> _creators = const [];
 
@@ -30,21 +29,6 @@ class _LivePageState extends State<LivePage> {
       if (mounted) setState(() { _creators = unique; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _startLive() async {
-    setState(() => _starting = true);
-    try {
-      final clip = await _picker.pickVideo(source: ImageSource.camera, maxDuration: const Duration(hours: 1));
-      if (!mounted) return;
-      if (clip != null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Camera is ready. Connect the MANOX streaming backend for live broadcast.')));
-      }
-    } on PlatformException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Camera unavailable: ${e.message ?? 'unknown error'}')));
-    } finally {
-      if (mounted) setState(() => _starting = false);
     }
   }
 
@@ -68,22 +52,22 @@ class _LivePageState extends State<LivePage> {
           const SizedBox(height: 12),
           const Text('Go Live', textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
-          const Text('Start your creator broadcast from MANOX.', textAlign: TextAlign.center),
+          const Text('Live broadcasting is not available yet. We will enable this when the streaming service is connected.', textAlign: TextAlign.center),
           const SizedBox(height: 18),
-          FilledButton.icon(onPressed: _starting ? null : _startLive, icon: const Icon(Icons.videocam_rounded), label: Text(_starting ? 'Opening camera…' : 'Start Live')),
+          const FilledButton.icon(onPressed: null, icon: Icon(Icons.lock_outline_rounded), label: Text('Live streaming coming soon')),
           const SizedBox(height: 8),
-          const Text('Camera access is wired. Connect the streaming backend to broadcast in real time.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+          const Text('No live video is sent or recorded from this screen yet.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
         ]))),
         const SizedBox(height: 18),
-        const Text('Live creators', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+        const Text('Creator previews · not live', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
         const SizedBox(height: 8),
         if (_loading) const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
         else if (_creators.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('No creators available yet.'))
         else ..._creators.map((creator) => Card(child: ListTile(
           leading: CircleAvatar(child: Text(creator.creatorName.isEmpty ? 'M' : creator.creatorName[0].toUpperCase())),
           title: Text(creator.creatorName, style: const TextStyle(fontWeight: FontWeight.w700)),
-          subtitle: Text('${creator.handle} • Live interaction'),
-          trailing: const Icon(Icons.play_circle_fill_rounded),
+          subtitle: Text('${creator.handle} • Preview only'),
+          trailing: const Icon(Icons.info_outline_rounded),
           onTap: () => _openLiveRoom(creator),
         ))),
       ],
@@ -156,13 +140,13 @@ class _LiveRoomSheetState extends State<_LiveRoomSheet> {
     decoration: const BoxDecoration(color: Colors.black, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     child: Column(children: [
       Padding(padding: const EdgeInsets.fromLTRB(16, 14, 10, 8), child: Row(children: [
-        const Icon(Icons.circle, color: Colors.red, size: 12),
+        const Icon(Icons.info_outline_rounded, color: Colors.white54, size: 18),
         const SizedBox(width: 8),
-        Expanded(child: Text('${widget.creator.creatorName} • LIVE', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))),
+        Expanded(child: Text('${widget.creator.creatorName} • PREVIEW', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))),
         IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close, color: Colors.white)),
       ])),
       const Expanded(child: Center(child: Text('LIVE VIDEO\nStreaming backend required', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 18)))),
-      Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+      const Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text('Preview only: likes and comments stay on this screen and are not saved. Gifts are not charged.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 11))),\n      Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
         _LiveAction(icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '$_likes', onTap: _toggleLike),
         _LiveAction(icon: Icons.mode_comment_outlined, label: '$_comments', onTap: () => FocusScope.of(context).requestFocus()),
         _LiveAction(icon: Icons.card_giftcard_rounded, label: _selectedGift ?? 'Gift', onTap: _openGiftPicker),
