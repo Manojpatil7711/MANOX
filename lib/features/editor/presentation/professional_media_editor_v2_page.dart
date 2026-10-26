@@ -351,13 +351,28 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     if (!widget.isVideo) {
       setState(() => _exporting = true);
       String? rendered;
+      String? backup;
       try {
         rendered = await _renderPhoto();
-        if (rendered == null || widget.mediaPath == null) throw StateError('No photo selected.');
-        await File(widget.mediaPath!).writeAsBytes(await File(rendered).readAsBytes(), flush: true);
+        final original = widget.mediaPath;
+        if (rendered == null || original == null) throw StateError('No photo selected.');
+        final originalFile = File(original);
+        final temp = await getTemporaryDirectory();
+        backup = '${temp.path}/manox_photo_backup_${DateTime.now().millisecondsSinceEpoch}.bak';
+        if (await originalFile.exists()) await originalFile.copy(backup);
+        await originalFile.writeAsBytes(await File(rendered).readAsBytes(), flush: true);
         try { await File(rendered).delete(); } catch (_) {}
+        try { await File(backup).delete(); } catch (_) {}
         if (mounted) Navigator.of(context).pop(true);
       } catch (e) {
+        final backupPath = backup;
+        if (backupPath != null && widget.mediaPath != null) {
+          try {
+            final backupFile = File(backupPath);
+            if (await backupFile.exists()) await backupFile.copy(widget.mediaPath!);
+            await backupFile.delete();
+          } catch (_) {}
+        }
         if (rendered != null) { try { await File(rendered).delete(); } catch (_) {} }
         if (!mounted) return;
         setState(() => _exporting = false);
