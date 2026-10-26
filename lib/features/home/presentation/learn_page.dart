@@ -74,7 +74,7 @@ class _LearnPageState extends State<LearnPage> {
     );
     if (!mounted || rating == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Your $rating-star rating was recorded.')),
+      const SnackBar(content: Text('Ratings are not connected to the server yet. Your rating was not submitted.')),
     );
   }
 
@@ -89,7 +89,22 @@ class _LearnPageState extends State<LearnPage> {
         children: [
           Text('Learn from trusted teachers and classes', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
-          const Text('Search any subject or skill. Higher-quality ratings get more visibility.'),
+          const Text('Search any subject or skill.'),
+          const SizedBox(height: 12),
+          Card(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: const Padding(
+              padding: EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline_rounded),
+                  SizedBox(width: 10),
+                  Expanded(child: Text('Preview only: teacher/class listings, ratings and verification badges are sample data. Profiles and rating submission are not connected to the backend yet.')),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _searchController,
