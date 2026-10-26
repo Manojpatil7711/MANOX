@@ -33,11 +33,17 @@ class SupabaseProfileRepository implements ProfileRepository {
     final existing=await _client.from('profiles').select('id').eq('id',userId).maybeSingle();
     if(existing!=null)return;
     final username='user_' + userId.substring(0,8);
-    await _client.from('profiles').insert({
-      'id':userId,
-      'username':username,
-      'display_name':'MANOX User',
-    });
+    try {
+      await _client.from('profiles').insert({
+        'id':userId,
+        'username':username,
+        'display_name':'MANOX User',
+      });
+    } on PostgrestException catch (error) {
+      if (error.code != '23505') rethrow;
+      final racedInsert=await _client.from('profiles').select('id').eq('id',userId).maybeSingle();
+      if (racedInsert==null) rethrow;
+    }
   }
   @override Future<ProfileData> fetchProfile() async { final userId=_userId; final existing=await _client.from('profiles').select('id').eq('id',userId).maybeSingle(); if(existing==null) await _ensureProfile(userId); return _fetchProfileRow(userId,includePrivateDob:true); }
   @override Future<ProfileData> fetchProfileByUserId(String userId) async { final cleanId=userId.trim(); if(cleanId.isEmpty) throw StateError('Profile user id is empty.'); return _fetchProfileRow(cleanId,includePrivateDob:false); }
