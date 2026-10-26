@@ -274,7 +274,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
         final y = _keyframes ? '$baseY+abs(sin(t*2))*h*0.18' : baseY;
         final border = _textPreset == 'Outline' || _textPreset == 'Neon' ? 5 : 3;
         final shadow = _textPreset == 'Shadow' || _textPreset == 'Glitch' ? ':shadowcolor=black:shadowx=4:shadowy=4' : '';
-        filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=$border:bordercolor=${_textPreset == 'Neon' ? _textColor : 'black'}$shadow:x=(w-text_w)/2:y=$y");
+        filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':expansion=none:fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=$border:bordercolor=${_textPreset == 'Neon' ? _textColor : 'black'}$shadow:x=(w-text_w)/2:y=$y");
       }
       for (final layer in <String>[..._stickers, ..._elements]) {
         final symbol = layer.replaceAll("'", '');
@@ -326,7 +326,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       final safe = _text!.replaceAll('\\\\', '\\\\\\\\').replaceAll(':', '\\\\:').replaceAll("'", "\\\\'");
       final baseY = _textPosition == 'Top' ? 'h*0.12' : (_textPosition == 'Bottom' ? 'h-text_h-h*0.12' : '(h-text_h)/2');
       final y = _keyframes ? '$baseY+abs(sin(t*2))*h*0.18' : baseY;
-      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=3:bordercolor=black:x=(w-text_w)/2:y=$y");
+      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':expansion=none:fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=3:bordercolor=black:x=(w-text_w)/2:y=$y");
     }
     for (final layer in <String>[..._stickers, ..._elements]) {
       final symbol = layer.replaceAll("'", '');
