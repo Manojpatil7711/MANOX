@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/supabase_service.dart';
@@ -119,20 +120,46 @@ class SupabasePostRepository {
     if(audience=='kids_15_plus'&&(kidsCategory==null||kidsCategory.trim().isEmpty))throw StateError('Select a Kids category before publishing.');
     if(!await hasCurrentLegalConsent())throw StateError('Accept Terms, Privacy Policy and Community Guidelines before posting.');
     final safeVisibility={'public','followers','private'}.contains(visibility)?visibility:'public';
-    final row=await _client.from('contents').insert({
-      'owner_user_id':_userId,'content_type':type,'description':text,'media_url':imagePath,
-      'media_urls':imagePath==null?<String>[]:<String>[imagePath],'status':'draft','visibility':safeVisibility,
-      'audience_category':audience,'creator_skill':creatorSkill,'kids_category':audience=='kids_15_plus'?kidsCategory:null,
-      'allow_comments':allowComments,'allow_downloads':allowDownloads,
-    }).select('id').single();
-    final id=row['id'] as String;
-    final publishResult = await _client.rpc('publish_content_secure', params:{'p_content_id':id});
-    if (publishResult != true) throw StateError('Post could not be published. Please try again.');
-    final post=await _client.from('contents').select(_contentSelect).eq('id',id).single();
-    final profile=post['profiles'] as Map<String,dynamic>?;
-    final urls=post['media_urls'] as List?;
-    final username=(profile?['username'] as String?)??'you';
-    return ManoxPost(id:id,creatorName:(profile?['display_name'] as String?)??'You',handle:'@'+username.replaceFirst(RegExp(r'^@+'), ''),text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,createdAt:DateTime.tryParse((post['created_at'] as String?)??'')??DateTime.now(),imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
+
+    // The picker returns a device-local path. Upload its bytes first; never save
+    // a local /data/user/... path into a row that other devices must render.
+    String? uploadedPath;
+    if(imagePath!=null) {
+      final file=File(imagePath);
+      if(!await file.exists())throw StateError('Selected media file is no longer available. Please choose it again.');
+      final bytes=await file.readAsBytes();
+      final extension=imagePath.split('.').last.toLowerCase();
+      final videoExtensions={'mp4','mov','m4v','webm','3gp'};
+      final isVideo=type=='video'||type=='beat'||videoExtensions.contains(extension);
+      uploadedPath=isVideo
+          ? await uploadVideo(bytes,extension,_videoMimeByExtension[extension])
+          : await uploadImage(bytes,extension,_imageMimeByExtension[extension]);
+      if(uploadedPath==null||uploadedPath.isEmpty)throw StateError('Media upload failed. Please try again.');
+    }
+
+    String? contentId;
+    try {
+      final row=await _client.from('contents').insert({
+        'owner_user_id':_userId,'content_type':type,'description':text,'media_url':uploadedPath,
+        'media_urls':uploadedPath==null?<String>[]:<String>[uploadedPath],'status':'draft','visibility':safeVisibility,
+        'audience_category':audience,'creator_skill':creatorSkill,'kids_category':audience=='kids_15_plus'?kidsCategory:null,
+        'allow_comments':allowComments,'allow_downloads':allowDownloads,
+      }).select('id').single();
+      contentId=row['id'] as String;
+      final publishResult = await _client.rpc('publish_content_secure', params:{'p_content_id':contentId});
+      if (publishResult != true) throw StateError('Post could not be published. Please try again.');
+      final post=await _client.from('contents').select(_contentSelect).eq('id',contentId).single();
+      final profile=post['profiles'] as Map<String,dynamic>?;
+      final urls=post['media_urls'] as List?;
+      final username=(profile?['username'] as String?)??'you';
+      return ManoxPost(id:contentId,creatorName:(profile?['display_name'] as String?)??'You',handle:'@'+username.replaceFirst(RegExp(r'^@+'), ''),text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,createdAt:DateTime.tryParse((post['created_at'] as String?)??'')??DateTime.now(),imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
+    } catch (_) {
+      // Remove orphaned upload if database creation/publishing fails.
+      if(uploadedPath!=null) {
+        try { await _client.storage.from('manox-media').remove([uploadedPath]); } catch (_) {}
+      }
+      rethrow;
+    }
   }
 
   Future<void> updatePost(String contentId,String text) async=>_client.from('contents').update({'description':text.trim(),'updated_at':DateTime.now().toIso8601String()}).eq('id',contentId).eq('owner_user_id',_userId);
