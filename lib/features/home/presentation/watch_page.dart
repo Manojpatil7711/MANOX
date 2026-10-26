@@ -110,7 +110,16 @@ class _WatchItemState extends State<_WatchItem> {
   late bool _saved;
   late int _likes;
   bool _busy = false;
+  bool _saving = false;
+  bool _sharing = false;
   bool _playing = false;
+
+  void _showActionMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+  }
 
   @override
   void initState() {
@@ -221,15 +230,6 @@ class _WatchItemState extends State<_WatchItem> {
           top: 28, left: 0, right: 0,
           child: Center(child: Text('WATCH', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 2.4))),
         ),
-        if (!_playing && _url != null)
-          const IgnorePointer(
-            child: Center(
-              child: DecoratedBox(
-                decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                child: Padding(padding: EdgeInsets.all(14), child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36)),
-              ),
-            ),
-          ),
         Positioned(
           left: 16, right: 78, bottom: 30,
           child: Column(
@@ -257,9 +257,9 @@ class _WatchItemState extends State<_WatchItem> {
             children: [
               _Action(icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, text: _likes.toString(), onTap: _like),
               const SizedBox(height: 18),
-              _Action(icon: _saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, text: _saved ? 'Saved' : 'Save', onTap: _save),
+              _Action(icon: _saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, text: _saving ? 'Saving…' : (_saved ? 'Saved' : 'Save'), onTap: _saving ? () {} : _save),
               const SizedBox(height: 18),
-              _Action(icon: Icons.share_rounded, text: 'Share', onTap: _share),
+              _Action(icon: Icons.share_rounded, text: _sharing ? 'Sharing…' : 'Share', onTap: _sharing ? () {} : _share),
             ],
           ),
         ),
