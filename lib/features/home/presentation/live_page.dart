@@ -142,8 +142,9 @@ class _LiveRoomSheetState extends State<_LiveRoomSheet> {
         Expanded(child: Text('${widget.creator.creatorName} • PREVIEW', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))),
         IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close, color: Colors.white)),
       ])),
-      const Expanded(child: Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Live video is not available yet.\n\nStreaming backend is not connected.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 18)))))
-      const Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text('Preview only: likes and comments stay on this screen and are not saved. Gifts are not charged.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 11))),\n      Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+      const Expanded(child: Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Live video is not available yet.\n\nStreaming backend is not connected.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 18))))),
+      const Padding(padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text('Preview only: likes and comments stay on this screen and are not saved. Gifts are not charged.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 11))),
+      Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
         _LiveAction(icon: _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded, label: '$_likes', onTap: _toggleLike),
         _LiveAction(icon: Icons.mode_comment_outlined, label: '$_comments', onTap: () => FocusScope.of(context).requestFocus()),
         _LiveAction(icon: Icons.card_giftcard_rounded, label: _selectedGift ?? 'Gift', onTap: _openGiftPicker),
