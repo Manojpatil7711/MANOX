@@ -39,7 +39,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       'display_name':'MANOX User',
     });
   }
-  @override Future<ProfileData> fetchProfile() async { final userId=_userId; try { return await _fetchProfileRow(userId,includePrivateDob:true); } on PostgrestException catch(error) { if(error.code!='PGRST116') rethrow; await _ensureProfile(userId); return _fetchProfileRow(userId,includePrivateDob:true); } }
+  @override Future<ProfileData> fetchProfile() async { final userId=_userId; final existing=await _client.from('profiles').select('id').eq('id',userId).maybeSingle(); if(existing==null) await _ensureProfile(userId); return _fetchProfileRow(userId,includePrivateDob:true); }
   @override Future<ProfileData> fetchProfileByUserId(String userId) async { final cleanId=userId.trim(); if(cleanId.isEmpty) throw StateError('Profile user id is empty.'); return _fetchProfileRow(cleanId,includePrivateDob:false); }
   Future<String?> _resolveAvatar(String? value) async { if(value==null||value.isEmpty)return null; if(value.startsWith('http://')||value.startsWith('https://'))return value; try{return await _client.storage.from('manox-media').createSignedUrl(value,60*60*24*30);}catch(_){return null;} }
   @override Future<List<String>> fetchPostIds() async { try { final rows=await _client.from('contents').select('id').eq('owner_user_id',_userId).eq('status','published').order('created_at',ascending:false); return(rows as List).map((e)=>e['id'] as String).toList(); } catch(_){return <String>[];} }
