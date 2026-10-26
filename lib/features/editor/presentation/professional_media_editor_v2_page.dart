@@ -276,12 +276,13 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
         final shadow = _textPreset == 'Shadow' || _textPreset == 'Glitch' ? ':shadowcolor=black:shadowx=4:shadowy=4' : '';
         filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':expansion=none:fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=$border:bordercolor=${_textPreset == 'Neon' ? _textColor : 'black'}$shadow:x=(w-text_w)/2:y=$y");
       }
-      for (final layer in <String>[..._stickers, ..._elements]) {
-        final symbol = layer.replaceAll("'", '');
-        final index = <String>[..._stickers, ..._elements].indexOf(layer);
+      final layers = <String>[..._stickers, ..._elements];
+      for (final entry in layers.asMap().entries) {
+        final symbol = entry.value.replaceAll("'", '');
+        final index = entry.key;
         final x = index.isEven ? 'w*0.12' : 'w-text_w-w*0.12';
         final y = 'h*${0.18 + (index % 4) * 0.14}';
-        filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$symbol':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=$x:y=$y");
+        filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$symbol':expansion=none:fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=$x:y=$y");
       }
       if (_mask == 'Vignette') filters.add('vignette=PI/4');
       if (_mask == 'Cinematic bars' || _mask == 'Letterbox') {
@@ -328,10 +329,11 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       final y = _keyframes ? '$baseY+abs(sin(t*2))*h*0.18' : baseY;
       filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':expansion=none:fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=3:bordercolor=black:x=(w-text_w)/2:y=$y");
     }
-    for (final layer in <String>[..._stickers, ..._elements]) {
-      final symbol = layer.replaceAll("'", '');
-      final index = <String>[..._stickers, ..._elements].indexOf(layer);
-      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$symbol':fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=w*0.12:y=h*${0.18 + (index % 4) * 0.14}");
+    final layers = <String>[..._stickers, ..._elements];
+    for (final entry in layers.asMap().entries) {
+      final symbol = entry.value.replaceAll("'", '');
+      final index = entry.key;
+      filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$symbol':expansion=none:fontsize=72:fontcolor=white:borderw=2:bordercolor=black:x=w*0.12:y=h*${0.18 + (index % 4) * 0.14}");
     }
     if (_mask == 'Vignette') filters.add('vignette=PI/4');
     if (_mask == 'Cinematic bars' || _mask == 'Letterbox') {
