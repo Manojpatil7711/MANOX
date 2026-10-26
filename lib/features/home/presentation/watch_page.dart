@@ -112,7 +112,6 @@ class _WatchItemState extends State<_WatchItem> {
   bool _busy = false;
   bool _saving = false;
   bool _sharing = false;
-  bool _playing = false;
 
   void _showActionMessage(String message) {
     if (!mounted) return;
@@ -134,7 +133,6 @@ class _WatchItemState extends State<_WatchItem> {
   @override
   void didUpdateWidget(covariant _WatchItem oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.active != widget.active && !widget.active && mounted) setState(() => _playing = false);
     if (_url == null && widget.initialUrl != null) setState(() => _url = widget.initialUrl);
   }
 
@@ -221,7 +219,6 @@ class _WatchItemState extends State<_WatchItem> {
             loop: true,
             fullScreenStyle: true,
             showProgress: true,
-            onPlaybackChanged: (playing) { if (mounted) setState(() => _playing = playing); },
           )
         else
           const Center(child: CircularProgressIndicator(color: Colors.white)),
