@@ -196,8 +196,12 @@ class _WatchItemState extends State<_WatchItem> {
       );
       if (!mounted) return;
       if (result.status == ShareResultStatus.success) {
-        await widget.repo.recordShare(widget.post.id);
         _showActionMessage('Thanks for sharing this video.');
+        try {
+          await widget.repo.recordShare(widget.post.id);
+        } catch (_) {
+          // Sharing already succeeded; analytics failure must not misreport it.
+        }
       } else if (result.status == ShareResultStatus.dismissed) {
         _showActionMessage('Sharing cancelled.');
       } else {
