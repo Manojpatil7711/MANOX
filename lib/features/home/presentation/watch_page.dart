@@ -188,8 +188,21 @@ class _WatchItemState extends State<_WatchItem> {
     setState(() => _sharing = true);
     try {
       final url = await widget.repo.createShareUrl(widget.post.id);
-      await SharePlus.instance.share(ShareParams(text: '${widget.post.text}\n$url', subject: 'Watch on MANOX'));
-      await widget.repo.recordShare(widget.post.id);
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          text: '${widget.post.text}\n$url',
+          subject: 'Watch on MANOX',
+        ),
+      );
+      if (!mounted) return;
+      if (result.status == ShareResultStatus.success) {
+        await widget.repo.recordShare(widget.post.id);
+        _showActionMessage('Thanks for sharing this video.');
+      } else if (result.status == ShareResultStatus.dismissed) {
+        _showActionMessage('Sharing cancelled.');
+      } else {
+        _showActionMessage('Sharing is not available on this device.');
+      }
     } catch (_) {
       _showActionMessage('Could not share this video. Please try again.');
     } finally {
