@@ -191,6 +191,7 @@ class SupabasePostRepository {
     }
 
     String? contentId;
+    var published = false;
     try {
       final row=await _client.from('contents').insert({
         'owner_user_id':_userId,'content_type':type,'description':text,'media_url':uploadedPath,
@@ -201,15 +202,28 @@ class SupabasePostRepository {
       contentId=row['id'] as String;
       final publishResult = await _client.rpc('publish_content_secure', params:{'p_content_id':contentId});
       if (publishResult != true) throw StateError('Post could not be published. Please try again.');
+      published = true;
       final post=await _client.from('contents').select(_contentSelect).eq('id',contentId).single();
       final profile=post['profiles'] as Map<String,dynamic>?;
       final urls=post['media_urls'] as List?;
       final username=(profile?['username'] as String?)??'you';
       return ManoxPost(id:contentId,creatorName:(profile?['display_name'] as String?)??'You',handle:'@'+username.replaceFirst(RegExp(r'^@+'), ''),text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,createdAt:DateTime.tryParse((post['created_at'] as String?)??'')??DateTime.now(),imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
     } catch (_) {
-      // Remove orphaned upload if database creation/publishing fails.
-      if(uploadedPath!=null) {
-        try { await _client.storage.from('manox-media').remove([uploadedPath]); } catch (_) {}
+      // Only clean up when publication did not succeed. A failed follow-up
+      // read must never delete media from a post that is already published.
+      if (!published) {
+        if (contentId != null) {
+          try {
+            await _client.from('contents').delete()
+                .eq('id', contentId)
+                .eq('owner_user_id', _userId);
+          } catch (_) {}
+        }
+        if (uploadedPath != null) {
+          try {
+            await _client.storage.from('manox-media').remove([uploadedPath]);
+          } catch (_) {}
+        }
       }
       rethrow;
     }
