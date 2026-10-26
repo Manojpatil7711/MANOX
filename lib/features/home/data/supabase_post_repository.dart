@@ -90,6 +90,31 @@ class SupabasePostRepository {
   Future<List<ManoxPost>> fetchPostsByOwner(String ownerUserId) async {final rows=await _client.from('contents').select(_contentSelect).eq('owner_user_id',ownerUserId).eq('status','published').eq('audience_category','general').order('created_at',ascending:false).limit(50);return _mapRows(rows as List);}
   Future<String?> uploadImage(Uint8List bytes,String extension,String? mimeType) async { final ext=extension.toLowerCase().replaceAll('.',''); final expected=_imageMimeByExtension[ext]; if(expected==null)throw ArgumentError('Unsupported image format. Use JPG, PNG, WEBP or GIF.'); if(bytes.isEmpty)throw StateError('Selected image is empty.'); if(bytes.length>_maxImageBytes)throw ArgumentError('Image must be 10 MB or smaller.'); if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Image MIME type does not match its file extension.'); return _uploadMedia(bytes,ext,expected,_maxImageBytes); }
   Future<String?> uploadVideo(Uint8List bytes,String extension,String? mimeType) async { final ext=extension.toLowerCase().replaceAll('.',''); final expected=_videoMimeByExtension[ext]; if(expected==null)throw ArgumentError('Unsupported video format. Use MP4, MOV, M4V, WEBM or 3GP.'); if(bytes.isEmpty)throw StateError('Selected video is empty.'); if(bytes.length>_maxVideoBytes)throw ArgumentError('Video must be 50 MB or smaller.'); if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Video MIME type does not match its file extension.'); return _uploadMedia(bytes,ext,expected,_maxVideoBytes); }
+  String _detectUploadedExtension(Uint8List bytes, String fallback) {
+    if (bytes.length >= 12 &&
+        bytes[4] == 0x66 && bytes[5] == 0x74 &&
+        bytes[6] == 0x79 && bytes[7] == 0x70) {
+      final brand = String.fromCharCodes(bytes.sublist(8, 12)).trim();
+      if (brand == 'qt') return 'mov';
+      if (brand.startsWith('3gp')) return '3gp';
+      if (brand.startsWith('M4V')) return 'm4v';
+      return 'mp4';
+    }
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x1A && bytes[1] == 0x45 &&
+        bytes[2] == 0xDF && bytes[3] == 0xA3) return 'webm';
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return 'jpg';
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 && bytes[1] == 0x50 &&
+        bytes[2] == 0x4E && bytes[3] == 0x47) return 'png';
+    if (bytes.length >= 6 &&
+        String.fromCharCodes(bytes.sublist(0, 3)) == 'GIF') return 'gif';
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') return 'webp';
+    return fallback;
+  }
   Future<String?> _uploadMedia(Uint8List bytes,String extension,String mimeType,int maxBytes) async {if(bytes.isEmpty)throw StateError('Selected media is empty.');if(bytes.length>maxBytes)throw ArgumentError('Selected media exceeds the allowed size.');final path='$_userId/${DateTime.now().microsecondsSinceEpoch}.$extension';await _client.storage.from('manox-media').uploadBinary(path,bytes,fileOptions:FileOptions(contentType:mimeType,upsert:false,cacheControl:'3600'));return path;}
   Future<bool> hasCurrentLegalConsent() async {
     final rows = await _client.from('legal_consents').select('policy_type, policy_version').eq('user_id', _userId);
@@ -142,7 +167,8 @@ class SupabasePostRepository {
       final file=File(imagePath);
       if(!await file.exists())throw StateError('Selected media file is no longer available. Please choose it again.');
       final bytes=await file.readAsBytes();
-      final extension=imagePath.split('.').last.toLowerCase();
+      final originalExtension=imagePath.split('.').last.toLowerCase();
+      final extension = _detectUploadedExtension(bytes, originalExtension);
       final videoExtensions={'mp4','mov','m4v','webm','3gp'};
       final isVideo=type=='video'||type=='beat'||videoExtensions.contains(extension);
       uploadedPath=isVideo
