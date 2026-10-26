@@ -27,8 +27,14 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   String _ratio = '9:16';
   String _filter = 'Original';
   String? _text;
+  String _textPreset = 'Bold';
+  String _textColor = 'white';
+  String _textPosition = 'Center';
+  double _textSize = 56;
   ManoxPost? _selectedBeat;
-  static const _filters = ['Original','Natural','Cinema','Warm','Cool','Vintage','B&W','Vivid'];
+  static const _filters = ['Original','Natural','Cinema','Warm','Cool','Vintage','B&W','Vivid','Golden Hour','Moody','Fade','Matte','Dream','Noir','Sepia','Arctic','Sunset','Rose','Emerald','Cyberpunk','Film Grain','Soft Glow','High Contrast','Pastel','Dramatic','Retro'];
+  static const _textPresets = ['Bold','Classic','Outline','Neon','Shadow','Typewriter','Elegant','Impact','Bubble','Minimal','Glitch','Caption'];
+  static const _textColors = ['white','yellow','black','red','lime','cyan','magenta','orange','deepskyblue','hotpink'];
   static const _ratios = ['Original','9:16','4:5','1:1','16:9','4:3'];
 
   @override void initState() { super.initState(); _init(); }
@@ -45,13 +51,38 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   Future<void> _addText() async {
     final controller = TextEditingController(text: _text ?? '');
     final value = await showDialog<String>(context: context, builder: (dialog) => AlertDialog(
-      title: const Text('Add text'), content: TextField(controller: controller, maxLength: 120, autofocus: true, decoration: const InputDecoration(hintText: 'Write text on your media')),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialog, controller.text.trim()), child: const Text('DONE'))],
+      title: const Text('Add text overlay'),
+      content: TextField(controller: controller, maxLength: 120, autofocus: true, decoration: const InputDecoration(hintText: 'Type a title, caption or hook')),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('CANCEL')), FilledButton(onPressed: () => Navigator.pop(dialog, controller.text.trim()), child: const Text('STYLE TEXT'))],
     ));
     controller.dispose();
-    if (value != null && mounted) setState(() => _text = value.isEmpty ? null : value);
+    if (value == null || !mounted) return;
+    setState(() => _text = value.isEmpty ? null : value);
+    if (value.isNotEmpty) await _showTextStyles();
   }
 
+  Future<void> _showTextStyles() async {
+    await showModalBottomSheet<void>(context: context, isScrollControlled: true, showDragHandle: true, backgroundColor: const Color(0xFF171717), builder: (sheet) => StatefulBuilder(builder: (context, setSheet) => SafeArea(child: Padding(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(sheet).viewInsets.bottom + 24),
+      child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        const Text('Text studio', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 4), const Text('12 presets • 10 colours • size • placement'),
+        const SizedBox(height: 14),
+        Wrap(spacing: 8, runSpacing: 8, children: _textPresets.map((preset) => ChoiceChip(label: Text(preset), selected: _textPreset == preset, onSelected: (_) { setState(() => _textPreset = preset); setSheet(() {}); })).toList()),
+        const SizedBox(height: 16), const Text('Text colour', style: TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8), Wrap(spacing: 10, runSpacing: 10, children: _textColors.map((color) => InkWell(onTap: () { setState(() => _textColor = color); setSheet(() {}); }, child: Container(width: 32, height: 32, decoration: BoxDecoration(color: _previewTextColor(color), shape: BoxShape.circle, border: Border.all(color: _textColor == color ? Colors.white : Colors.white24, width: _textColor == color ? 3 : 1)))).toList()),
+        const SizedBox(height: 16), Row(children: [const Text('Text size', style: TextStyle(fontWeight: FontWeight.w800)), const Spacer(), Text('${_textSize.round()} px')]),
+        Slider(min: 24, max: 96, divisions: 18, value: _textSize, onChanged: (v) { setState(() => _textSize = v); setSheet(() {}); }),
+        const SizedBox(height: 8), const Text('Placement', style: TextStyle(fontWeight: FontWeight.w800)),
+        Wrap(spacing: 8, children: ['Top','Center','Bottom'].map((pos) => ChoiceChip(label: Text(pos), selected: _textPosition == pos, onSelected: (_) { setState(() => _textPosition = pos); setSheet(() {}); })).toList()),
+        const SizedBox(height: 14), Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: () => Navigator.pop(sheet), child: const Text('APPLY TEXT STYLE'))),
+      ])),
+    ))));
+  }
+
+  Color _previewTextColor(String name) { switch (name) { case 'yellow': return Colors.yellow; case 'black': return Colors.black; case 'red': return Colors.red; case 'lime': return Colors.lime; case 'cyan': return Colors.cyan; case 'magenta': return Colors.purpleAccent; case 'orange': return Colors.orange; case 'deepskyblue': return Colors.lightBlueAccent; case 'hotpink': return Colors.pinkAccent; default: return Colors.white; } }
+  FontWeight _previewTextWeight() => {'Classic','Elegant','Minimal'}.contains(_textPreset) ? FontWeight.w500 : FontWeight.w900;
+  
   Future<void> _addBeat() async {
     try {
       final beats = await SupabasePostRepository().fetchBeats();
@@ -89,7 +120,29 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
   }
 
   String _shell(String value) => "'${value.replaceAll("'", "'\\''")}'";
-  String? _videoFilter() { switch (_filter) { case 'Natural': return 'eq=contrast=1.02:saturation=1.04:brightness=.01'; case 'B&W': return 'hue=s=0'; case 'Warm': return 'colorbalance=rs=.08:gs=.03:bs=-.03'; case 'Cool': return 'colorbalance=rs=-.03:gs=.02:bs=.08'; case 'Vintage': return 'curves=vintage'; case 'Cinema': return 'eq=contrast=1.08:saturation=1.08:brightness=-.02'; case 'Vivid': return 'eq=contrast=1.12:saturation=1.22'; default: return null; } }
+  String? _videoFilter() { switch (_filter) {
+    case 'Natural': return 'eq=contrast=1.02:saturation=1.04:brightness=.01';
+    case 'B&W': case 'Noir': return 'hue=s=0,eq=contrast=1.18';
+    case 'Warm': case 'Golden Hour': return 'colorbalance=rs=.10:gs=.04:bs=-.05,eq=saturation=1.08';
+    case 'Cool': case 'Arctic': return 'colorbalance=rs=-.04:gs=.02:bs=.10';
+    case 'Vintage': case 'Retro': return 'curves=vintage,eq=saturation=.82';
+    case 'Cinema': case 'Dramatic': return 'eq=contrast=1.12:saturation=1.08:brightness=-.025';
+    case 'Vivid': return 'eq=contrast=1.12:saturation=1.22';
+    case 'Moody': return 'eq=contrast=1.16:saturation=.82:brightness=-.04';
+    case 'Fade': return 'eq=contrast=.86:brightness=.04:saturation=.88';
+    case 'Matte': return 'curves=all=0/0.08 0.25/0.28 0.75/0.78 1/0.94';
+    case 'Dream': case 'Soft Glow': return 'gblur=sigma=0.35,eq=brightness=.025:saturation=1.08';
+    case 'Sepia': return 'colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131';
+    case 'Sunset': return 'colorbalance=rs=.12:gs=.015:bs=-.06';
+    case 'Rose': return 'colorbalance=rs=.09:gs=-.02:bs=.025';
+    case 'Emerald': return 'colorbalance=rs=-.025:gs=.08:bs=-.015';
+    case 'Cyberpunk': return 'colorbalance=rs=.08:gs=-.04:bs=.12,eq=saturation=1.3';
+    case 'Film Grain': return 'noise=alls=12:allf=t+u';
+    case 'High Contrast': return 'eq=contrast=1.35:saturation=1.1';
+    case 'Pastel': return 'eq=contrast=.88:saturation=.78:brightness=.04';
+    case 'Original': return null;
+    default: return 'eq=contrast=1.08:saturation=1.08:brightness=-.02';
+  } }
   String? _ratioFilter() { switch (_ratio) { case '9:16': return 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920'; case '4:5': return 'scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350'; case '1:1': return 'scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080'; case '16:9': return 'scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080'; case '4:3': return 'scale=1440:1080:force_original_aspect_ratio=increase,crop=1440:1080'; default: return null; } }
 
   Future<File> _downloadBeat(String url) async {
@@ -126,7 +179,13 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
       final filters = <String>[];
       final ratioFilter = _ratioFilter(); if (ratioFilter != null) filters.add(ratioFilter);
       final videoFilter = _videoFilter(); if (videoFilter != null) filters.add(videoFilter);
-      if (_text != null && _text!.trim().isNotEmpty) { final safe = _text!.replaceAll('\\', '\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'"); filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=white:fontsize=56:borderw=3:bordercolor=black:x=(w-text_w)/2:y=(h-text_h)/2"); }
+      if (_text != null && _text!.trim().isNotEmpty) {
+        final safe = _text!.replaceAll('\\\\', '\\\\\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'");
+        final y = _textPosition == 'Top' ? 'h*0.12' : (_textPosition == 'Bottom' ? 'h-text_h-h*0.12' : '(h-text_h)/2');
+        final border = _textPreset == 'Outline' || _textPreset == 'Neon' ? 5 : 3;
+        final shadow = _textPreset == 'Shadow' || _textPreset == 'Glitch' ? ':shadowcolor=black:shadowx=4:shadowy=4' : '';
+        filters.add("drawtext=fontfile=/system/fonts/Roboto-Regular.ttf:text='$safe':fontcolor=$_textColor:fontsize=${_textSize.round()}:borderw=$border:bordercolor=${_textPreset == 'Neon' ? _textColor : 'black'}$shadow:x=(w-text_w)/2:y=$y");
+      }
       if (_speed != 1) filters.add('setpts=${(1 / _speed).toStringAsFixed(4)}*PTS');
       final vf = filters.isEmpty ? '' : ' -vf ${_shell(filters.join(','))}';
       final audioFilter = _speed == 1 ? 'volume=${_volume.toStringAsFixed(2)}' : 'atempo=${_speed.toStringAsFixed(2)},volume=${_volume.toStringAsFixed(2)}';
@@ -272,11 +331,10 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
                   Align(alignment: Alignment.centerRight, child: FilledButton(onPressed: () => Navigator.pop(sheet), child: const Text('DONE'))),
                 ])
               else if (label == 'Filter')
-                Wrap(spacing: 8, runSpacing: 8, children: _filters.map((value) => ChoiceChip(
-                  label: Text(value),
-                  selected: _filter == value,
+                SizedBox(height: 320, child: SingleChildScrollView(child: Wrap(spacing: 8, runSpacing: 8, children: _filters.map((value) => ChoiceChip(
+                  label: Text(value), selected: _filter == value,
                   onSelected: (_) { setState(() => _filter = value); Navigator.pop(sheet); },
-                )).toList())
+                )).toList())))
               else if (label == 'Crop')
                 Wrap(spacing: 8, runSpacing: 8, children: _ratios.map((value) => ChoiceChip(
                   label: Text(value),
@@ -342,7 +400,15 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
 
   double _previewAspectRatio() { switch (_ratio) { case '9:16': return 9 / 16; case '4:5': return 4 / 5; case '1:1': return 1; case '16:9': return 16 / 9; case '4:3': return 4 / 3; default: return 9 / 16; } }
 
-  ColorFilter? _previewColorFilter() { switch (_filter) { case 'Natural': return const ColorFilter.matrix(<double>[1.02,0,0,0,2, 0,1.02,0,0,2, 0,0,1.02,0,2, 0,0,0,1,0]); case 'B&W': return const ColorFilter.matrix(<double>[.2126,.7152,.0722,0,0, .2126,.7152,.0722,0,0, .2126,.7152,.0722,0,0, 0,0,0,1,0]); case 'Warm': return const ColorFilter.matrix(<double>[1.05,0,0,0,4, 0,1.02,0,0,2, 0,0,.96,0,-2, 0,0,0,1,0]); case 'Cool': return const ColorFilter.matrix(<double>[.96,0,0,0,-2, 0,1.02,0,0,2, 0,0,1.06,0,4, 0,0,0,1,0]); case 'Vivid': return const ColorFilter.matrix(<double>[1.12,-.06,-.06,0,0, -.06,1.12,-.06,0,0, -.06,-.06,1.12,0,0, 0,0,0,1,0]); default: return null; } }
+  ColorFilter? _previewColorFilter() { switch (_filter) {
+    case 'Natural': return const ColorFilter.matrix(<double>[1.02,0,0,0,2, 0,1.02,0,0,2, 0,0,1.02,0,2, 0,0,0,1,0]);
+    case 'B&W': case 'Noir': return const ColorFilter.matrix(<double>[.2126,.7152,.0722,0,0, .2126,.7152,.0722,0,0, .2126,.7152,.0722,0,0, 0,0,0,1,0]);
+    case 'Warm': case 'Golden Hour': case 'Sunset': return const ColorFilter.matrix(<double>[1.05,0,0,0,4, 0,1.02,0,0,2, 0,0,.96,0,-2, 0,0,0,1,0]);
+    case 'Cool': case 'Arctic': return const ColorFilter.matrix(<double>[.96,0,0,0,-2, 0,1.02,0,0,2, 0,0,1.06,0,4, 0,0,0,1,0]);
+    case 'Vivid': case 'Cyberpunk': case 'High Contrast': return const ColorFilter.matrix(<double>[1.12,-.06,-.06,0,0, -.06,1.12,-.06,0,0, -.06,-.06,1.12,0,0, 0,0,0,1,0]);
+    case 'Sepia': case 'Vintage': case 'Retro': return const ColorFilter.matrix(<double>[.393,.769,.189,0,0, .349,.686,.168,0,0, .272,.534,.131,0,0, 0,0,0,1,0]);
+    default: return null;
+  } }
 
   Widget _preview() {
     if (!_ready) return const Center(child: CircularProgressIndicator());
@@ -352,7 +418,7 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     final filter = _previewColorFilter();
     if (filter != null) media = ColorFiltered(colorFilter: filter, child: media);
     media = ClipRect(child: AspectRatio(aspectRatio: _previewAspectRatio(), child: media));
-    return Stack(fit: StackFit.expand, children: [Center(child: media), if (_text != null) Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_text!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, shadows: [Shadow(blurRadius: 8, color: Colors.black)])))), Positioned(top: 10, left: 10, child: _pill(_ratio)), Positioned(top: 10, right: 10, child: _pill(_selectedBeat == null ? _filter : 'BEAT • ${_selectedBeat!.creatorName}'))]);
+    return Stack(fit: StackFit.expand, children: [Center(child: media), if (_text != null) Align(alignment: _textPosition == 'Top' ? Alignment.topCenter : (_textPosition == 'Bottom' ? Alignment.bottomCenter : Alignment.center), child: Padding(padding: const EdgeInsets.all(24), child: Text(_text!, textAlign: TextAlign.center, style: TextStyle(fontSize: (_textSize / 2).clamp(12, 48), fontWeight: _previewTextWeight(), color: _previewTextColor(_textColor), shadows: [Shadow(blurRadius: _textPreset == 'Neon' ? 18 : 8, color: Colors.black), if (_textPreset == 'Shadow') const Shadow(blurRadius: 3, offset: Offset(3, 3), color: Colors.black)])))), Positioned(top: 10, left: 10, child: _pill(_ratio)), Positioned(top: 10, right: 10, child: _pill(_selectedBeat == null ? _filter : 'BEAT • ${_selectedBeat!.creatorName}'))]);
   }
   Widget _pill(String text) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)), child: Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)));
 }
