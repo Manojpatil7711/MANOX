@@ -188,7 +188,7 @@ class _WatchItemState extends State<_WatchItem> {
     setState(() => _sharing = true);
     try {
       final url = await widget.repo.createShareUrl(widget.post.id);
-      await SharePlus.instance.share(ShareParams(text: '\${widget.post.text}\n$url', subject: 'Watch on MANOX'));
+      await SharePlus.instance.share(ShareParams(text: '${widget.post.text}\n$url', subject: 'Watch on MANOX'));
       await widget.repo.recordShare(widget.post.id);
     } catch (_) {
       _showActionMessage('Could not share this video. Please try again.');
