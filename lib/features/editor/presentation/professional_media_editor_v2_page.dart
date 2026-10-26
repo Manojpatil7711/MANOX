@@ -538,8 +538,24 @@ class _ProfessionalMediaEditorV2PageState extends State<ProfessionalMediaEditorV
     case 'B&W': case 'Noir': return const ColorFilter.matrix(<double>[.2126,.7152,.0722,0,0, .2126,.7152,.0722,0,0, .2126,.7152,.0722,0,0, 0,0,0,1,0]);
     case 'Warm': case 'Golden Hour': case 'Sunset': return const ColorFilter.matrix(<double>[1.05,0,0,0,4, 0,1.02,0,0,2, 0,0,.96,0,-2, 0,0,0,1,0]);
     case 'Cool': case 'Arctic': return const ColorFilter.matrix(<double>[.96,0,0,0,-2, 0,1.02,0,0,2, 0,0,1.06,0,4, 0,0,0,1,0]);
-    case 'Vivid': case 'Cyberpunk': case 'High Contrast': return const ColorFilter.matrix(<double>[1.12,-.06,-.06,0,0, -.06,1.12,-.06,0,0, -.06,-.06,1.12,0,0, 0,0,0,1,0]);
-    case 'Sepia': case 'Vintage': case 'Retro': return const ColorFilter.matrix(<double>[.393,.769,.189,0,0, .349,.686,.168,0,0, .272,.534,.131,0,0, 0,0,0,1,0]);
+    case 'Vivid': case 'Cyberpunk': case 'High Contrast': case 'Dramatic':
+      return const ColorFilter.matrix(<double>[1.12,-.06,-.06,0,0, -.06,1.12,-.06,0,0, -.06,-.06,1.12,0,0, 0,0,0,1,0]);
+    case 'Sepia': case 'Vintage': case 'Retro':
+      return const ColorFilter.matrix(<double>[.393,.769,.189,0,0, .349,.686,.168,0,0, .272,.534,.131,0,0, 0,0,0,1,0]);
+    case 'Moody':
+      return const ColorFilter.matrix(<double>[1.12,0,0,0,-7, 0,1.12,0,0,-7, 0,0,1.12,0,-7, 0,0,0,1,0]);
+    case 'Fade': case 'Matte':
+      return const ColorFilter.matrix(<double>[.88,0,0,0,12, 0,.88,0,0,12, 0,0,.88,0,12, 0,0,0,1,0]);
+    case 'Dream': case 'Soft Glow':
+      return const ColorFilter.matrix(<double>[1.02,0,0,0,5, 0,1.01,0,0,3, 0,0,.99,0,2, 0,0,0,1,0]);
+    case 'Rose':
+      return const ColorFilter.matrix(<double>[1.08,0,0,0,3, 0,.98,0,0,0, 0,0,1.02,0,2, 0,0,0,1,0]);
+    case 'Emerald':
+      return const ColorFilter.matrix(<double>[.98,0,0,0,0, 0,1.08,0,0,3, 0,0,.98,0,0, 0,0,0,1,0]);
+    case 'Pastel':
+      return const ColorFilter.matrix(<double>[.92,0,0,0,10, 0,.92,0,0,10, 0,0,.92,0,10, 0,0,0,1,0]);
+    case 'Film Grain':
+      return const ColorFilter.matrix(<double>[1.02,0,0,0,0, 0,1.02,0,0,0, 0,0,1.02,0,0, 0,0,0,1,0]);
     default: return null;
   } }
 
