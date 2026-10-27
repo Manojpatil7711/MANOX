@@ -98,8 +98,64 @@ class SupabasePostRepository {
   Future<List<ManoxPost>> fetchKidsContent({String? category}) async {var q=_client.from('contents').select(_contentSelect).eq('status','published').eq('audience_category','kids_15_plus');if(category!=null&&category.isNotEmpty)q=q.eq('kids_category',category);final rows=await q.order('published_at',ascending:false,nullsFirst:false).order('created_at',ascending:false).limit(50);return _mapRows(rows as List);}
   Future<List<ManoxPost>> fetchMyPosts() async=>fetchPostsByOwner(_userId);
   Future<List<ManoxPost>> fetchPostsByOwner(String ownerUserId) async {final rows=await _client.from('contents').select(_contentSelect).eq('owner_user_id',ownerUserId).eq('status','published').eq('audience_category','general').order('created_at',ascending:false).limit(50);return _mapRows(rows as List);}
-  Future<String?> uploadImage(Uint8List bytes,String extension,String? mimeType) async { final ext=extension.toLowerCase().replaceAll('.',''); final expected=_imageMimeByExtension[ext]; if(expected==null)throw ArgumentError('Unsupported image format. Use JPG, PNG, WEBP or GIF.'); if(bytes.isEmpty)throw StateError('Selected image is empty.'); if(bytes.length>_maxImageBytes)throw ArgumentError('Image must be 10 MB or smaller.'); if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Image MIME type does not match its file extension.'); return _uploadMedia(bytes,ext,expected,_maxImageBytes); }
-  Future<String?> uploadVideo(Uint8List bytes,String extension,String? mimeType) async { final ext=extension.toLowerCase().replaceAll('.',''); final expected=_videoMimeByExtension[ext]; if(expected==null)throw ArgumentError('Unsupported video format. Use MP4, MOV, M4V, WEBM or 3GP.'); if(bytes.isEmpty)throw StateError('Selected video is empty.'); if(bytes.length>_maxVideoBytes)throw ArgumentError('Video must be 50 MB or smaller.'); if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Video MIME type does not match its file extension.'); return _uploadMedia(bytes,ext,expected,_maxVideoBytes); }
+  bool _hasImageSignature(Uint8List bytes, String extension) {
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return bytes.length >= 3 &&
+            bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF;
+      case 'png':
+        return bytes.length >= 8 &&
+            bytes[0] == 0x89 && bytes[1] == 0x50 &&
+            bytes[2] == 0x4E && bytes[3] == 0x47 &&
+            bytes[4] == 0x0D && bytes[5] == 0x0A &&
+            bytes[6] == 0x1A && bytes[7] == 0x0A;
+      case 'gif':
+        if (bytes.length < 6) return false;
+        final header = String.fromCharCodes(bytes.sublist(0, 6));
+        return header == 'GIF87a' || header == 'GIF89a';
+      case 'webp':
+        return bytes.length >= 12 &&
+            String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+            String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP';
+      default:
+        return false;
+    }
+  }
+
+  bool _hasVideoSignature(Uint8List bytes, String extension) {
+    if (extension == 'webm') {
+      return bytes.length >= 4 &&
+          bytes[0] == 0x1A && bytes[1] == 0x45 &&
+          bytes[2] == 0xDF && bytes[3] == 0xA3;
+    }
+    if (!{'mp4', 'mov', 'm4v', '3gp'}.contains(extension)) return false;
+    return bytes.length >= 12 &&
+        bytes[4] == 0x66 && bytes[5] == 0x74 &&
+        bytes[6] == 0x79 && bytes[7] == 0x70;
+  }
+
+  Future<String?> uploadImage(Uint8List bytes,String extension,String? mimeType) async {
+    final ext=extension.toLowerCase().replaceAll('.','');
+    final expected=_imageMimeByExtension[ext];
+    if(expected==null)throw ArgumentError('Unsupported image format. Use JPG, PNG, WEBP or GIF.');
+    if(bytes.isEmpty)throw StateError('Selected image is empty.');
+    if(bytes.length>_maxImageBytes)throw ArgumentError('Image must be 10 MB or smaller.');
+    if(!_hasImageSignature(bytes,ext))throw ArgumentError('Image content does not match a supported image format.');
+    if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Image MIME type does not match its file extension.');
+    return _uploadMedia(bytes,ext,expected,_maxImageBytes);
+  }
+
+  Future<String?> uploadVideo(Uint8List bytes,String extension,String? mimeType) async {
+    final ext=extension.toLowerCase().replaceAll('.','');
+    final expected=_videoMimeByExtension[ext];
+    if(expected==null)throw ArgumentError('Unsupported video format. Use MP4, MOV, M4V, WEBM or 3GP.');
+    if(bytes.isEmpty)throw StateError('Selected video is empty.');
+    if(bytes.length>_maxVideoBytes)throw ArgumentError('Video must be 50 MB or smaller.');
+    if(!_hasVideoSignature(bytes,ext))throw ArgumentError('Video content does not match a supported video format.');
+    if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Video MIME type does not match its file extension.');
+    return _uploadMedia(bytes,ext,expected,_maxVideoBytes);
+  }
   String _detectUploadedExtension(Uint8List bytes, String fallback) {
     if (bytes.length >= 12 &&
         bytes[4] == 0x66 && bytes[5] == 0x74 &&
