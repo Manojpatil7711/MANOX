@@ -15,7 +15,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 
 -- The historical auth signup trigger inserted only user_id and let profiles.id
 -- receive a random UUID. The app and interaction tables now consistently use
@@ -68,9 +68,9 @@ BEGIN
 
   RETURN NEW;
 END;
-$;
+$$;
 
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
