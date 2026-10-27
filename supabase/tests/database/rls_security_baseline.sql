@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(11);
+select plan(12);
 
 -- Core application tables must keep RLS enabled.
 select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles'), 'profiles RLS enabled');
@@ -23,6 +23,13 @@ select ok(
   NOT EXISTS (select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='user_id')
   OR EXISTS (select 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles' and t.tgname='manox_sync_profile_auth_identity_trg' and NOT t.tgisinternal),
   'legacy user_id schema has auth identity sync trigger'
+);
+
+-- Signup must not regress to random profile UUIDs on a clean migration replay.
+select ok(
+  position('INSERT INTO public.profiles (id, user_id, username, display_name)' in pg_get_functiondef('private.handle_new_user()'::regprocedure)) > 0
+  AND position('INSERT INTO public.profiles (id, username, display_name)' in pg_get_functiondef('private.handle_new_user()'::regprocedure)) > 0,
+  'auth signup creates profiles with auth UUID as profile id across both schema variants'
 );
 
 select * from finish();
