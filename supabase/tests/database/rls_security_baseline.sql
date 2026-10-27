@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(10);
+select plan(11);
 
 -- Core application tables must keep RLS enabled.
 select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles'), 'profiles RLS enabled');
@@ -18,6 +18,7 @@ select ok(exists (select 1 from pg_policies where schemaname='public' and tablen
 
 -- The app creates profiles directly with id = auth.uid(); guard this path.
 select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_owner_insert' and cmd='INSERT'), 'authenticated profile creation policy exists');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_owner_insert' and cmd='INSERT' and with_check LIKE '%auth.uid%' and with_check LIKE '%id%'), 'profile insert policy binds created row to authenticated identity');
 select ok(
   NOT EXISTS (select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='user_id')
   OR EXISTS (select 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles' and t.tgname='manox_sync_profile_auth_identity_trg' and NOT t.tgisinternal),
