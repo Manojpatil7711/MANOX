@@ -203,11 +203,33 @@ class SupabasePostRepository {
       final publishResult = await _client.rpc('publish_content_secure', params:{'p_content_id':contentId});
       if (publishResult != true) throw StateError('Post could not be published. Please try again.');
       published = true;
-      final post=await _client.from('contents').select(_contentSelect).eq('id',contentId).single();
-      final profile=post['profiles'] as Map<String,dynamic>?;
-      final urls=post['media_urls'] as List?;
-      final username=(profile?['username'] as String?)??'you';
-      return ManoxPost(id:contentId,creatorName:(profile?['display_name'] as String?)??'You',handle:'@'+username.replaceFirst(RegExp(r'^@+'), ''),text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,createdAt:DateTime.tryParse((post['created_at'] as String?)??'')??DateTime.now(),imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
+      // Publication is already committed at this point. A transient failure in
+      // the follow-up read must not tell the user that publishing failed,
+      // because that can lead to accidental duplicate posts on retry.
+      try {
+        final post=await _client.from('contents').select(_contentSelect).eq('id',contentId).single();
+        final profile=post['profiles'] as Map<String,dynamic>?;
+        final urls=post['media_urls'] as List?;
+        final username=(profile?['username'] as String?)??'you';
+        return ManoxPost(id:contentId,creatorName:(profile?['display_name'] as String?)??'You',handle:'@'+username.replaceFirst(RegExp(r'^@+'), ''),text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,createdAt:DateTime.tryParse((post['created_at'] as String?)??'')??DateTime.now(),imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
+      } catch (_) {
+        return ManoxPost(
+          id: contentId,
+          creatorName: 'You',
+          handle: '@you',
+          text: text,
+          likes: 0,
+          comments: 0,
+          likedByMe: false,
+          savedByMe: false,
+          contentType: type,
+          createdAt: DateTime.now(),
+          imageUrl: uploadedPath,
+          ownerUserId: _userId,
+          allowComments: allowComments,
+          allowDownloads: allowDownloads,
+        );
+      }
     } catch (_) {
       // Only clean up when publication did not succeed. A failed follow-up
       // read must never delete media from a post that is already published.
