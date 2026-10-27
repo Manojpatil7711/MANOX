@@ -8,9 +8,11 @@ LANGUAGE plpgsql
 SET search_path = public
 AS $$
 BEGIN
-  -- jsonb_populate_record ignores fields absent from the target row type,
-  -- so this trigger function remains compatible with schemas lacking user_id.
-  NEW := jsonb_populate_record(NEW, jsonb_build_object('user_id', NEW.id));
+  -- Work through the row's JSON representation so schemas without user_id
+  -- remain compatible. Preserve any established non-null legacy mapping.
+  IF (to_jsonb(NEW) ->> 'user_id') IS NULL THEN
+    NEW := jsonb_populate_record(NEW, jsonb_build_object('user_id', NEW.id));
+  END IF;
   RETURN NEW;
 END;
 $$;
