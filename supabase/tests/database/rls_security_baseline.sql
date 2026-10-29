@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(17);
+select plan(20);
 
 -- Core application tables must keep RLS enabled.
 select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles'), 'profiles RLS enabled');
@@ -39,6 +39,16 @@ select ok(exists (select 1 from pg_policies where schemaname='public' and tablen
 select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='content_comments_insert_own' and cmd='INSERT' and with_check LIKE '%auth.uid%'), 'comment insert is bound to authenticated author');
 select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='content_comments_delete_own' and cmd='DELETE' and qual LIKE '%auth.uid%'), 'comment deletion is limited to its author');
 select ok(has_table_privilege('authenticated', 'public.content_comments', 'INSERT') and has_table_privilege('authenticated', 'public.content_comments', 'SELECT'), 'authenticated role has required comment table privileges');
+
+
+-- Public creator profiles use a restricted view rather than opening the private profiles table.
+select ok(to_regclass('public.public_profiles') IS NOT NULL, 'public profile view exists');
+select ok(
+  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='public_profiles' AND column_name='display_name')
+  AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='public_profiles' AND column_name IN ('gender','date_of_birth','user_id')),
+  'public profile view exposes public fields only'
+);
+select ok(has_table_privilege('anon', 'public.public_profiles', 'SELECT') AND has_table_privilege('authenticated', 'public.public_profiles', 'SELECT'), 'public profile view is readable without exposing the base table');
 
 select * from finish();
 rollback;
