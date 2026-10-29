@@ -18,7 +18,7 @@ select ok(exists (select 1 from pg_policies where schemaname='public' and tablen
 
 -- The app creates profiles directly with id = auth.uid(); guard this path.
 select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_owner_insert' and cmd='INSERT'), 'authenticated profile creation policy exists');
-select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_owner_insert' and cmd='INSERT' and with_check LIKE '%auth.uid%' and with_check LIKE '%id%'), 'profile insert policy binds created row to authenticated identity');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_owner_insert' and cmd='INSERT' and with_check LIKE '%current_profile_id%' and with_check LIKE '%id%'), 'profile insert policy binds created row to authenticated identity');
 select ok(
   NOT EXISTS (select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='user_id')
   OR EXISTS (select 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles' and t.tgname='manox_sync_profile_auth_identity_trg' and NOT t.tgisinternal),
@@ -35,9 +35,9 @@ select ok(
 
 -- Feed comments must be usable by signed-in users without opening write access to others.
 select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='content_comments'), 'content_comments RLS enabled');
-select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='content_comments_visible_read' and cmd='SELECT'), 'visible comments SELECT policy exists');
-select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='content_comments_insert_own' and cmd='INSERT' and with_check LIKE '%auth.uid%'), 'comment insert is bound to authenticated author');
-select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='content_comments_delete_own' and cmd='DELETE' and qual LIKE '%auth.uid%'), 'comment deletion is limited to its author');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='comments_access_read' and cmd='SELECT'), 'comment reads are policy-scoped');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='comments_user_insert' and cmd='INSERT' and with_check LIKE '%auth.uid%'), 'comment insert is bound to the signed-in profile');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='comments_user_delete' and cmd='DELETE' and qual LIKE '%current_profile_id%'), 'comment deletion is limited to its author');
 select ok(has_table_privilege('authenticated', 'public.content_comments', 'INSERT') and has_table_privilege('authenticated', 'public.content_comments', 'SELECT'), 'authenticated role has required comment table privileges');
 
 
