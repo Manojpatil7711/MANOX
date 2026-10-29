@@ -2,9 +2,9 @@ name: Supabase Database Tests
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, 'feat/**', 'test/**']
   pull_request:
-    branches: [main, master]
+    branches: [main, master, 'feat/**', 'test/**']
   workflow_dispatch:
 
 permissions:

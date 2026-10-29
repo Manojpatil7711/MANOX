@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(8);
+select plan(20);
 
 -- Core application tables must keep RLS enabled.
 select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles'), 'profiles RLS enabled');
@@ -15,6 +15,40 @@ select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.
 select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_owner_select' and cmd='SELECT'), 'profiles owner SELECT policy exists');
 select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='posts' and policyname='posts_select_owner_or_public' and cmd='SELECT'), 'posts owner/public SELECT policy exists');
 select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='notifications' and policyname='notifications_select_owner' and cmd='SELECT'), 'notifications owner SELECT policy exists');
+
+-- The app creates profiles directly with id = auth.uid(); guard this path.
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_owner_insert' and cmd='INSERT'), 'authenticated profile creation policy exists');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_owner_insert' and cmd='INSERT' and with_check LIKE '%auth.uid%' and with_check LIKE '%id%'), 'profile insert policy binds created row to authenticated identity');
+select ok(
+  NOT EXISTS (select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='user_id')
+  OR EXISTS (select 1 from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles' and t.tgname='manox_sync_profile_auth_identity_trg' and NOT t.tgisinternal),
+  'legacy user_id schema has auth identity sync trigger'
+);
+
+-- Signup must not regress to random profile UUIDs on a clean migration replay.
+select ok(
+  position('INSERT INTO public.profiles (id, user_id, username, display_name)' in pg_get_functiondef('private.handle_new_user()'::regprocedure)) > 0
+  AND position('INSERT INTO public.profiles (id, username, display_name)' in pg_get_functiondef('private.handle_new_user()'::regprocedure)) > 0,
+  'auth signup creates profiles with auth UUID as profile id across both schema variants'
+);
+
+
+-- Feed comments must be usable by signed-in users without opening write access to others.
+select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='content_comments'), 'content_comments RLS enabled');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='comments_access_read' and cmd='SELECT'), 'comment reads are policy-scoped');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='comments_user_insert' and cmd='INSERT' and with_check LIKE '%auth.uid%'), 'comment insert is bound to the signed-in profile');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='comments_user_delete' and cmd='DELETE' and qual LIKE '%current_profile_id%'), 'comment deletion is limited to its author');
+select ok(has_table_privilege('authenticated', 'public.content_comments', 'INSERT') and has_table_privilege('authenticated', 'public.content_comments', 'SELECT'), 'authenticated role has required comment table privileges');
+
+
+-- Public creator profiles use a restricted view rather than opening the private profiles table.
+select ok(to_regclass('public.public_profiles') IS NOT NULL, 'public profile view exists');
+select ok(
+  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='public_profiles' AND column_name='display_name')
+  AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='public_profiles' AND column_name IN ('gender','date_of_birth','user_id')),
+  'public profile view exposes public fields only'
+);
+select ok(has_table_privilege('anon', 'public.public_profiles', 'SELECT') AND has_table_privilege('authenticated', 'public.public_profiles', 'SELECT'), 'public profile view is readable without exposing the base table');
 
 select * from finish();
 rollback;

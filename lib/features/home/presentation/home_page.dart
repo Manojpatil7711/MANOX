@@ -171,10 +171,9 @@ class _HomePageState extends State<HomePage> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(child: _topBar()),
-              SliverToBoxAdapter(child: _creatorDiscovery(theme)),
-              SliverToBoxAdapter(child: _safetyHub(theme)),
               SliverToBoxAdapter(child: _feedTabs(theme)),
               SliverToBoxAdapter(child: _composer(theme)),
+              SliverToBoxAdapter(child: _creatorDiscovery(theme)),
               SliverToBoxAdapter(child: _sectionHeader(theme)),
               if (_loadingFeed)
                 SliverToBoxAdapter(child: _feedSkeleton(theme))
@@ -355,52 +354,30 @@ class _HomePageState extends State<HomePage> {
       ('Trending', Icons.local_fire_department_rounded, '/trending'),
       ('Beats', Icons.auto_awesome_rounded, '/beats'),
       ('Learn', Icons.school_rounded, '/learn'),
+      ('Safety', Icons.emergency_outlined, '/women-safety'),
+      ('Kids', Icons.child_care_rounded, '/kids-home'),
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-      child: Row(
-        children: [
-          for (var index = 0; index < items.length; index++) ...[
-            Expanded(
-              child: _QuickAction(
-                icon: items[index].$2,
-                label: items[index].$1,
-                onTap: () => context.push(items[index].$3),
-              ),
-            ),
-            if (index != items.length - 1) const SizedBox(width: 10),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _safetyHub(ThemeData theme) {
-    return Padding(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SafetyCard(
-              color: theme.colorScheme.errorContainer,
-              icon: Icons.emergency_outlined,
-              title: 'Women Safety',
-              subtitle: 'Safety tools',
-              onTap: () => context.push('/women-safety'),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _SafetyCard(
-              color: theme.colorScheme.tertiaryContainer,
-              icon: Icons.child_care_rounded,
-              title: 'Kids Space',
-              subtitle: 'Protected mode',
-              onTap: () => context.push('/kids-home'),
-            ),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: [
+            for (var index = 0; index < items.length; index++) ...[
+              SizedBox(
+                width: 112,
+                child: _QuickAction(
+                  icon: items[index].$2,
+                  label: items[index].$1,
+                  onTap: () => context.push(items[index].$3),
+                ),
+              ),
+              if (index != items.length - 1) const SizedBox(width: 8),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -537,52 +514,6 @@ class _QuickAction extends StatelessWidget {
               Icon(icon, size: 19),
               const SizedBox(width: 7),
               Flexible(child: Text(label, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800))),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SafetyCard extends StatelessWidget {
-  final Color color;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _SafetyCard({
-    required this.color,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: color,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Icon(icon, size: 24),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: const TextStyle(fontSize: 11)),
-                  ],
-                ),
-              ),
             ],
           ),
         ),

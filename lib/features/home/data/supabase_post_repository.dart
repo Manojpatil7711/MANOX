@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/supabase_service.dart';
+import 'media_signature_validator.dart';
 
 class ManoxPost { final String id,creatorName,handle,text; final int likes,comments; final String? imageUrl,avatarUrl,ownerUserId; final String contentType; final DateTime createdAt; final bool likedByMe,savedByMe,allowComments,allowDownloads; ManoxPost({required this.id,required this.creatorName,required this.handle,required this.text,required this.likes,required this.comments,required this.likedByMe,required this.savedByMe,this.imageUrl,this.avatarUrl,this.contentType='post',this.ownerUserId,DateTime? createdAt,this.allowComments=true,this.allowDownloads=true}) : createdAt = createdAt ?? DateTime(1970); }
 class ManoxComment { final String id,userName,body; final DateTime createdAt; const ManoxComment({required this.id,required this.userName,required this.body,required this.createdAt}); }
@@ -17,13 +19,36 @@ class SupabasePostRepository {
   };
   SupabaseClient get _client { final client=SupabaseService.client; if(client==null)throw StateError('MANOX backend is not configured.'); return client; }
   String get _userId { final id=_client.auth.currentUser?.id; if(id==null)throw StateError('Please sign in first.'); return id; }
+  Future<void> _ensureCurrentProfile() async {
+    final existing = await _client
+        .from('profiles')
+        .select('id')
+        .eq('id', _userId)
+        .maybeSingle();
+    if (existing != null) return;
+    try {
+      await _client.from('profiles').insert({
+        'id': _userId,
+        'username': 'user_${_userId.substring(0, 8)}',
+        'display_name': 'MANOX User',
+      });
+    } on PostgrestException catch (error) {
+      if (error.code != '23505') rethrow;
+      final racedInsert = await _client
+          .from('profiles')
+          .select('id')
+          .eq('id', _userId)
+          .maybeSingle();
+      if (racedInsert == null) rethrow;
+    }
+  }
   Future<bool> isOwner(String contentId) async { final row=await _client.from('contents').select('owner_user_id').eq('id',contentId).maybeSingle(); return row!=null&&row['owner_user_id']==_userId; }
   Future<bool> isSaved(String contentId) async { final row=await _client.from('saved_contents').select('content_id').eq('profile_id',_userId).eq('content_id',contentId).maybeSingle(); return row!=null; }
   Future<bool> isFollowing(String followeeId) async { final target=followeeId.trim(); if(target.isEmpty||target==_userId)return false; final row=await _client.from('profile_follows').select('follower_id').eq('follower_id',_userId).eq('following_id',target).maybeSingle(); return row!=null; }
-  Future<bool> toggleFollow(String followeeId,{required bool currentlyFollowing}) async { final target=followeeId.trim(); if(target.isEmpty)throw ArgumentError('Follow target is required.'); if(target==_userId)throw StateError('You cannot follow yourself.'); if(currentlyFollowing){await _client.from('profile_follows').delete().eq('follower_id',_userId).eq('following_id',target);return false;} await _client.from('profile_follows').insert({'follower_id':_userId,'following_id':target}); return true; }
+  Future<bool> toggleFollow(String followeeId,{required bool currentlyFollowing}) async { await _ensureCurrentProfile(); final target=followeeId.trim(); if(target.isEmpty)throw ArgumentError('Follow target is required.'); if(target==_userId)throw StateError('You cannot follow yourself.'); if(currentlyFollowing){await _client.from('profile_follows').delete().eq('follower_id',_userId).eq('following_id',target);return false;} await _client.from('profile_follows').insert({'follower_id':_userId,'following_id':target}); return true; }
   Future<int> followerCount(String userId) async { final rows=await _client.from('profile_follows').select('follower_id').eq('following_id',userId.trim()); return (rows as List).length; }
   Future<int> followingCount(String userId) async { final rows=await _client.from('profile_follows').select('follower_id').eq('follower_id',userId.trim()); return (rows as List).length; }
-  Future<void> saveContent(String contentId,{String folderName='Watch later'}) async { if(!{'Watch later','Important','Helpful'}.contains(folderName))throw ArgumentError('Invalid save folder.'); await _client.from('saved_contents').upsert({'profile_id':_userId,'content_id':contentId,'folder_name':folderName},onConflict:'profile_id,content_id'); }
+  Future<void> saveContent(String contentId,{String folderName='Watch later'}) async { await _ensureCurrentProfile(); if(!{'Watch later','Important','Helpful'}.contains(folderName))throw ArgumentError('Invalid save folder.'); await _client.from('saved_contents').upsert({'profile_id':_userId,'content_id':contentId,'folder_name':folderName},onConflict:'profile_id,content_id'); }
   Future<void> unsaveContent(String contentId) async=>_client.from('saved_contents').delete().eq('profile_id',_userId).eq('content_id',contentId);
   Future<List<ManoxSavedItem>> fetchSavedItems({String? folderName}) async { var q=_client.from('saved_contents').select('content_id,folder_name,created_at').eq('profile_id',_userId); if(folderName!=null)q=q.eq('folder_name',folderName); final rows=await q.order('created_at',ascending:false); return(rows as List).map((r)=>ManoxSavedItem(contentId:r['content_id'] as String,folderName:r['folder_name'] as String,createdAt:DateTime.parse(r['created_at'] as String))).toList(); }
   Future<Set<String>> _fetchSavedIdsForContent(List rows) async { final contentIds=rows.map((row)=>(row['id'] as String)).toSet().toList(); if(contentIds.isEmpty)return <String>{}; final savedRows=await _client.from('saved_contents').select('content_id').eq('profile_id',_userId).inFilter('content_id',contentIds); return (savedRows as List).map((row)=>row['content_id'] as String).toSet(); }
@@ -74,8 +99,52 @@ class SupabasePostRepository {
   Future<List<ManoxPost>> fetchKidsContent({String? category}) async {var q=_client.from('contents').select(_contentSelect).eq('status','published').eq('audience_category','kids_15_plus');if(category!=null&&category.isNotEmpty)q=q.eq('kids_category',category);final rows=await q.order('published_at',ascending:false,nullsFirst:false).order('created_at',ascending:false).limit(50);return _mapRows(rows as List);}
   Future<List<ManoxPost>> fetchMyPosts() async=>fetchPostsByOwner(_userId);
   Future<List<ManoxPost>> fetchPostsByOwner(String ownerUserId) async {final rows=await _client.from('contents').select(_contentSelect).eq('owner_user_id',ownerUserId).eq('status','published').eq('audience_category','general').order('created_at',ascending:false).limit(50);return _mapRows(rows as List);}
-  Future<String?> uploadImage(Uint8List bytes,String extension,String? mimeType) async { final ext=extension.toLowerCase().replaceAll('.',''); final expected=_imageMimeByExtension[ext]; if(expected==null)throw ArgumentError('Unsupported image format. Use JPG, PNG, WEBP or GIF.'); if(bytes.isEmpty)throw StateError('Selected image is empty.'); if(bytes.length>_maxImageBytes)throw ArgumentError('Image must be 10 MB or smaller.'); if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Image MIME type does not match its file extension.'); return _uploadMedia(bytes,ext,expected,_maxImageBytes); }
-  Future<String?> uploadVideo(Uint8List bytes,String extension,String? mimeType) async { final ext=extension.toLowerCase().replaceAll('.',''); final expected=_videoMimeByExtension[ext]; if(expected==null)throw ArgumentError('Unsupported video format. Use MP4, MOV, M4V, WEBM or 3GP.'); if(bytes.isEmpty)throw StateError('Selected video is empty.'); if(bytes.length>_maxVideoBytes)throw ArgumentError('Video must be 50 MB or smaller.'); if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Video MIME type does not match its file extension.'); return _uploadMedia(bytes,ext,expected,_maxVideoBytes); }
+  Future<String?> uploadImage(Uint8List bytes,String extension,String? mimeType) async {
+    final ext=extension.toLowerCase().replaceAll('.','');
+    final expected=_imageMimeByExtension[ext];
+    if(expected==null)throw ArgumentError('Unsupported image format. Use JPG, PNG, WEBP or GIF.');
+    if(bytes.isEmpty)throw StateError('Selected image is empty.');
+    if(bytes.length>_maxImageBytes)throw ArgumentError('Image must be 10 MB or smaller.');
+    if(!MediaSignatureValidator.hasImageSignature(bytes,ext))throw ArgumentError('Image content does not match a supported image format.');
+    if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Image MIME type does not match its file extension.');
+    return _uploadMedia(bytes,ext,expected,_maxImageBytes);
+  }
+
+  Future<String?> uploadVideo(Uint8List bytes,String extension,String? mimeType) async {
+    final ext=extension.toLowerCase().replaceAll('.','');
+    final expected=_videoMimeByExtension[ext];
+    if(expected==null)throw ArgumentError('Unsupported video format. Use MP4, MOV, M4V, WEBM or 3GP.');
+    if(bytes.isEmpty)throw StateError('Selected video is empty.');
+    if(bytes.length>_maxVideoBytes)throw ArgumentError('Video must be 50 MB or smaller.');
+    if(!MediaSignatureValidator.hasVideoSignature(bytes,ext))throw ArgumentError('Video content does not match a supported video format.');
+    if(mimeType!=null&&mimeType.isNotEmpty&&mimeType.toLowerCase()!=expected)throw ArgumentError('Video MIME type does not match its file extension.');
+    return _uploadMedia(bytes,ext,expected,_maxVideoBytes);
+  }
+  String _detectUploadedExtension(Uint8List bytes, String fallback) {
+    if (bytes.length >= 12 &&
+        bytes[4] == 0x66 && bytes[5] == 0x74 &&
+        bytes[6] == 0x79 && bytes[7] == 0x70) {
+      final brand = String.fromCharCodes(bytes.sublist(8, 12)).trim();
+      if (brand == 'qt') return 'mov';
+      if (brand.startsWith('3gp')) return '3gp';
+      if (brand.startsWith('M4V')) return 'm4v';
+      return 'mp4';
+    }
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x1A && bytes[1] == 0x45 &&
+        bytes[2] == 0xDF && bytes[3] == 0xA3) return 'webm';
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return 'jpg';
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 && bytes[1] == 0x50 &&
+        bytes[2] == 0x4E && bytes[3] == 0x47) return 'png';
+    if (bytes.length >= 6 &&
+        String.fromCharCodes(bytes.sublist(0, 3)) == 'GIF') return 'gif';
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') return 'webp';
+    return fallback;
+  }
   Future<String?> _uploadMedia(Uint8List bytes,String extension,String mimeType,int maxBytes) async {if(bytes.isEmpty)throw StateError('Selected media is empty.');if(bytes.length>maxBytes)throw ArgumentError('Selected media exceeds the allowed size.');final path='$_userId/${DateTime.now().microsecondsSinceEpoch}.$extension';await _client.storage.from('manox-media').uploadBinary(path,bytes,fileOptions:FileOptions(contentType:mimeType,upsert:false,cacheControl:'3600'));return path;}
   Future<bool> hasCurrentLegalConsent() async {
     final rows = await _client.from('legal_consents').select('policy_type, policy_version').eq('user_id', _userId);
@@ -95,12 +164,14 @@ class SupabasePostRepository {
   }
 
   Future<void> reportContent(String contentId, String reason, {String? details}) async {
+    await _ensureCurrentProfile();
     await _client.from('content_reports').insert({
       'content_id': contentId, 'reporter_id': _userId, 'reason_code': reason, 'details': details,
     });
   }
 
   Future<void> reportProfile(String profileId, String reason, {String? details}) async {
+    await _ensureCurrentProfile();
     if (profileId == _userId) throw StateError('You cannot report yourself.');
     await _client.from('profile_reports').insert({
       'profile_id': profileId, 'reporter_id': _userId, 'reason_code': reason, 'details': details,
@@ -108,6 +179,7 @@ class SupabasePostRepository {
   }
 
   Future<void> blockUser(String profileId) async {
+    await _ensureCurrentProfile();
     if (profileId == _userId) throw StateError('You cannot block yourself.');
     await _client.from('user_blocks').upsert({'blocker_id': _userId, 'blocked_id': profileId}, onConflict: 'blocker_id,blocked_id');
   }
@@ -118,29 +190,93 @@ class SupabasePostRepository {
     final audience=audienceCategory=='kids_15_plus'?'kids_15_plus':'general';
     if(audience=='kids_15_plus'&&(kidsCategory==null||kidsCategory.trim().isEmpty))throw StateError('Select a Kids category before publishing.');
     if(!await hasCurrentLegalConsent())throw StateError('Accept Terms, Privacy Policy and Community Guidelines before posting.');
+    await _ensureCurrentProfile();
     final safeVisibility={'public','followers','private'}.contains(visibility)?visibility:'public';
-    final row=await _client.from('contents').insert({
-      'owner_user_id':_userId,'content_type':type,'description':text,'media_url':imagePath,
-      'media_urls':imagePath==null?<String>[]:<String>[imagePath],'status':'draft','visibility':safeVisibility,
-      'audience_category':audience,'creator_skill':creatorSkill,'kids_category':audience=='kids_15_plus'?kidsCategory:null,
-      'allow_comments':allowComments,'allow_downloads':allowDownloads,
-    }).select('id').single();
-    final id=row['id'] as String;
-    final publishResult = await _client.rpc('publish_content_secure', params:{'p_content_id':id});
-    if (publishResult != true) throw StateError('Post could not be published. Please try again.');
-    final post=await _client.from('contents').select(_contentSelect).eq('id',id).single();
-    final profile=post['profiles'] as Map<String,dynamic>?;
-    final urls=post['media_urls'] as List?;
-    final username=(profile?['username'] as String?)??'you';
-    return ManoxPost(id:id,creatorName:(profile?['display_name'] as String?)??'You',handle:'@'+username.replaceFirst(RegExp(r'^@+'), ''),text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,createdAt:DateTime.tryParse((post['created_at'] as String?)??'')??DateTime.now(),imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
+
+    // The picker returns a device-local path. Upload its bytes first; never save
+    // a local /data/user/... path into a row that other devices must render.
+    String? uploadedPath;
+    if(imagePath!=null) {
+      final file=File(imagePath);
+      if(!await file.exists())throw StateError('Selected media file is no longer available. Please choose it again.');
+      final bytes=await file.readAsBytes();
+      final originalExtension=imagePath.split('.').last.toLowerCase();
+      final extension = _detectUploadedExtension(bytes, originalExtension);
+      final videoExtensions={'mp4','mov','m4v','webm','3gp'};
+      final isVideo=type=='video'||type=='beat'||videoExtensions.contains(extension);
+      uploadedPath=isVideo
+          ? await uploadVideo(bytes,extension,_videoMimeByExtension[extension])
+          : await uploadImage(bytes,extension,_imageMimeByExtension[extension]);
+      if(uploadedPath==null||uploadedPath.isEmpty)throw StateError('Media upload failed. Please try again.');
+    }
+
+    String? contentId;
+    var published = false;
+    try {
+      final row=await _client.from('contents').insert({
+        'owner_user_id':_userId,'content_type':type,'description':text,'media_url':uploadedPath,
+        'media_urls':uploadedPath==null?<String>[]:<String>[uploadedPath],'status':'draft','visibility':safeVisibility,
+        'audience_category':audience,'creator_skill':creatorSkill,'kids_category':audience=='kids_15_plus'?kidsCategory:null,
+        'allow_comments':allowComments,'allow_downloads':allowDownloads,
+      }).select('id').single();
+      contentId=row['id'] as String;
+      final publishResult = await _client.rpc('publish_content_secure', params:{'p_content_id':contentId});
+      if (publishResult != true) throw StateError('Post could not be published. Please try again.');
+      published = true;
+      // Publication is already committed at this point. A transient failure in
+      // the follow-up read must not tell the user that publishing failed,
+      // because that can lead to accidental duplicate posts on retry.
+      try {
+        final post=await _client.from('contents').select(_contentSelect).eq('id',contentId).single();
+        final profile=post['profiles'] as Map<String,dynamic>?;
+        final urls=post['media_urls'] as List?;
+        final username=(profile?['username'] as String?)??'you';
+        return ManoxPost(id:contentId,creatorName:(profile?['display_name'] as String?)??'You',handle:'@'+username.replaceFirst(RegExp(r'^@+'), ''),text:(post['description'] as String?)??'',likes:0,comments:0,likedByMe:false,savedByMe:false,contentType:(post['content_type'] as String?)??type,createdAt:DateTime.tryParse((post['created_at'] as String?)??'')??DateTime.now(),imageUrl:urls?.isNotEmpty==true?urls!.first as String:post['media_url'] as String?,avatarUrl:profile?['avatar_url'] as String?,ownerUserId:post['owner_user_id'] as String?,allowComments:(post['allow_comments'] as bool?)??allowComments,allowDownloads:(post['allow_downloads'] as bool?)??allowDownloads);
+      } catch (_) {
+        return ManoxPost(
+          id: contentId,
+          creatorName: 'You',
+          handle: '@you',
+          text: text,
+          likes: 0,
+          comments: 0,
+          likedByMe: false,
+          savedByMe: false,
+          contentType: type,
+          createdAt: DateTime.now(),
+          imageUrl: uploadedPath,
+          ownerUserId: _userId,
+          allowComments: allowComments,
+          allowDownloads: allowDownloads,
+        );
+      }
+    } catch (_) {
+      // Only clean up when publication did not succeed. A failed follow-up
+      // read must never delete media from a post that is already published.
+      if (!published) {
+        if (contentId != null) {
+          try {
+            await _client.from('contents').delete()
+                .eq('id', contentId)
+                .eq('owner_user_id', _userId);
+          } catch (_) {}
+        }
+        if (uploadedPath != null) {
+          try {
+            await _client.storage.from('manox-media').remove([uploadedPath]);
+          } catch (_) {}
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<void> updatePost(String contentId,String text) async=>_client.from('contents').update({'description':text.trim(),'updated_at':DateTime.now().toIso8601String()}).eq('id',contentId).eq('owner_user_id',_userId);
   Future<void> deletePost(String contentId) async=>_client.from('contents').delete().eq('id',contentId).eq('owner_user_id',_userId);
-  Future<void> toggleLike(String contentId,bool currentlyLiked) async {if(currentlyLiked){await _client.from('content_likes').delete().eq('content_id',contentId).eq('user_id',_userId);return;}await _client.from('content_likes').insert({'content_id':contentId,'user_id':_userId});}
+  Future<void> toggleLike(String contentId,bool currentlyLiked) async {await _ensureCurrentProfile();if(currentlyLiked){await _client.from('content_likes').delete().eq('content_id',contentId).eq('user_id',_userId);return;}await _client.from('content_likes').insert({'content_id':contentId,'user_id':_userId});}
   Future<List<ManoxComment>> fetchComments(String contentId,{int limit=50}) async {final safeLimit=limit.clamp(1,100);final rows=await _client.from('content_comments').select('id, body, created_at, profiles!content_comments_user_id_fkey(display_name)').eq('content_id',contentId).eq('status','visible').order('created_at',ascending:false).limit(safeLimit);return(rows as List).map((row){final profile=row['profiles'] as Map<String,dynamic>?;return ManoxComment(id:row['id'] as String,userName:(profile?['display_name'] as String?)??'MANOX User',body:row['body'] as String,createdAt:DateTime.parse(row['created_at'] as String));}).toList().reversed.toList();}
-  Future<void> addComment(String contentId,String body) async {final trimmed=body.trim();if(trimmed.isEmpty)return;if(trimmed.length>1000)throw ArgumentError('Comment must be 1000 characters or fewer.');await _client.from('content_comments').insert({'content_id':contentId,'user_id':_userId,'body':trimmed,'status':'visible','created_at':DateTime.now().toIso8601String(),'updated_at':DateTime.now().toIso8601String()});}
-  Future<void> recordShare(String contentId,{String target='system'}) async=>_client.from('content_shares').insert({'content_id':contentId,'profile_id':_userId,'share_target':target});
+  Future<void> addComment(String contentId,String body) async {await _ensureCurrentProfile();final trimmed=body.trim();if(trimmed.isEmpty)return;if(trimmed.length>1000)throw ArgumentError('Comment must be 1000 characters or fewer.');await _client.from('content_comments').insert({'content_id':contentId,'user_id':_userId,'body':trimmed,'status':'visible','created_at':DateTime.now().toIso8601String(),'updated_at':DateTime.now().toIso8601String()});}
+  Future<void> recordShare(String contentId,{String target='system'}) async { await _ensureCurrentProfile(); await _client.from('content_shares').insert({'content_id':contentId,'profile_id':_userId,'share_target':target}); }
   Future<String> createShareUrl(String contentId) async=>'https://manox.app/content/$contentId';
   Future<String?> signedMediaUrl(String path) async {if(path.startsWith('http://')||path.startsWith('https://'))return path;return _client.storage.from('manox-media').createSignedUrl(path,60*60);}
 }
