@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(17);
 
 -- Core application tables must keep RLS enabled.
 select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='profiles'), 'profiles RLS enabled');
@@ -31,6 +31,14 @@ select ok(
   AND position('INSERT INTO public.profiles (id, username, display_name)' in pg_get_functiondef('private.handle_new_user()'::regprocedure)) > 0,
   'auth signup creates profiles with auth UUID as profile id across both schema variants'
 );
+
+
+-- Feed comments must be usable by signed-in users without opening write access to others.
+select ok((select relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='content_comments'), 'content_comments RLS enabled');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='content_comments_visible_read' and cmd='SELECT'), 'visible comments SELECT policy exists');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='content_comments_insert_own' and cmd='INSERT' and with_check LIKE '%auth.uid%'), 'comment insert is bound to authenticated author');
+select ok(exists (select 1 from pg_policies where schemaname='public' and tablename='content_comments' and policyname='content_comments_delete_own' and cmd='DELETE' and qual LIKE '%auth.uid%'), 'comment deletion is limited to its author');
+select ok(has_table_privilege('authenticated', 'public.content_comments', 'INSERT') and has_table_privilege('authenticated', 'public.content_comments', 'SELECT'), 'authenticated role has required comment table privileges');
 
 select * from finish();
 rollback;
